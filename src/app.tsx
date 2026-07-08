@@ -22,11 +22,13 @@ import {
   keymap,
   lineNumberMarkers,
   lineNumbers,
+  placeholder,
   type DecorationSet,
 } from '@codemirror/view'
 import { indentWithTab } from '@codemirror/commands'
 import { tags } from '@lezer/highlight'
 import { domToBlob } from 'modern-screenshot'
+import { getStroke } from 'perfect-freehand'
 
 type HighlightLanguage =
   | 'bash'
@@ -68,8 +70,27 @@ const languageOptions: LanguageOption[] = [
 
 const backgroundOptions = [
   { id: 'yellow', label: 'Wasp yellow', value: '#f5c842' },
+  {
+    id: 'wasp-glow',
+    label: 'Wasp glow',
+    value: 'radial-gradient(circle at 28% 20%, #fff0a3 0%, #f5c842 42%, #d39b20 100%)',
+  },
+  {
+    id: 'wasp-ink',
+    label: 'Wasp ink',
+    value: 'linear-gradient(135deg, #17120a 0%, #2c230e 48%, #f5c842 100%)',
+  },
+  {
+    id: 'purple-sting',
+    label: 'Purple sting',
+    value: 'linear-gradient(135deg, #211a33 0%, #5f45a8 52%, #f5c842 100%)',
+  },
+  {
+    id: 'teal-complement',
+    label: 'Teal complement',
+    value: 'linear-gradient(135deg, #103737 0%, #1e806f 52%, #f5c842 100%)',
+  },
   { id: 'paper', label: 'Warm paper', value: '#f7f5f0' },
-  { id: 'purple', label: 'Deep purple', value: '#292435' },
   { id: 'charcoal', label: 'Charcoal', value: '#111111' },
 ]
 
@@ -174,7 +195,12 @@ const waspHighlightStyle = HighlightStyle.define([
     fontWeight: '700',
   },
   {
-    tag: [tags.function(tags.variableName), tags.className, tags.typeName, tags.standard(tags.name)],
+    tag: [
+      tags.function(tags.variableName),
+      tags.className,
+      tags.typeName,
+      tags.standard(tags.name),
+    ],
     color: '#333333',
     fontWeight: '700',
   },
@@ -247,6 +273,38 @@ const formatHighlightedLines = (lines: Set<number>) => {
   return `Highlighted lines: ${previewLines}${overflow} (${sortedLines.length} lines)`
 }
 
+const penStrokeOptions = {
+  size: 6,
+  thinning: 0.6,
+  smoothing: 0.5,
+  streamline: 0.5,
+}
+
+const average = (a: number, b: number) => (a + b) / 2
+
+const getSvgPathFromStroke = (points: number[][]) => {
+  const len = points.length
+
+  if (len < 4) return ''
+
+  let a = points[0]
+  let b = points[1]
+  const c = points[2]
+
+  let result = `M${a[0].toFixed(2)},${a[1].toFixed(2)} Q${b[0].toFixed(2)},${b[1].toFixed(2)} ${average(b[0], c[0]).toFixed(2)},${average(b[1], c[1]).toFixed(2)} T`
+
+  for (let i = 2, max = len - 1; i < max; i += 1) {
+    a = points[i]
+    b = points[i + 1]
+    result += `${average(a[0], b[0]).toFixed(2)},${average(a[1], b[1]).toFixed(2)} `
+  }
+
+  return `${result}Z`
+}
+
+const getPenStrokePath = (points: number[][]) =>
+  getSvgPathFromStroke(getStroke(points, penStrokeOptions))
+
 const downloadBlob = (blob: Blob) => {
   const link = document.createElement('a')
   const url = window.URL.createObjectURL(blob)
@@ -261,12 +319,9 @@ const shouldExportNode = (node: Node) => {
   if (!(node instanceof HTMLElement)) return true
 
   const className = String(node.className)
-  return ![
-    'cm-cursorLayer',
-    'cm-selectionLayer',
-    'cm-tooltip',
-    'cm-announced',
-  ].some((hiddenClass) => className.includes(hiddenClass))
+  return !['cm-cursorLayer', 'cm-selectionLayer', 'cm-tooltip', 'cm-announced'].some(
+    (hiddenClass) => className.includes(hiddenClass),
+  )
 }
 
 export function App() {
@@ -289,6 +344,12 @@ export function App() {
   const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set())
   const [exportAction, setExportAction] = useState<ExportAction>(null)
   const [message, setMessage] = useState('')
+  const [isPenActive, setIsPenActive] = useState(false)
+  const [penStrokes, setPenStrokes] = useState<number[][][]>([])
+  const activePenPointsRef = useRef<number[][] | null>(null)
+  const [, setPenTick] = useState(0)
+  const previewViewportRef = useRef<HTMLDivElement>(null)
+  const [previewScale, setPreviewScale] = useState(1)
 
   const selectedLanguage =
     languageOptions.find((option) => option.id === languageId) ?? languageOptions[0]
@@ -318,6 +379,32 @@ export function App() {
       editorView.dispatch({ effects: lineHighlightEffect.of(highlightedLines) })
     }
   }, [highlightedLines])
+
+  useEffect(() => {
+    if (!message) return
+
+    const timer = window.setTimeout(() => setMessage(''), 4000)
+    return () => window.clearTimeout(timer)
+  }, [message])
+
+  useEffect(() => {
+    const viewport = previewViewportRef.current
+    const frame = shotRef.current
+
+    if (!viewport || !frame) return
+
+    const updateScale = () => {
+      const availableWidth = viewport.clientWidth - 40
+      setPreviewScale(Math.min(1, availableWidth / frame.offsetWidth))
+    }
+
+    updateScale()
+    const observer = new ResizeObserver(updateScale)
+    observer.observe(viewport)
+    observer.observe(frame)
+
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (!editorHostRef.current) return
@@ -355,6 +442,7 @@ export function App() {
           syntaxHighlighting(waspHighlightStyle),
           EditorState.tabSize.of(2),
           EditorView.lineWrapping,
+          placeholder('Paste or type your code...'),
           EditorView.contentAttributes.of({
             'aria-label': 'Code editor',
             'aria-describedby': 'editor-help highlight-status',
@@ -369,14 +457,16 @@ export function App() {
                 mouseEvent.preventDefault()
                 const baseLines = new Set(highlightedLinesRef.current)
                 const anchorLine = mouseEvent.shiftKey
-                  ? lineSelectionAnchorRef.current ?? lineNumber
+                  ? (lineSelectionAnchorRef.current ?? lineNumber)
                   : lineNumber
 
                 lineSelectionAnchorRef.current = lineNumber
                 lineDragAnchorRef.current = anchorLine
                 lineDragBaseRef.current = baseLines
                 lineDragModeRef.current =
-                  !mouseEvent.shiftKey && highlightedLinesRef.current.has(lineNumber) ? 'remove' : 'add'
+                  !mouseEvent.shiftKey && highlightedLinesRef.current.has(lineNumber)
+                    ? 'remove'
+                    : 'add'
                 isDraggingLineRef.current = true
                 applyLineRange(anchorLine, lineNumber, lineDragModeRef.current, baseLines)
 
@@ -468,12 +558,58 @@ export function App() {
     setHighlightedLines(new Set())
   }
 
-  const renderPngBlob = () => {
-    if (!shotRef.current) return null
+  const getPenPoint = (event: PointerEvent) => {
+    const bounds = (event.currentTarget as SVGSVGElement).getBoundingClientRect()
+    return [
+      (event.clientX - bounds.left) / previewScale,
+      (event.clientY - bounds.top) / previewScale,
+      event.pressure,
+    ]
+  }
 
-    return domToBlob(shotRef.current, {
+  const startPenStroke = (event: PointerEvent) => {
+    event.preventDefault()
+    ;(event.currentTarget as SVGSVGElement).setPointerCapture(event.pointerId)
+    activePenPointsRef.current = [getPenPoint(event)]
+    setPenTick((tick) => tick + 1)
+  }
+
+  const extendPenStroke = (event: PointerEvent) => {
+    if (!activePenPointsRef.current || event.buttons !== 1) return
+
+    activePenPointsRef.current.push(getPenPoint(event))
+    setPenTick((tick) => tick + 1)
+  }
+
+  const endPenStroke = () => {
+    const points = activePenPointsRef.current
+
+    activePenPointsRef.current = null
+    if (points && points.length > 1) {
+      setPenStrokes((previousStrokes) => [...previousStrokes, points])
+    } else {
+      setPenTick((tick) => tick + 1)
+    }
+  }
+
+  const undoPenStroke = () => {
+    setPenStrokes((previousStrokes) => previousStrokes.slice(0, -1))
+  }
+
+  const clearPenStrokes = () => {
+    setPenStrokes([])
+  }
+
+  const renderPngBlob = () => {
+    const frame = shotRef.current
+
+    if (!frame) return null
+
+    return domToBlob(frame, {
       backgroundColor: null,
       scale: 2,
+      width: frame.offsetWidth,
+      height: frame.offsetHeight,
       filter: shouldExportNode,
     })
   }
@@ -491,9 +627,7 @@ export function App() {
         return
       }
 
-      await navigator.clipboard.write([
-        new ClipboardItem({ [blob.type || 'image/png']: blob }),
-      ])
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })])
       setMessage('Copied PNG to clipboard.')
     } catch {
       setMessage('Copy failed. Use Download PNG.')
@@ -521,171 +655,233 @@ export function App() {
 
   return (
     <main class="app-shell">
+      <h1 class="sr-only">Wasp code screenshot tool</h1>
       <section class="workspace" aria-label="Editable screenshot">
-        <div class="preview-viewport">
+        <div class="preview-viewport" ref={previewViewportRef}>
           <div class="preview-stage">
-            <div
-              ref={shotRef}
-              class="shot-frame"
-              style={{
-                background: selectedBackground.value,
-                padding: `${padding}px`,
-              }}
-            >
-              <div class="code-window" style={{ borderRadius: `${radius}px` }}>
-                {showChrome && (
-                  <div class="window-bar">
-                    <div class="window-dots" aria-hidden="true">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                    <span>{selectedLanguage.label}</span>
-                  </div>
-                )}
-                <div class="code-body">
-                  <div ref={editorHostRef} class="code-editor-host" />
+            <div class="stage-cluster">
+              <div class="shot-toolbar">
+                <div class="toolbar-group">
+                  <button
+                    class="pen-button pen-button-primary"
+                    type="button"
+                    onClick={copyPng}
+                    disabled={isExporting}
+                  >
+                    {isCopying ? 'Copying...' : 'Copy PNG'}
+                  </button>
+                  <button
+                    class="pen-button"
+                    type="button"
+                    onClick={downloadPng}
+                    disabled={isExporting}
+                  >
+                    {isDownloading ? 'Downloading...' : 'Download PNG'}
+                  </button>
+                  <span id="export-status" class="toolbar-status" role="status" aria-live="polite">
+                    {message}
+                  </span>
+                </div>
+                <div class="toolbar-group">
+                  {penStrokes.length > 0 && (
+                    <>
+                      <button class="pen-button" type="button" onClick={undoPenStroke}>
+                        <svg class="pen-icon" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M9 14 4 9l5-5" />
+                          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+                        </svg>
+                        Undo
+                      </button>
+                      <button class="pen-button" type="button" onClick={clearPenStrokes}>
+                        <svg class="pen-icon" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M18 6 6 18" />
+                          <path d="m6 6 12 12" />
+                        </svg>
+                        Clear
+                      </button>
+                    </>
+                  )}
+                  <button
+                    class={isPenActive ? 'pen-button pen-button-active' : 'pen-button'}
+                    type="button"
+                    aria-pressed={isPenActive}
+                    onClick={() => setIsPenActive((active) => !active)}
+                  >
+                    <svg class="pen-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                    {isPenActive ? 'Drawing' : 'Draw'}
+                  </button>
                 </div>
               </div>
+              <div style={previewScale < 1 ? { zoom: previewScale } : undefined}>
+                <div
+                  ref={shotRef}
+                  class="shot-frame"
+                  style={{
+                    background: selectedBackground.value,
+                    padding: `${padding}px`,
+                  }}
+                >
+                  <div class="code-window" style={{ borderRadius: `${radius}px` }}>
+                    {showChrome && (
+                      <div class="window-bar">
+                        <div class="window-dots" aria-hidden="true">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </div>
+                        <span>{selectedLanguage.label}</span>
+                      </div>
+                    )}
+                    <div class="code-body">
+                      <div ref={editorHostRef} class="code-editor-host" />
+                    </div>
+                  </div>
+                  {(isPenActive || penStrokes.length > 0) && (
+                    <svg
+                      class={isPenActive ? 'draw-layer draw-layer-active' : 'draw-layer'}
+                      aria-hidden="true"
+                      onPointerDown={isPenActive ? startPenStroke : undefined}
+                      onPointerMove={isPenActive ? extendPenStroke : undefined}
+                      onPointerUp={isPenActive ? endPenStroke : undefined}
+                      onPointerCancel={isPenActive ? endPenStroke : undefined}
+                    >
+                      {penStrokes.map((strokePoints, index) => (
+                        <path key={index} d={getPenStrokePath(strokePoints)} />
+                      ))}
+                      {activePenPointsRef.current && (
+                        <path d={getPenStrokePath(activePenPointsRef.current)} />
+                      )}
+                    </svg>
+                  )}
+                </div>
+              </div>
+
+              <p id="editor-help" class="editor-help">
+                Edit or paste code. Click line numbers to highlight. Shift-click or drag for ranges.
+                Toggle Draw to sketch on top.
+              </p>
             </div>
           </div>
         </div>
 
         <div class="control-panel" aria-label="Screenshot controls">
-          <p id="editor-help" class="editor-help">
-            Edit or paste code. Click line numbers to highlight. Shift-click or drag for ranges.
-          </p>
-
           <div class="control-groups">
-            <fieldset class="control-group look-group">
-              <legend>Look</legend>
+            <details class="control-group" open>
+              <summary class="control-summary">
+                <span class="control-title">Look</span>
+              </summary>
+              <div class="control-content look-content">
+                <label class="toolbar-field" htmlFor="syntax">
+                  <span>Syntax</span>
+                  <select
+                    id="syntax"
+                    name="syntax"
+                    value={languageId}
+                    onInput={(event) =>
+                      setLanguageId((event.currentTarget as HTMLSelectElement).value)
+                    }
+                  >
+                    {languageOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label class="toolbar-field" htmlFor="syntax">
-                <span>Syntax</span>
-                <select
-                  id="syntax"
-                  name="syntax"
-                  value={languageId}
-                  onInput={(event) =>
-                    setLanguageId((event.currentTarget as HTMLSelectElement).value)
-                  }
+                <label class="toolbar-field" htmlFor="background">
+                  <span>Background</span>
+                  <select
+                    id="background"
+                    name="background"
+                    value={backgroundId}
+                    onInput={(event) =>
+                      setBackgroundId((event.currentTarget as HTMLSelectElement).value)
+                    }
+                  >
+                    {backgroundOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label class="toolbar-field compact-field" htmlFor="background-padding">
+                  <span>Padding</span>
+                  <select
+                    id="background-padding"
+                    name="background-padding"
+                    value={String(padding)}
+                    onInput={(event) =>
+                      setPadding(Number((event.currentTarget as HTMLSelectElement).value))
+                    }
+                  >
+                    {paddingOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {value}px
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label class="toolbar-field compact-field" htmlFor="corner-radius">
+                  <span>Corner radius</span>
+                  <select
+                    id="corner-radius"
+                    name="corner-radius"
+                    value={String(radius)}
+                    onInput={(event) =>
+                      setRadius(Number((event.currentTarget as HTMLSelectElement).value))
+                    }
+                  >
+                    {radiusOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {value}px
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label class="toolbar-toggle" htmlFor="show-window-bar">
+                  <input
+                    id="show-window-bar"
+                    name="show-window-bar"
+                    type="checkbox"
+                    checked={showChrome}
+                    onInput={(event) =>
+                      setShowChrome((event.currentTarget as HTMLInputElement).checked)
+                    }
+                  />
+                  <span>Show window bar</span>
+                </label>
+              </div>
+            </details>
+
+            <details class="control-group">
+              <summary class="control-summary">
+                <span class="control-title">Highlights</span>
+                <span id="highlight-status" class="highlight-status" aria-live="polite">
+                  {highlightedLineStatus}
+                </span>
+              </summary>
+              <div class="control-content">
+                <button class="secondary-button" type="button" onClick={highlightCurrentLine}>
+                  Highlight current line
+                </button>
+                <button
+                  class="secondary-button"
+                  type="button"
+                  onClick={clearHighlights}
+                  disabled={selectedLineCount === 0}
                 >
-                  {languageOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label class="toolbar-field" htmlFor="canvas">
-                <span>Canvas</span>
-                <select
-                  id="canvas"
-                  name="canvas"
-                  value={backgroundId}
-                  onInput={(event) =>
-                    setBackgroundId((event.currentTarget as HTMLSelectElement).value)
-                  }
-                >
-                  {backgroundOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label class="toolbar-field compact-field" htmlFor="canvas-padding">
-                <span>Canvas padding</span>
-                <select
-                  id="canvas-padding"
-                  name="canvas-padding"
-                  value={String(padding)}
-                  onInput={(event) =>
-                    setPadding(Number((event.currentTarget as HTMLSelectElement).value))
-                  }
-                >
-                  {paddingOptions.map((value) => (
-                    <option key={value} value={value}>
-                      {value}px
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label class="toolbar-field compact-field" htmlFor="corner-radius">
-                <span>Corner radius</span>
-                <select
-                  id="corner-radius"
-                  name="corner-radius"
-                  value={String(radius)}
-                  onInput={(event) =>
-                    setRadius(Number((event.currentTarget as HTMLSelectElement).value))
-                  }
-                >
-                  {radiusOptions.map((value) => (
-                    <option key={value} value={value}>
-                      {value}px
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label class="toolbar-toggle" htmlFor="show-window-bar">
-                <input
-                  id="show-window-bar"
-                  name="show-window-bar"
-                  type="checkbox"
-                  checked={showChrome}
-                  onInput={(event) =>
-                    setShowChrome((event.currentTarget as HTMLInputElement).checked)
-                  }
-                />
-                <span>Show window bar</span>
-              </label>
-            </fieldset>
-
-            <fieldset class="control-group highlight-group">
-              <legend>Highlights</legend>
-              <p id="highlight-status" class="highlight-status" role="status" aria-live="polite">
-                {highlightedLineStatus}
-              </p>
-              <button class="secondary-button" type="button" onClick={highlightCurrentLine}>
-                Highlight current line
-              </button>
-              <button
-                class="secondary-button"
-                type="button"
-                onClick={clearHighlights}
-                disabled={selectedLineCount === 0}
-              >
-                Clear highlights
-              </button>
-            </fieldset>
-
-            <fieldset class="control-group export-group">
-              <legend>Export</legend>
-              <button
-                class="export-button"
-                type="button"
-                onClick={copyPng}
-                disabled={isExporting}
-              >
-                {isCopying ? 'Copying...' : 'Copy PNG'}
-              </button>
-              <button
-                class="secondary-button"
-                type="button"
-                onClick={downloadPng}
-                disabled={isExporting}
-              >
-                {isDownloading ? 'Downloading...' : 'Download PNG'}
-              </button>
-              <span id="export-status" class="toolbar-status" role="status" aria-live="polite">
-                {message}
-              </span>
-            </fieldset>
+                  Clear highlights
+                </button>
+              </div>
+            </details>
           </div>
         </div>
       </section>

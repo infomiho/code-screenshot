@@ -22,6 +22,7 @@
     "@lezer/highlight": "^1.2.3",
     "codemirror": "^6.0.2",
     "modern-screenshot": "^4.7.0",
+    "perfect-freehand": "^1.2.3",
     "preact": "^10.29.3"
   },
   "devDependencies": {
