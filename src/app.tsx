@@ -101,6 +101,56 @@ const insertAtSelection = (
 ) =>
   value.slice(0, selectionStart) + insertion + value.slice(selectionEnd)
 
+const parseHighlightedLines = (value: string) => {
+  const lines = new Set<number>()
+
+  for (const part of value.split(',')) {
+    const trimmedPart = part.trim()
+    if (!trimmedPart) continue
+
+    const [startValue, endValue = startValue] = trimmedPart.split('-')
+    const start = Number(startValue)
+    const end = Number(endValue)
+
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < 1) {
+      continue
+    }
+
+    const firstLine = Math.min(start, end)
+    const lastLine = Math.min(Math.max(start, end), 9999)
+
+    for (let line = firstLine; line <= lastLine; line += 1) {
+      lines.add(line)
+    }
+  }
+
+  return lines
+}
+
+const addLineHighlights = (html: string, highlightedLines: Set<number>) => {
+  if (highlightedLines.size === 0) return html
+
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  const lines = document.querySelectorAll('.line')
+
+  lines.forEach((line, index) => {
+    if (highlightedLines.has(index + 1)) {
+      line.classList.add('highlighted-line')
+    }
+  })
+
+  return document.body.innerHTML
+}
+
+const toPlainCodeHtml = (value: string, highlightedLines: Set<number>) => {
+  const lines = (value || ' ').split('\n')
+  const codeHtml = lines
+    .map((line) => `<span class="line">${escapeHtml(line) || ' '}</span>`)
+    .join('')
+
+  return addLineHighlights(`<pre class="shiki"><code>${codeHtml}</code></pre>`, highlightedLines)
+}
+
 const getInitialCode = () => {
   try {
     return window.localStorage.getItem(codeStorageKey) ?? defaultCode
@@ -117,6 +167,7 @@ export function App() {
   const [padding, setPadding] = useState(48)
   const [radius, setRadius] = useState(12)
   const [showChrome, setShowChrome] = useState(true)
+  const [highlightedLinesInput, setHighlightedLinesInput] = useState('')
   const [highlightedCode, setHighlightedCode] = useState('')
   const [isHighlighting, setIsHighlighting] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
@@ -137,6 +188,7 @@ export function App() {
 
   useEffect(() => {
     let isCurrent = true
+    const highlightedLines = parseHighlightedLines(highlightedLinesInput)
     setIsHighlighting(true)
 
     codeToHtml(code || ' ', {
@@ -145,13 +197,13 @@ export function App() {
     })
       .then((html) => {
         if (isCurrent) {
-          setHighlightedCode(html)
+          setHighlightedCode(addLineHighlights(html, highlightedLines))
           setMessage('')
         }
       })
       .catch(() => {
         if (isCurrent) {
-          setHighlightedCode(`<pre class="shiki"><code>${escapeHtml(code)}</code></pre>`)
+          setHighlightedCode(toPlainCodeHtml(code, highlightedLines))
           setMessage('Highlighting failed. Showing escaped plain text.')
         }
       })
@@ -164,7 +216,7 @@ export function App() {
     return () => {
       isCurrent = false
     }
-  }, [code, selectedLanguage.lang])
+  }, [code, highlightedLinesInput, selectedLanguage.lang])
 
   const exportPng = async () => {
     if (!shotRef.current) return
@@ -257,6 +309,19 @@ export function App() {
                 </option>
               ))}
             </select>
+          </label>
+
+          <label class="toolbar-field line-field">
+            <span>Highlight</span>
+            <input
+              class="line-input"
+              inputMode="numeric"
+              placeholder="1,4-6"
+              value={highlightedLinesInput}
+              onInput={(event) =>
+                setHighlightedLinesInput((event.currentTarget as HTMLInputElement).value)
+              }
+            />
           </label>
 
           <label class="toolbar-toggle">

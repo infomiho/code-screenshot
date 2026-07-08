@@ -91,14 +91,20 @@ input:focus-visible {
   width: 88px;
 }
 
+.line-field input {
+  width: 108px;
+}
+
 select,
-button {
+button,
+.line-input {
   min-height: 36px;
   border: 1px solid #3b3423;
   border-radius: 0;
 }
 
-select {
+select,
+.line-input {
   width: 144px;
   background: var(--control);
   color: var(--text);
@@ -239,6 +245,18 @@ select {
   font-family: inherit;
 }
 
+.highlight-layer .line {
+  display: block;
+  min-height: 1.75em;
+  margin: 0 -12px;
+  padding: 0 12px;
+}
+
+.highlight-layer .highlighted-line {
+  background: rgba(245, 200, 66, 0.2);
+  box-shadow: inset 3px 0 0 #f5c842;
+}
+
 .screenshot-editor {
   position: absolute;
   inset: 0;
@@ -288,6 +306,7 @@ select {
 
   .toolbar-field,
   .toolbar-field select,
+  .line-field input,
   .export-button {
     width: 100%;
   }
