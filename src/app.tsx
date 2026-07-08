@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { domToPng } from 'modern-screenshot'
+import { domToBlob } from 'modern-screenshot'
 import { createBundledHighlighter, createSingletonShorthands } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import { waspShikiTheme } from './waspShikiTheme'
@@ -151,6 +151,16 @@ const toPlainCodeHtml = (value: string, highlightedLines: Set<number>) => {
   return addLineHighlights(`<pre class="shiki"><code>${codeHtml}</code></pre>`, highlightedLines)
 }
 
+const downloadBlob = (blob: Blob) => {
+  const link = document.createElement('a')
+  const url = window.URL.createObjectURL(blob)
+
+  link.download = 'wasp-code-screenshot.png'
+  link.href = url
+  link.click()
+  window.URL.revokeObjectURL(url)
+}
+
 const getInitialCode = () => {
   try {
     return window.localStorage.getItem(codeStorageKey) ?? defaultCode
@@ -167,6 +177,7 @@ export function App() {
   const [padding, setPadding] = useState(48)
   const [radius, setRadius] = useState(12)
   const [showChrome, setShowChrome] = useState(true)
+  const [shouldDownload, setShouldDownload] = useState(false)
   const [highlightedLinesInput, setHighlightedLinesInput] = useState('')
   const [highlightedCode, setHighlightedCode] = useState('')
   const [isHighlighting, setIsHighlighting] = useState(true)
@@ -218,26 +229,38 @@ export function App() {
     }
   }, [code, highlightedLinesInput, selectedLanguage.lang])
 
-  const exportPng = async () => {
+  const copyPng = async () => {
     if (!shotRef.current) return
 
     setIsExporting(true)
     setMessage('')
 
     try {
-      const dataUrl = await domToPng(shotRef.current, {
+      const blob = await domToBlob(shotRef.current, {
         backgroundColor: null,
         scale: 2,
         filter: (node) =>
           !(node instanceof HTMLElement && node.dataset.exportHidden === 'true'),
       })
-      const link = document.createElement('a')
-      link.download = 'wasp-code-screenshot.png'
-      link.href = dataUrl
-      link.click()
-      setMessage('PNG exported.')
+
+      if (!navigator.clipboard || !window.ClipboardItem) {
+        downloadBlob(blob)
+        setMessage('Clipboard unavailable. Downloaded PNG.')
+        return
+      }
+
+      await navigator.clipboard.write([
+        new ClipboardItem({ [blob.type || 'image/png']: blob }),
+      ])
+
+      if (shouldDownload) {
+        downloadBlob(blob)
+        setMessage('Copied and downloaded.')
+      } else {
+        setMessage('Copied PNG.')
+      }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Export failed.')
+      setMessage(error instanceof Error ? error.message : 'Copy failed.')
     } finally {
       setIsExporting(false)
     }
@@ -335,15 +358,26 @@ export function App() {
             <span>Chrome</span>
           </label>
 
+          <label class="toolbar-toggle">
+            <input
+              type="checkbox"
+              checked={shouldDownload}
+              onInput={(event) =>
+                setShouldDownload((event.currentTarget as HTMLInputElement).checked)
+              }
+            />
+            <span>Download</span>
+          </label>
+
           {message && <span class="toolbar-status">{message}</span>}
 
           <button
             class="export-button"
             type="button"
-            onClick={exportPng}
+            onClick={copyPng}
             disabled={isExporting || isHighlighting}
           >
-            {isExporting ? 'Exporting...' : 'Export PNG'}
+            {isExporting ? 'Copying...' : 'Copy PNG'}
           </button>
         </div>
       </header>
@@ -357,10 +391,9 @@ export function App() {
               style={{
                 background: selectedBackground.value,
                 padding: `${padding}px`,
-                borderRadius: `${radius}px`,
               }}
             >
-              <div class="code-window">
+              <div class="code-window" style={{ borderRadius: `${radius}px` }}>
                 {showChrome && (
                   <div class="window-bar">
                     <div class="window-dots" aria-hidden="true">
