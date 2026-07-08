@@ -9,9 +9,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.11",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/view": "^6.43.6",
+    "@lezer/highlight": "^1.2.3",
+    "codemirror": "^6.0.2",
     "modern-screenshot": "^4.7.0",
-    "preact": "^10.29.3",
-    "shiki": "^4.3.1"
+    "preact": "^10.29.3"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.5",
