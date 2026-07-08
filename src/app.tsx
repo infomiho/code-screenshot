@@ -195,11 +195,6 @@ export function App() {
   return (
     <main class="app-shell">
       <header class="toolbar" aria-label="Wasp Shot controls">
-        <a class="brand" href="https://wasp.sh" target="_blank" rel="noreferrer" aria-label="Wasp">
-          <span class="brand-mark">W</span>
-          <span>Wasp Shot</span>
-        </a>
-
         <div class="toolbar-controls">
           <label class="toolbar-field">
             <span>Language</span>
@@ -290,63 +285,65 @@ export function App() {
           </div>
 
           <div class="preview-viewport">
-            <div
-              ref={shotRef}
-              class="shot-frame"
-              style={{
-                background: selectedBackground.value,
-                padding: `${padding}px`,
-                borderRadius: `${radius}px`,
-              }}
-            >
-              <div class="code-window">
-                {showChrome && (
-                  <div class="window-bar">
-                    <div class="window-dots" aria-hidden="true">
-                      <span></span>
-                      <span></span>
-                      <span></span>
+            <div class="preview-stage">
+              <div
+                ref={shotRef}
+                class="shot-frame"
+                style={{
+                  background: selectedBackground.value,
+                  padding: `${padding}px`,
+                  borderRadius: `${radius}px`,
+                }}
+              >
+                <div class="code-window">
+                  {showChrome && (
+                    <div class="window-bar">
+                      <div class="window-dots" aria-hidden="true">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                      <span>{selectedLanguage.label}</span>
+                      <strong>wasp</strong>
                     </div>
-                    <span>{selectedLanguage.label}</span>
-                    <strong>wasp</strong>
-                  </div>
-                )}
-                <div class="code-body">
-                  <div class="editable-code-layer">
-                    <div
-                      class="highlight-layer"
-                      aria-hidden="true"
-                      dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                    />
-                    <textarea
-                      class="screenshot-editor"
-                      aria-label="Code"
-                      data-export-hidden="true"
-                      spellcheck={false}
-                      wrap="off"
-                      value={code}
-                      onInput={(event) =>
-                        setCode((event.currentTarget as HTMLTextAreaElement).value)
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Tab') return
+                  )}
+                  <div class="code-body">
+                    <div class="editable-code-layer">
+                      <div
+                        class="highlight-layer"
+                        aria-hidden="true"
+                        dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                      />
+                      <textarea
+                        class="screenshot-editor"
+                        aria-label="Code"
+                        data-export-hidden="true"
+                        spellcheck={false}
+                        wrap="off"
+                        value={code}
+                        onInput={(event) =>
+                          setCode((event.currentTarget as HTMLTextAreaElement).value)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Tab') return
 
-                        event.preventDefault()
-                        const textarea = event.currentTarget as HTMLTextAreaElement
-                        const nextCode = insertAtSelection(
-                          code,
-                          textarea.selectionStart,
-                          textarea.selectionEnd,
-                          '  ',
-                        )
-                        const nextCursor = textarea.selectionStart + 2
-                        setCode(nextCode)
-                        requestAnimationFrame(() => {
-                          textarea.selectionStart = nextCursor
-                          textarea.selectionEnd = nextCursor
-                        })
-                      }}
-                    />
+                          event.preventDefault()
+                          const textarea = event.currentTarget as HTMLTextAreaElement
+                          const nextCode = insertAtSelection(
+                            code,
+                            textarea.selectionStart,
+                            textarea.selectionEnd,
+                            '  ',
+                          )
+                          const nextCursor = textarea.selectionStart + 2
+                          setCode(nextCode)
+                          requestAnimationFrame(() => {
+                            textarea.selectionStart = nextCursor
+                            textarea.selectionEnd = nextCursor
+                          })
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

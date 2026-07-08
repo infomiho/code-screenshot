@@ -57,7 +57,6 @@ input:focus-visible {
 
 .toolbar,
 .toolbar-controls,
-.brand,
 .toolbar-field,
 .toolbar-toggle,
 .pane-header,
@@ -69,36 +68,15 @@ input:focus-visible {
 
 .toolbar {
   min-height: 56px;
-  gap: 14px;
+  justify-content: center;
   border: 1px solid var(--panel-border);
   background: var(--panel);
   padding: 8px;
 }
 
-.brand {
-  flex: 0 0 auto;
-  gap: 8px;
-  color: var(--text);
-  font-weight: 700;
-  text-decoration: none;
-  padding: 0 8px 0 2px;
-}
-
-.brand-mark {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  background: var(--wasp-yellow);
-  color: var(--bg);
-  font-family: var(--mono);
-  font-size: 14px;
-}
-
 .toolbar-controls {
-  flex: 1;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -191,6 +169,13 @@ select {
   overflow: auto;
   min-height: 0;
   background: #0d0c0a;
+}
+
+.preview-stage {
+  display: grid;
+  min-width: max-content;
+  min-height: 100%;
+  place-items: center;
   padding: 18px;
 }
 
