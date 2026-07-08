@@ -48,6 +48,7 @@ const backgroundOptions = [
 
 const paddingOptions = [32, 48, 64, 80]
 const radiusOptions = [0, 12, 24, 36]
+const codeStorageKey = 'wasp-shot:last-code'
 
 const createHighlighter = createBundledHighlighter({
   langs: {
@@ -92,13 +93,29 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
 
+const insertAtSelection = (
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  insertion: string,
+) =>
+  value.slice(0, selectionStart) + insertion + value.slice(selectionEnd)
+
+const getInitialCode = () => {
+  try {
+    return window.localStorage.getItem(codeStorageKey) ?? defaultCode
+  } catch {
+    return defaultCode
+  }
+}
+
 export function App() {
   const shotRef = useRef<HTMLDivElement>(null)
-  const [code, setCode] = useState(defaultCode)
+  const [code, setCode] = useState(getInitialCode)
   const [languageId, setLanguageId] = useState('typescript')
   const [backgroundId, setBackgroundId] = useState('yellow')
-  const [padding, setPadding] = useState(64)
-  const [radius, setRadius] = useState(24)
+  const [padding, setPadding] = useState(48)
+  const [radius, setRadius] = useState(12)
   const [showChrome, setShowChrome] = useState(true)
   const [highlightedCode, setHighlightedCode] = useState('')
   const [isHighlighting, setIsHighlighting] = useState(true)
@@ -110,6 +127,14 @@ export function App() {
   const selectedBackground =
     backgroundOptions.find((option) => option.id === backgroundId) ?? backgroundOptions[0]
   const lineCount = code.length === 0 ? 0 : code.split('\n').length
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(codeStorageKey, code)
+    } catch {
+      return
+    }
+  }, [code])
 
   useEffect(() => {
     let isCurrent = true
@@ -152,6 +177,8 @@ export function App() {
       const dataUrl = await domToPng(shotRef.current, {
         backgroundColor: null,
         scale: 2,
+        filter: (node) =>
+          !(node instanceof HTMLElement && node.dataset.exportHidden === 'true'),
       })
       const link = document.createElement('a')
       link.download = 'wasp-code-screenshot.png'
@@ -167,93 +194,78 @@ export function App() {
 
   return (
     <main class="app-shell">
-      <header class="topbar" aria-label="Wasp Shot">
-        <a class="brand" href="https://wasp.sh" target="_blank" rel="noreferrer">
+      <header class="toolbar" aria-label="Wasp Shot controls">
+        <a class="brand" href="https://wasp.sh" target="_blank" rel="noreferrer" aria-label="Wasp">
           <span class="brand-mark">W</span>
           <span>Wasp Shot</span>
         </a>
-        <p>Paste code. Export a clean Wasp-flavored PNG.</p>
-      </header>
 
-      <section class="hero-panel" aria-labelledby="page-title">
-        <div>
-          <p class="eyebrow">Code screenshots</p>
-          <h1 id="page-title">Wasp-styled code images.</h1>
-        </div>
-        <button class="export-button" type="button" onClick={exportPng} disabled={isExporting}>
-          {isExporting ? 'Exporting...' : 'Export PNG'}
-        </button>
-      </section>
+        <div class="toolbar-controls">
+          <label class="toolbar-field">
+            <span>Language</span>
+            <select
+              value={languageId}
+              onInput={(event) =>
+                setLanguageId((event.currentTarget as HTMLSelectElement).value)
+              }
+            >
+              {languageOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      <section class="workspace" aria-label="Code screenshot builder">
-        <aside class="panel controls-panel">
-          <div class="control-grid">
-            <label class="control-field">
-              <span>Language</span>
-              <select
-                value={languageId}
-                onInput={(event) =>
-                  setLanguageId((event.currentTarget as HTMLSelectElement).value)
-                }
-              >
-                {languageOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <label class="toolbar-field">
+            <span>Background</span>
+            <select
+              value={backgroundId}
+              onInput={(event) =>
+                setBackgroundId((event.currentTarget as HTMLSelectElement).value)
+              }
+            >
+              {backgroundOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <label class="control-field">
-              <span>Background</span>
-              <select
-                value={backgroundId}
-                onInput={(event) =>
-                  setBackgroundId((event.currentTarget as HTMLSelectElement).value)
-                }
-              >
-                {backgroundOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <label class="toolbar-field compact-field">
+            <span>Padding</span>
+            <select
+              value={String(padding)}
+              onInput={(event) =>
+                setPadding(Number((event.currentTarget as HTMLSelectElement).value))
+              }
+            >
+              {paddingOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}px
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <label class="control-field">
-              <span>Padding</span>
-              <select
-                value={String(padding)}
-                onInput={(event) =>
-                  setPadding(Number((event.currentTarget as HTMLSelectElement).value))
-                }
-              >
-                {paddingOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {value}px
-                  </option>
-                ))}
-              </select>
-            </label>
+          <label class="toolbar-field compact-field">
+            <span>Radius</span>
+            <select
+              value={String(radius)}
+              onInput={(event) =>
+                setRadius(Number((event.currentTarget as HTMLSelectElement).value))
+              }
+            >
+              {radiusOptions.map((value) => (
+                <option key={value} value={value}>
+                  {value}px
+                </option>
+              ))}
+            </select>
+          </label>
 
-            <label class="control-field">
-              <span>Radius</span>
-              <select
-                value={String(radius)}
-                onInput={(event) =>
-                  setRadius(Number((event.currentTarget as HTMLSelectElement).value))
-                }
-              >
-                {radiusOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {value}px
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <label class="toggle-field">
+          <label class="toolbar-toggle">
             <input
               type="checkbox"
               checked={showChrome}
@@ -261,32 +273,20 @@ export function App() {
                 setShowChrome((event.currentTarget as HTMLInputElement).checked)
               }
             />
-            <span>Show window chrome</span>
+            <span>Chrome</span>
           </label>
 
-          <label class="code-editor-field">
-            <span>Code</span>
-            <textarea
-              spellcheck={false}
-              value={code}
-              onInput={(event) => setCode((event.currentTarget as HTMLTextAreaElement).value)}
-            />
-          </label>
+          <button class="export-button" type="button" onClick={exportPng} disabled={isExporting}>
+            {isExporting ? 'Exporting...' : 'Export PNG'}
+          </button>
+        </div>
+      </header>
 
-          <div class="panel-footer">
-            <span>{lineCount} lines</span>
+      <section class="workspace" aria-label="Editable screenshot">
+        <section class="panel screenshot-panel">
+          <div class="pane-header">
             <span>{isHighlighting ? 'Highlighting...' : selectedLanguage.label}</span>
-          </div>
-          {message && <p class="status-message">{message}</p>}
-        </aside>
-
-        <section class="panel preview-panel" aria-label="Screenshot preview">
-          <div class="preview-header">
-            <div>
-              <p class="eyebrow">Preview</p>
-              <h2>Export frame</h2>
-            </div>
-            <span class="size-label">860px</span>
+            <span>{lineCount} lines</span>
           </div>
 
           <div class="preview-viewport">
@@ -311,12 +311,51 @@ export function App() {
                     <strong>wasp</strong>
                   </div>
                 )}
-                <div
-                  class="code-body"
-                  dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                />
+                <div class="code-body">
+                  <div class="editable-code-layer">
+                    <div
+                      class="highlight-layer"
+                      aria-hidden="true"
+                      dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                    />
+                    <textarea
+                      class="screenshot-editor"
+                      aria-label="Code"
+                      data-export-hidden="true"
+                      spellcheck={false}
+                      wrap="off"
+                      value={code}
+                      onInput={(event) =>
+                        setCode((event.currentTarget as HTMLTextAreaElement).value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Tab') return
+
+                        event.preventDefault()
+                        const textarea = event.currentTarget as HTMLTextAreaElement
+                        const nextCode = insertAtSelection(
+                          code,
+                          textarea.selectionStart,
+                          textarea.selectionEnd,
+                          '  ',
+                        )
+                        const nextCursor = textarea.selectionStart + 2
+                        setCode(nextCode)
+                        requestAnimationFrame(() => {
+                          textarea.selectionStart = nextCursor
+                          textarea.selectionEnd = nextCursor
+                        })
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+
+          <div class="status-bar">
+            <span>Click the code frame and type.</span>
+            {message && <span>{message}</span>}
           </div>
         </section>
       </section>
