@@ -275,9 +275,10 @@ const formatHighlightedLines = (lines: Set<number>) => {
 
 const penStrokeOptions = {
   size: 6,
-  thinning: 0.6,
-  smoothing: 0.5,
-  streamline: 0.5,
+  thinning: 0,
+  smoothing: 0.8,
+  streamline: 0.7,
+  simulatePressure: false,
 }
 
 const average = (a: number, b: number) => (a + b) / 2
@@ -304,6 +305,58 @@ const getSvgPathFromStroke = (points: number[][]) => {
 
 const getPenStrokePath = (points: number[][]) =>
   getSvgPathFromStroke(getStroke(points, penStrokeOptions))
+
+const cornerTurnCosine = Math.cos((65 * Math.PI) / 180)
+
+const findPenCorners = (points: number[][]) => {
+  const corners = new Set<number>()
+
+  for (let i = 2; i < points.length - 2; i += 1) {
+    const v1x = points[i][0] - points[i - 2][0]
+    const v1y = points[i][1] - points[i - 2][1]
+    const v2x = points[i + 2][0] - points[i][0]
+    const v2y = points[i + 2][1] - points[i][1]
+    const l1 = Math.hypot(v1x, v1y)
+    const l2 = Math.hypot(v2x, v2y)
+
+    if (l1 < 1 || l2 < 1) continue
+
+    if ((v1x * v2x + v1y * v2y) / (l1 * l2) < cornerTurnCosine) {
+      corners.add(i)
+    }
+  }
+
+  return corners
+}
+
+const smoothPenPoints = (points: number[][], passes = 3) => {
+  if (points.length < 5) return points
+
+  const anchors = findPenCorners(points)
+  const halfWindow = Math.min(4, Math.floor(points.length / 4))
+  let smoothed = points
+
+  for (let pass = 0; pass < passes; pass += 1) {
+    smoothed = smoothed.map((point, index, all) => {
+      if (index === 0 || index === all.length - 1 || anchors.has(index)) return point
+
+      const start = Math.max(0, index - halfWindow)
+      const end = Math.min(all.length - 1, index + halfWindow)
+      let sumX = 0
+      let sumY = 0
+
+      for (let i = start; i <= end; i += 1) {
+        sumX += all[i][0]
+        sumY += all[i][1]
+      }
+
+      const count = end - start + 1
+      return [sumX / count, sumY / count, point[2]]
+    })
+  }
+
+  return smoothed
+}
 
 const downloadBlob = (blob: Blob) => {
   const link = document.createElement('a')
@@ -586,7 +639,7 @@ export function App() {
 
     activePenPointsRef.current = null
     if (points && points.length > 1) {
-      setPenStrokes((previousStrokes) => [...previousStrokes, points])
+      setPenStrokes((previousStrokes) => [...previousStrokes, smoothPenPoints(points)])
     } else {
       setPenTick((tick) => tick + 1)
     }
