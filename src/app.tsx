@@ -48,6 +48,9 @@ type LanguageOption = {
   lang: LanguageValue
 }
 
+type LineDragMode = 'add' | 'remove'
+type ExportAction = 'copy' | 'download' | null
+
 const languageOptions: LanguageOption[] = [
   { id: 'typescript', label: 'TypeScript', lang: 'typescript' },
   { id: 'wasp', label: 'Wasp', lang: 'typescript' },
@@ -224,11 +227,31 @@ const buildLineRange = (firstLine: number, lastLine: number) => {
   return selectedLines
 }
 
+const formatHighlightedLines = (lines: Set<number>) => {
+  const sortedLines = [...lines].sort((a, b) => a - b)
+
+  if (sortedLines.length === 0) return 'Highlighted lines: none'
+  if (sortedLines.length === 1) return `Highlighted line: ${sortedLines[0]}`
+
+  const isContiguous = sortedLines.every(
+    (lineNumber, index) => index === 0 || lineNumber === sortedLines[index - 1] + 1,
+  )
+
+  if (isContiguous) {
+    return `Highlighted lines: ${sortedLines[0]}-${sortedLines[sortedLines.length - 1]} (${sortedLines.length} lines)`
+  }
+
+  const previewLines = sortedLines.slice(0, 4).join(', ')
+  const overflow = sortedLines.length > 4 ? `, +${sortedLines.length - 4} more` : ''
+
+  return `Highlighted lines: ${previewLines}${overflow} (${sortedLines.length} lines)`
+}
+
 const downloadBlob = (blob: Blob) => {
   const link = document.createElement('a')
   const url = window.URL.createObjectURL(blob)
 
-  link.download = 'wasp-code-screenshot.png'
+  link.download = 'code-screenshot.png'
   link.href = url
   link.click()
   window.setTimeout(() => window.URL.revokeObjectURL(url), 0)
@@ -254,6 +277,8 @@ export function App() {
   const highlightedLinesRef = useRef(new Set<number>())
   const lineSelectionAnchorRef = useRef<number | null>(null)
   const lineDragAnchorRef = useRef<number | null>(null)
+  const lineDragBaseRef = useRef<Set<number> | null>(null)
+  const lineDragModeRef = useRef<LineDragMode>('add')
   const isDraggingLineRef = useRef(false)
   const [code, setCode] = useState(getInitialCode)
   const [languageId, setLanguageId] = useState('typescript')
@@ -262,7 +287,7 @@ export function App() {
   const [radius, setRadius] = useState(12)
   const [showChrome, setShowChrome] = useState(true)
   const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set())
-  const [isExporting, setIsExporting] = useState(false)
+  const [exportAction, setExportAction] = useState<ExportAction>(null)
   const [message, setMessage] = useState('')
 
   const selectedLanguage =
@@ -270,6 +295,10 @@ export function App() {
   const selectedBackground =
     backgroundOptions.find((option) => option.id === backgroundId) ?? backgroundOptions[0]
   const selectedLineCount = highlightedLines.size
+  const highlightedLineStatus = formatHighlightedLines(highlightedLines)
+  const isCopying = exportAction === 'copy'
+  const isDownloading = exportAction === 'download'
+  const isExporting = exportAction !== null
 
   codeRef.current = code
   highlightedLinesRef.current = highlightedLines
@@ -293,8 +322,27 @@ export function App() {
   useEffect(() => {
     if (!editorHostRef.current) return
 
-    const selectLineRange = (firstLine: number, lastLine: number) => {
-      setHighlightedLines(buildLineRange(firstLine, lastLine))
+    const applyLineRange = (
+      firstLine: number,
+      lastLine: number,
+      mode: LineDragMode,
+      baseLines: Set<number>,
+    ) => {
+      const lineRange = buildLineRange(firstLine, lastLine)
+
+      setHighlightedLines(() => {
+        const nextLines = new Set(baseLines)
+
+        for (const lineNumber of lineRange) {
+          if (mode === 'add') {
+            nextLines.add(lineNumber)
+          } else {
+            nextLines.delete(lineNumber)
+          }
+        }
+
+        return nextLines
+      })
     }
 
     const editorView = new EditorView({
@@ -307,6 +355,10 @@ export function App() {
           syntaxHighlighting(waspHighlightStyle),
           EditorState.tabSize.of(2),
           EditorView.lineWrapping,
+          EditorView.contentAttributes.of({
+            'aria-label': 'Code editor',
+            'aria-describedby': 'editor-help highlight-status',
+          }),
           keymap.of([indentWithTab]),
           lineNumbers({
             domEventHandlers: {
@@ -315,18 +367,25 @@ export function App() {
                 const lineNumber = view.state.doc.lineAt(line.from).number
 
                 mouseEvent.preventDefault()
-                lineSelectionAnchorRef.current = mouseEvent.shiftKey
+                const baseLines = new Set(highlightedLinesRef.current)
+                const anchorLine = mouseEvent.shiftKey
                   ? lineSelectionAnchorRef.current ?? lineNumber
                   : lineNumber
-                lineDragAnchorRef.current = lineSelectionAnchorRef.current
+
+                lineSelectionAnchorRef.current = lineNumber
+                lineDragAnchorRef.current = anchorLine
+                lineDragBaseRef.current = baseLines
+                lineDragModeRef.current =
+                  !mouseEvent.shiftKey && highlightedLinesRef.current.has(lineNumber) ? 'remove' : 'add'
                 isDraggingLineRef.current = true
-                selectLineRange(lineDragAnchorRef.current, lineNumber)
+                applyLineRange(anchorLine, lineNumber, lineDragModeRef.current, baseLines)
 
                 window.addEventListener(
                   'mouseup',
                   () => {
                     isDraggingLineRef.current = false
                     lineDragAnchorRef.current = null
+                    lineDragBaseRef.current = null
                   },
                   { once: true },
                 )
@@ -334,7 +393,11 @@ export function App() {
                 return true
               },
               mousemove: (view, line, event) => {
-                if (!isDraggingLineRef.current || lineDragAnchorRef.current == null) {
+                if (
+                  !isDraggingLineRef.current ||
+                  lineDragAnchorRef.current == null ||
+                  lineDragBaseRef.current == null
+                ) {
                   return false
                 }
 
@@ -342,7 +405,12 @@ export function App() {
                 const lineNumber = view.state.doc.lineAt(line.from).number
 
                 mouseEvent.preventDefault()
-                selectLineRange(lineDragAnchorRef.current, lineNumber)
+                applyLineRange(
+                  lineDragAnchorRef.current,
+                  lineNumber,
+                  lineDragModeRef.current,
+                  lineDragBaseRef.current,
+                )
                 return true
               },
             },
@@ -355,6 +423,13 @@ export function App() {
             const nextCode = update.state.doc.toString()
             codeRef.current = nextCode
             setCode(nextCode)
+            setHighlightedLines((previousLines) => {
+              const visibleLines = new Set(
+                [...previousLines].filter((lineNumber) => lineNumber <= update.state.doc.lines),
+              )
+
+              return visibleLines.size === previousLines.size ? previousLines : visibleLines
+            })
           }),
         ],
       }),
@@ -371,6 +446,28 @@ export function App() {
     }
   }, [selectedLanguage.lang])
 
+  const highlightCurrentLine = () => {
+    const editorView = editorViewRef.current
+
+    if (!editorView) return
+
+    const lineNumber = editorView.state.doc.lineAt(editorView.state.selection.main.head).number
+
+    lineSelectionAnchorRef.current = lineNumber
+    setHighlightedLines((previousLines) => {
+      if (previousLines.has(lineNumber)) return previousLines
+
+      const nextLines = new Set(previousLines)
+      nextLines.add(lineNumber)
+      return nextLines
+    })
+    editorView.focus()
+  }
+
+  const clearHighlights = () => {
+    setHighlightedLines(new Set())
+  }
+
   const renderPngBlob = () => {
     if (!shotRef.current) return null
 
@@ -382,7 +479,7 @@ export function App() {
   }
 
   const copyPng = async () => {
-    setIsExporting(true)
+    setExportAction('copy')
     setMessage('')
 
     try {
@@ -397,16 +494,16 @@ export function App() {
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type || 'image/png']: blob }),
       ])
-      setMessage('Copied PNG.')
+      setMessage('Copied PNG to clipboard.')
     } catch {
       setMessage('Copy failed. Use Download PNG.')
     } finally {
-      setIsExporting(false)
+      setExportAction(null)
     }
   }
 
   const downloadPng = async () => {
-    setIsExporting(true)
+    setExportAction('download')
     setMessage('')
 
     try {
@@ -418,7 +515,7 @@ export function App() {
     } catch {
       setMessage('Download failed.')
     } finally {
-      setIsExporting(false)
+      setExportAction(null)
     }
   }
 
@@ -451,115 +548,144 @@ export function App() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div class="toolbar" aria-label="Screenshot controls">
-              <div class="toolbar-controls">
-                <label class="toolbar-field">
-                  <span>Language</span>
-                  <select
-                    value={languageId}
-                    onInput={(event) =>
-                      setLanguageId((event.currentTarget as HTMLSelectElement).value)
-                    }
-                  >
-                    {languageOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+        <div class="control-panel" aria-label="Screenshot controls">
+          <p id="editor-help" class="editor-help">
+            Edit or paste code. Click line numbers to highlight. Shift-click or drag for ranges.
+          </p>
 
-                <label class="toolbar-field">
-                  <span>Background</span>
-                  <select
-                    value={backgroundId}
-                    onInput={(event) =>
-                      setBackgroundId((event.currentTarget as HTMLSelectElement).value)
-                    }
-                  >
-                    {backgroundOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+          <div class="control-groups">
+            <fieldset class="control-group look-group">
+              <legend>Look</legend>
 
-                <label class="toolbar-field compact-field">
-                  <span>Padding</span>
-                  <select
-                    value={String(padding)}
-                    onInput={(event) =>
-                      setPadding(Number((event.currentTarget as HTMLSelectElement).value))
-                    }
-                  >
-                    {paddingOptions.map((value) => (
-                      <option key={value} value={value}>
-                        {value}px
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label class="toolbar-field compact-field">
-                  <span>Radius</span>
-                  <select
-                    value={String(radius)}
-                    onInput={(event) =>
-                      setRadius(Number((event.currentTarget as HTMLSelectElement).value))
-                    }
-                  >
-                    {radiusOptions.map((value) => (
-                      <option key={value} value={value}>
-                        {value}px
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label class="toolbar-toggle">
-                  <input
-                    type="checkbox"
-                    checked={showChrome}
-                    onInput={(event) =>
-                      setShowChrome((event.currentTarget as HTMLInputElement).checked)
-                    }
-                  />
-                  <span>Window bar</span>
-                </label>
-
-                {selectedLineCount > 0 && (
-                  <button
-                    class="secondary-button"
-                    type="button"
-                    onClick={() => setHighlightedLines(new Set())}
-                  >
-                    Clear {selectedLineCount} {selectedLineCount === 1 ? 'line' : 'lines'}
-                  </button>
-                )}
-
-                {message && <span class="toolbar-status">{message}</span>}
-
-                <button
-                  class="secondary-button"
-                  type="button"
-                  onClick={downloadPng}
-                  disabled={isExporting}
+              <label class="toolbar-field" htmlFor="syntax">
+                <span>Syntax</span>
+                <select
+                  id="syntax"
+                  name="syntax"
+                  value={languageId}
+                  onInput={(event) =>
+                    setLanguageId((event.currentTarget as HTMLSelectElement).value)
+                  }
                 >
-                  Download PNG
-                </button>
+                  {languageOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <button
-                  class="export-button"
-                  type="button"
-                  onClick={copyPng}
-                  disabled={isExporting}
+              <label class="toolbar-field" htmlFor="canvas">
+                <span>Canvas</span>
+                <select
+                  id="canvas"
+                  name="canvas"
+                  value={backgroundId}
+                  onInput={(event) =>
+                    setBackgroundId((event.currentTarget as HTMLSelectElement).value)
+                  }
                 >
-                  {isExporting ? 'Working...' : 'Copy PNG'}
-                </button>
-              </div>
-            </div>
+                  {backgroundOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label class="toolbar-field compact-field" htmlFor="canvas-padding">
+                <span>Canvas padding</span>
+                <select
+                  id="canvas-padding"
+                  name="canvas-padding"
+                  value={String(padding)}
+                  onInput={(event) =>
+                    setPadding(Number((event.currentTarget as HTMLSelectElement).value))
+                  }
+                >
+                  {paddingOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {value}px
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label class="toolbar-field compact-field" htmlFor="corner-radius">
+                <span>Corner radius</span>
+                <select
+                  id="corner-radius"
+                  name="corner-radius"
+                  value={String(radius)}
+                  onInput={(event) =>
+                    setRadius(Number((event.currentTarget as HTMLSelectElement).value))
+                  }
+                >
+                  {radiusOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {value}px
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label class="toolbar-toggle" htmlFor="show-window-bar">
+                <input
+                  id="show-window-bar"
+                  name="show-window-bar"
+                  type="checkbox"
+                  checked={showChrome}
+                  onInput={(event) =>
+                    setShowChrome((event.currentTarget as HTMLInputElement).checked)
+                  }
+                />
+                <span>Show window bar</span>
+              </label>
+            </fieldset>
+
+            <fieldset class="control-group highlight-group">
+              <legend>Highlights</legend>
+              <p id="highlight-status" class="highlight-status" role="status" aria-live="polite">
+                {highlightedLineStatus}
+              </p>
+              <button class="secondary-button" type="button" onClick={highlightCurrentLine}>
+                Highlight current line
+              </button>
+              <button
+                class="secondary-button"
+                type="button"
+                onClick={clearHighlights}
+                disabled={selectedLineCount === 0}
+              >
+                Clear highlights
+              </button>
+            </fieldset>
+
+            <fieldset class="control-group export-group">
+              <legend>Export</legend>
+              <button
+                class="export-button"
+                type="button"
+                onClick={copyPng}
+                disabled={isExporting}
+              >
+                {isCopying ? 'Copying...' : 'Copy PNG'}
+              </button>
+              <button
+                class="secondary-button"
+                type="button"
+                onClick={downloadPng}
+                disabled={isExporting}
+              >
+                {isDownloading ? 'Downloading...' : 'Download PNG'}
+              </button>
+              <span id="export-status" class="toolbar-status" role="status" aria-live="polite">
+                {message}
+              </span>
+            </fieldset>
           </div>
         </div>
       </section>

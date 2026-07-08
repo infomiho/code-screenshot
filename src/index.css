@@ -56,11 +56,16 @@ input:focus-visible,
 
 .workspace {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 
 .preview-viewport {
+  display: grid;
+  min-width: 0;
   min-height: 0;
   overflow: auto;
   background: #0d0c0a;
@@ -72,8 +77,6 @@ input:focus-visible,
   min-height: 100%;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
-  gap: 12px;
   padding: 28px;
 }
 
@@ -92,8 +95,6 @@ input:focus-visible,
 }
 
 .window-bar,
-.toolbar,
-.toolbar-controls,
 .toolbar-field,
 .toolbar-toggle {
   display: flex;
@@ -195,20 +196,47 @@ input:focus-visible,
   background: rgba(245, 200, 66, 0.35) !important;
 }
 
-.toolbar {
-  width: min(860px, max-content);
-  max-width: 860px;
-  min-height: 48px;
-  justify-content: center;
+.control-panel {
+  width: min(860px, 100%);
+  justify-self: center;
   border: 1px solid var(--panel-border);
   background: var(--panel);
-  padding: 8px;
+  padding: 10px;
 }
 
-.toolbar-controls {
-  flex-wrap: wrap;
-  justify-content: center;
+.editor-help {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.control-groups {
+  display: grid;
   gap: 8px;
+}
+
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--panel-border);
+  padding: 12px 10px 10px;
+}
+
+.control-group legend {
+  color: var(--wasp-yellow);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 0 4px;
+  text-transform: uppercase;
 }
 
 .toolbar-field {
@@ -218,8 +246,12 @@ input:focus-visible,
   font-size: 12px;
 }
 
+.toolbar-field span {
+  white-space: nowrap;
+}
+
 .compact-field select {
-  width: 88px;
+  width: 104px;
 }
 
 select,
@@ -250,11 +282,20 @@ select {
   accent-color: var(--wasp-yellow);
 }
 
+.highlight-status,
 .toolbar-status {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 12px;
+  line-height: 1.4;
   padding: 0 6px;
+}
+
+.highlight-status {
+  margin: 0;
 }
 
 .export-button,
@@ -277,8 +318,8 @@ select {
 
 .export-button:disabled,
 .secondary-button:disabled {
-  cursor: wait;
-  opacity: 0.7;
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 @media (max-width: 980px) {
@@ -293,21 +334,39 @@ select {
     padding: 8px;
   }
 
-  .toolbar {
-    width: 100%;
-    max-width: 100%;
+  .workspace {
+    gap: 8px;
   }
 
-  .toolbar-controls {
+  .preview-stage {
+    padding: 20px;
+  }
+
+  .control-panel {
+    width: 100%;
+  }
+
+  .editor-help {
+    text-align: left;
+  }
+
+  .control-group {
     align-items: stretch;
     flex-direction: column;
     justify-content: flex-start;
-    width: 100%;
+  }
+
+  .toolbar-field {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .toolbar-field,
   .toolbar-field select,
   .toolbar-toggle,
+  .highlight-status,
+  .toolbar-status,
   .secondary-button,
   .export-button {
     width: 100%;
