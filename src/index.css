@@ -59,14 +59,14 @@ input:focus-visible {
 .toolbar-controls,
 .toolbar-field,
 .toolbar-toggle,
-.pane-header,
-.status-bar,
 .window-bar {
   display: flex;
   align-items: center;
 }
 
 .toolbar {
+  justify-self: center;
+  width: min(100%, max-content);
   min-height: 56px;
   justify-content: center;
   border: 1px solid var(--panel-border);
@@ -119,6 +119,13 @@ select {
   accent-color: var(--wasp-yellow);
 }
 
+.toolbar-status {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 0 6px;
+}
+
 .export-button {
   border-color: var(--wasp-yellow);
   background: var(--wasp-yellow);
@@ -133,36 +140,10 @@ select {
   opacity: 0.7;
 }
 
-.panel {
+.workspace {
   min-height: 0;
-  border: 1px solid var(--panel-border);
-  background: var(--panel);
-}
-
-.workspace,
-.screenshot-panel {
-  min-height: 0;
-}
-
-.screenshot-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
-
-.pane-header,
-.status-bar {
-  justify-content: space-between;
-  min-height: 38px;
-  border-bottom: 1px solid var(--panel-border);
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 0 12px;
-}
-
-.status-bar {
-  border-top: 1px solid var(--panel-border);
-  border-bottom: 0;
+  overflow: auto;
 }
 
 .preview-viewport {
@@ -176,7 +157,7 @@ select {
   min-width: max-content;
   min-height: 100%;
   place-items: center;
-  padding: 18px;
+  padding: 28px;
 }
 
 .shot-frame {
@@ -203,12 +184,6 @@ select {
   font-family: var(--mono);
   font-size: 12px;
   padding: 0 16px;
-}
-
-.window-bar strong {
-  margin-left: auto;
-  color: #b8941f;
-  font-weight: 800;
 }
 
 .window-dots {
@@ -304,6 +279,7 @@ select {
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+    width: 100%;
   }
 
   .toolbar-controls {

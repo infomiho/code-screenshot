@@ -126,7 +126,6 @@ export function App() {
     languageOptions.find((option) => option.id === languageId) ?? languageOptions[0]
   const selectedBackground =
     backgroundOptions.find((option) => option.id === backgroundId) ?? backgroundOptions[0]
-  const lineCount = code.length === 0 ? 0 : code.split('\n').length
 
   useEffect(() => {
     try {
@@ -271,90 +270,84 @@ export function App() {
             <span>Chrome</span>
           </label>
 
-          <button class="export-button" type="button" onClick={exportPng} disabled={isExporting}>
+          {message && <span class="toolbar-status">{message}</span>}
+
+          <button
+            class="export-button"
+            type="button"
+            onClick={exportPng}
+            disabled={isExporting || isHighlighting}
+          >
             {isExporting ? 'Exporting...' : 'Export PNG'}
           </button>
         </div>
       </header>
 
       <section class="workspace" aria-label="Editable screenshot">
-        <section class="panel screenshot-panel">
-          <div class="pane-header">
-            <span>{isHighlighting ? 'Highlighting...' : selectedLanguage.label}</span>
-            <span>{lineCount} lines</span>
-          </div>
-
-          <div class="preview-viewport">
-            <div class="preview-stage">
-              <div
-                ref={shotRef}
-                class="shot-frame"
-                style={{
-                  background: selectedBackground.value,
-                  padding: `${padding}px`,
-                  borderRadius: `${radius}px`,
-                }}
-              >
-                <div class="code-window">
-                  {showChrome && (
-                    <div class="window-bar">
-                      <div class="window-dots" aria-hidden="true">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                      <span>{selectedLanguage.label}</span>
-                      <strong>wasp</strong>
+        <div class="preview-viewport">
+          <div class="preview-stage">
+            <div
+              ref={shotRef}
+              class="shot-frame"
+              style={{
+                background: selectedBackground.value,
+                padding: `${padding}px`,
+                borderRadius: `${radius}px`,
+              }}
+            >
+              <div class="code-window">
+                {showChrome && (
+                  <div class="window-bar">
+                    <div class="window-dots" aria-hidden="true">
+                      <span></span>
+                      <span></span>
+                      <span></span>
                     </div>
-                  )}
-                  <div class="code-body">
-                    <div class="editable-code-layer">
-                      <div
-                        class="highlight-layer"
-                        aria-hidden="true"
-                        dangerouslySetInnerHTML={{ __html: highlightedCode }}
-                      />
-                      <textarea
-                        class="screenshot-editor"
-                        aria-label="Code"
-                        data-export-hidden="true"
-                        spellcheck={false}
-                        wrap="off"
-                        value={code}
-                        onInput={(event) =>
-                          setCode((event.currentTarget as HTMLTextAreaElement).value)
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key !== 'Tab') return
+                    <span>{selectedLanguage.label}</span>
+                  </div>
+                )}
+                <div class="code-body">
+                  <div class="editable-code-layer">
+                    <div
+                      class="highlight-layer"
+                      aria-hidden="true"
+                      dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                    />
+                    <textarea
+                      class="screenshot-editor"
+                      aria-label="Code"
+                      data-export-hidden="true"
+                      spellcheck={false}
+                      wrap="off"
+                      value={code}
+                      onInput={(event) =>
+                        setCode((event.currentTarget as HTMLTextAreaElement).value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Tab') return
 
-                          event.preventDefault()
-                          const textarea = event.currentTarget as HTMLTextAreaElement
-                          const nextCode = insertAtSelection(
-                            code,
-                            textarea.selectionStart,
-                            textarea.selectionEnd,
-                            '  ',
-                          )
-                          const nextCursor = textarea.selectionStart + 2
-                          setCode(nextCode)
-                          requestAnimationFrame(() => {
-                            textarea.selectionStart = nextCursor
-                            textarea.selectionEnd = nextCursor
-                          })
-                        }}
-                      />
-                    </div>
+                        event.preventDefault()
+                        const textarea = event.currentTarget as HTMLTextAreaElement
+                        const nextCode = insertAtSelection(
+                          code,
+                          textarea.selectionStart,
+                          textarea.selectionEnd,
+                          '  ',
+                        )
+                        const nextCursor = textarea.selectionStart + 2
+                        setCode(nextCode)
+                        requestAnimationFrame(() => {
+                          textarea.selectionStart = nextCursor
+                          textarea.selectionEnd = nextCursor
+                        })
+                      }}
+                    />
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
-          <div class="status-bar">
-            <span>Click the code frame and type.</span>
-            {message && <span>{message}</span>}
-          </div>
-        </section>
+        </div>
       </section>
     </main>
   )
