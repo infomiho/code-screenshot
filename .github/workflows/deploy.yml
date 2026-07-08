@@ -1,0 +1,27 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - run: npx @infomiho/buzz-cli deploy ./dist --subdomain code-screenshot --server https://static.miho.dev
+        env:
+          BUZZ_TOKEN: ${{ secrets.BUZZ_TOKEN }}
