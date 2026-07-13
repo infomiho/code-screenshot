@@ -26,7 +26,6 @@
   --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --page-min-width: 320px;
   --shot-width: 860px;
-  --shot-min-width: 420px;
   --editor-min-height: 120px;
   --control-height: 36px;
   --checkbox-size: 14px;
@@ -165,9 +164,7 @@ input:focus-visible,
 
 .shot-frame {
   position: relative;
-  width: fit-content;
-  min-width: min(var(--shot-min-width), 100%);
-  max-width: var(--shot-width);
+  width: var(--shot-width);
   transition:
     background var(--transition-fast),
     padding var(--transition-fast);
