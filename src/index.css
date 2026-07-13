@@ -25,7 +25,6 @@
   --mono: 'JetBrains Mono', 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
   --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --page-min-width: 320px;
-  --shot-width: 860px;
   --editor-min-height: 120px;
   --control-height: 36px;
   --checkbox-size: 14px;
@@ -35,7 +34,9 @@
   --compact-select-width: 104px;
   --field-min-width: 164px;
   --look-field-min-width: 176px;
-  --panel-width: var(--shot-width);
+  --panel-width: 860px;
+  --width-handle-size: 6px;
+  --width-handle-bg: rgb(17 17 17 / 35%);
   --gutter-number-width: 24px;
   --highlight-strip-width: 3px;
   --space-1: 4px;
@@ -100,6 +101,7 @@ button:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 input:focus-visible,
+.width-handle:focus-visible,
 .cm-editor.cm-focused {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
@@ -164,10 +166,29 @@ input:focus-visible,
 
 .shot-frame {
   position: relative;
-  width: var(--shot-width);
   transition:
     background var(--transition-fast),
     padding var(--transition-fast);
+}
+
+.width-handle {
+  position: absolute;
+  top: var(--shot-padding);
+  bottom: var(--shot-padding);
+  right: calc(var(--shot-padding) / 2 - var(--width-handle-size) / 2);
+  width: var(--width-handle-size);
+  border-radius: var(--radius-pill);
+  background: var(--width-handle-bg);
+  cursor: ew-resize;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity var(--transition-fast);
+}
+
+.width-handle:hover,
+.width-handle:focus-visible,
+.width-handle:active {
+  opacity: 1;
 }
 
 .draw-layer {

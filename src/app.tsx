@@ -96,6 +96,10 @@ const backgroundOptions = [
 
 const paddingOptions = [32, 48, 64, 80]
 const radiusOptions = [0, 12, 24, 36]
+const minFrameWidth = 420
+const maxFrameWidth = 1280
+const defaultFrameWidth = 860
+const frameWidthKeyStep = 20
 const codeStorageKey = 'wasp-shot:last-code'
 
 const defaultCode = `import { HttpError } from 'wasp/server'
@@ -241,6 +245,9 @@ const getInitialCode = () => {
   }
 }
 
+const clampFrameWidth = (width: number) =>
+  Math.min(maxFrameWidth, Math.max(minFrameWidth, Math.round(width)))
+
 const buildLineRange = (firstLine: number, lastLine: number) => {
   const selectedLines = new Set<number>()
   const start = Math.min(firstLine, lastLine)
@@ -372,7 +379,7 @@ const shouldExportNode = (node: Node) => {
   if (!(node instanceof HTMLElement)) return true
 
   const className = String(node.className)
-  return !['cm-cursorLayer', 'cm-selectionLayer', 'cm-tooltip', 'cm-announced'].some(
+  return !['cm-cursorLayer', 'cm-selectionLayer', 'cm-tooltip', 'cm-announced', 'width-handle'].some(
     (hiddenClass) => className.includes(hiddenClass),
   )
 }
@@ -393,6 +400,8 @@ export function App() {
   const [backgroundId, setBackgroundId] = useState('yellow')
   const [padding, setPadding] = useState(48)
   const [radius, setRadius] = useState(12)
+  const [frameWidth, setFrameWidth] = useState(defaultFrameWidth)
+  const widthDragRef = useRef<{ startX: number; startWidth: number; scale: number } | null>(null)
   const [showChrome, setShowChrome] = useState(true)
   const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set())
   const [exportAction, setExportAction] = useState<ExportAction>(null)
@@ -653,6 +662,34 @@ export function App() {
     setPenStrokes([])
   }
 
+  const startWidthDrag = (event: PointerEvent) => {
+    event.preventDefault()
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+    widthDragRef.current = { startX: event.clientX, startWidth: frameWidth, scale: previewScale }
+  }
+
+  const moveWidthDrag = (event: PointerEvent) => {
+    const drag = widthDragRef.current
+
+    if (!drag) return
+
+    // The frame stays centered, so the edge moves half as fast as the width grows.
+    const widthDelta = ((event.clientX - drag.startX) * 2) / drag.scale
+    setFrameWidth(clampFrameWidth(drag.startWidth + widthDelta))
+  }
+
+  const endWidthDrag = () => {
+    widthDragRef.current = null
+  }
+
+  const nudgeFrameWidth = (event: KeyboardEvent) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+
+    event.preventDefault()
+    const step = event.key === 'ArrowRight' ? frameWidthKeyStep : -frameWidthKeyStep
+    setFrameWidth((previousWidth) => clampFrameWidth(previousWidth + step))
+  }
+
   const renderPngBlob = () => {
     const frame = shotRef.current
 
@@ -775,6 +812,8 @@ export function App() {
                   style={{
                     background: selectedBackground.value,
                     padding: `${padding}px`,
+                    width: `${frameWidth}px`,
+                    '--shot-padding': `${padding}px`,
                   }}
                 >
                   <div class="code-window" style={{ borderRadius: `${radius}px` }}>
@@ -792,6 +831,23 @@ export function App() {
                       <div ref={editorHostRef} class="code-editor-host" />
                     </div>
                   </div>
+                  <div
+                    class="width-handle"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Frame width"
+                    aria-valuemin={minFrameWidth}
+                    aria-valuemax={maxFrameWidth}
+                    aria-valuenow={frameWidth}
+                    tabIndex={0}
+                    title="Drag to resize. Double-click to reset."
+                    onPointerDown={startWidthDrag}
+                    onPointerMove={moveWidthDrag}
+                    onPointerUp={endWidthDrag}
+                    onPointerCancel={endWidthDrag}
+                    onDblClick={() => setFrameWidth(defaultFrameWidth)}
+                    onKeyDown={nudgeFrameWidth}
+                  />
                   {(isPenActive || penStrokes.length > 0) && (
                     <svg
                       class={isPenActive ? 'draw-layer draw-layer-active' : 'draw-layer'}
