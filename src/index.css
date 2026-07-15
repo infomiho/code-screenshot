@@ -245,10 +245,86 @@ input:focus-visible,
 }
 
 .code-window {
+  position: relative;
   overflow: hidden;
   border: var(--border-window);
   background: var(--wasp-code-bg);
   box-shadow: var(--code-window-shadow);
+}
+
+.shot-frame--technical-plate {
+  --plate-ink: oklch(0.205 0.038 262);
+  --plate-line: oklch(0.94 0.015 255);
+  --pen-color: oklch(0.72 0.17 43);
+  --highlight-bg: oklch(0.76 0.09 211 / 0.15);
+  --selection-bg: oklch(0.76 0.09 211 / 0.28);
+}
+
+.shot-frame--technical-plate .code-window {
+  overflow: visible;
+  border: 2px solid var(--plate-line);
+  background: var(--plate-ink);
+  box-shadow: none;
+}
+
+.shot-frame--technical-plate .code-window::after {
+  position: absolute;
+  z-index: 0;
+  inset: 9px -11px -11px 9px;
+  background-image: radial-gradient(circle, var(--plate-line) 1px, transparent 1.2px);
+  background-position: 0 0;
+  background-size: 4px 4px;
+  content: '';
+  pointer-events: none;
+}
+
+.ambient-caption {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 24px;
+  max-width: calc(100% - 48px);
+  overflow: hidden;
+  background: var(--plate-ink);
+  color: var(--plate-line);
+  font-family: var(--mono);
+  font-size: 15px;
+  letter-spacing: 0.035em;
+  line-height: 1;
+  padding: 0 10px;
+  text-overflow: ellipsis;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.shot-frame--technical-plate .code-body {
+  position: relative;
+  z-index: 1;
+  min-height: 220px;
+  background: var(--plate-ink);
+  padding: 42px 36px 38px;
+}
+
+.shot-frame--technical-plate .code-editor-host .cm-editor {
+  color: var(--plate-line);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.shot-frame--technical-plate .code-editor-host .cm-scroller {
+  line-height: 1.65;
+}
+
+.shot-frame--technical-plate .code-editor-host .cm-content {
+  caret-color: var(--plate-line);
+}
+
+.shot-frame--technical-plate .code-editor-host .cm-gutters {
+  display: none;
+}
+
+.shot-frame--technical-plate .code-editor-host .cm-line {
+  padding-inline: 0;
 }
 
 .window-bar,
@@ -472,6 +548,7 @@ input:focus-visible,
 }
 
 select,
+input[type='text'],
 button {
   min-height: var(--control-height);
   border: var(--border-control);
@@ -483,6 +560,17 @@ select {
   background: var(--control);
   color: var(--text);
   padding: 0 var(--space-4);
+}
+
+input[type='text'] {
+  width: var(--select-width);
+  background: var(--control);
+  color: var(--text);
+  padding: 0 var(--space-4);
+}
+
+input[type='text']::placeholder {
+  color: var(--muted);
 }
 
 .toolbar-toggle {
@@ -569,6 +657,7 @@ select {
 
   .toolbar-field,
   .toolbar-field select,
+  .toolbar-field input[type='text'],
   .toolbar-toggle,
   .secondary-button {
     width: 100%;

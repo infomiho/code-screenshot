@@ -52,6 +52,16 @@ type LanguageOption = {
 
 type LineDragMode = 'add' | 'remove'
 type ExportAction = 'copy' | 'download' | null
+type AmbientThemeId = 'macos' | 'technical-plate'
+
+type AmbientTheme = {
+  id: AmbientThemeId
+  label: string
+  background?: string
+  padding?: number
+  radius?: number
+  highlightStyle: HighlightStyle
+}
 
 const languageOptions: LanguageOption[] = [
   { id: 'typescript', label: 'TypeScript', lang: 'typescript' },
@@ -211,6 +221,50 @@ const waspHighlightStyle = HighlightStyle.define([
   { tag: tags.strong, fontWeight: '700' },
   { tag: tags.emphasis, fontStyle: 'italic' },
 ])
+
+const technicalPlateHighlightStyle = HighlightStyle.define([
+  { tag: tags.comment, color: 'oklch(0.59 0.025 257)', fontStyle: 'italic' },
+  {
+    tag: [tags.string, tags.character, tags.heading, tags.regexp],
+    color: 'oklch(0.87 0.12 88)',
+  },
+  {
+    tag: [tags.keyword, tags.atom, tags.bool, tags.operator, tags.modifier, tags.definitionKeyword],
+    color: 'oklch(0.69 0.085 292)',
+  },
+  {
+    tag: [tags.number, tags.variableName, tags.constant(tags.name)],
+    color: 'oklch(0.76 0.09 211)',
+  },
+  {
+    tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
+    color: 'oklch(0.72 0.17 43)',
+    fontWeight: '700',
+  },
+  {
+    tag: [tags.className, tags.typeName, tags.tagName, tags.attributeName],
+    color: 'oklch(0.76 0.09 211)',
+  },
+  { tag: [tags.punctuation, tags.propertyName], color: 'oklch(0.93 0.014 255)' },
+  { tag: tags.strong, fontWeight: '700' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
+])
+
+const ambientThemes: AmbientTheme[] = [
+  {
+    id: 'macos',
+    label: 'macOS window',
+    highlightStyle: waspHighlightStyle,
+  },
+  {
+    id: 'technical-plate',
+    label: 'Technical plate',
+    background: 'oklch(0.205 0.038 262)',
+    padding: 38,
+    radius: 0,
+    highlightStyle: technicalPlateHighlightStyle,
+  },
+]
 
 const getLanguageExtension = (language: LanguageValue): Extension => {
   switch (language) {
@@ -397,6 +451,8 @@ export function App() {
   const isDraggingLineRef = useRef(false)
   const [code, setCode] = useState(getInitialCode)
   const [languageId, setLanguageId] = useState('typescript')
+  const [ambientThemeId, setAmbientThemeId] = useState<AmbientThemeId>('macos')
+  const [ambientTitle, setAmbientTitle] = useState('native embeddings')
   const [backgroundId, setBackgroundId] = useState('yellow')
   const [padding, setPadding] = useState(48)
   const [radius, setRadius] = useState(12)
@@ -415,8 +471,13 @@ export function App() {
 
   const selectedLanguage =
     languageOptions.find((option) => option.id === languageId) ?? languageOptions[0]
+  const selectedAmbientTheme =
+    ambientThemes.find((theme) => theme.id === ambientThemeId) ?? ambientThemes[0]
   const selectedBackground =
     backgroundOptions.find((option) => option.id === backgroundId) ?? backgroundOptions[0]
+  const shotBackground = selectedAmbientTheme.background ?? selectedBackground.value
+  const shotPadding = selectedAmbientTheme.padding ?? padding
+  const shotRadius = selectedAmbientTheme.radius ?? radius
   const selectedLineCount = highlightedLines.size
   const highlightedLineStatus = formatHighlightedLines(highlightedLines)
   const isCopying = exportAction === 'copy'
@@ -501,7 +562,7 @@ export function App() {
         extensions: [
           minimalSetup,
           getLanguageExtension(selectedLanguage.lang),
-          syntaxHighlighting(waspHighlightStyle),
+          syntaxHighlighting(selectedAmbientTheme.highlightStyle),
           EditorState.tabSize.of(2),
           EditorView.lineWrapping,
           placeholder('Paste or type your code...'),
@@ -596,7 +657,7 @@ export function App() {
         editorViewRef.current = null
       }
     }
-  }, [selectedLanguage.lang])
+  }, [selectedAmbientTheme.highlightStyle, selectedLanguage.lang])
 
   const highlightCurrentLine = () => {
     const editorView = editorViewRef.current
@@ -808,16 +869,19 @@ export function App() {
               <div style={previewScale < 1 ? { zoom: previewScale } : undefined}>
                 <div
                   ref={shotRef}
-                  class="shot-frame"
+                  class={`shot-frame shot-frame--${selectedAmbientTheme.id}`}
                   style={{
-                    background: selectedBackground.value,
-                    padding: `${padding}px`,
+                    background: shotBackground,
+                    padding: `${shotPadding}px`,
                     width: `${frameWidth}px`,
-                    '--shot-padding': `${padding}px`,
+                    '--shot-padding': `${shotPadding}px`,
                   }}
                 >
-                  <div class="code-window" style={{ borderRadius: `${radius}px` }}>
-                    {showChrome && (
+                  <div class="code-window" style={{ borderRadius: `${shotRadius}px` }}>
+                    {selectedAmbientTheme.id === 'technical-plate' && (
+                      <div class="ambient-caption">{ambientTitle || 'untitled'}</div>
+                    )}
+                    {selectedAmbientTheme.id === 'macos' && showChrome && (
                       <div class="window-bar">
                         <div class="window-dots" aria-hidden="true">
                           <span></span>
@@ -883,6 +947,26 @@ export function App() {
                 <span class="control-title">Look</span>
               </summary>
               <div class="control-content look-content">
+                <label class="toolbar-field" htmlFor="ambient-theme">
+                  <span>Ambient</span>
+                  <select
+                    id="ambient-theme"
+                    name="ambient-theme"
+                    value={ambientThemeId}
+                    onInput={(event) =>
+                      setAmbientThemeId(
+                        (event.currentTarget as HTMLSelectElement).value as AmbientThemeId,
+                      )
+                    }
+                  >
+                    {ambientThemes.map((theme) => (
+                      <option key={theme.id} value={theme.id}>
+                        {theme.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
                 <label class="toolbar-field" htmlFor="syntax">
                   <span>Syntax</span>
                   <select
@@ -901,72 +985,90 @@ export function App() {
                   </select>
                 </label>
 
-                <label class="toolbar-field" htmlFor="background">
-                  <span>Background</span>
-                  <select
-                    id="background"
-                    name="background"
-                    value={backgroundId}
-                    onInput={(event) =>
-                      setBackgroundId((event.currentTarget as HTMLSelectElement).value)
-                    }
-                  >
-                    {backgroundOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {selectedAmbientTheme.id === 'macos' ? (
+                  <>
+                    <label class="toolbar-field" htmlFor="background">
+                      <span>Background</span>
+                      <select
+                        id="background"
+                        name="background"
+                        value={backgroundId}
+                        onInput={(event) =>
+                          setBackgroundId((event.currentTarget as HTMLSelectElement).value)
+                        }
+                      >
+                        {backgroundOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
-                <label class="toolbar-field compact-field" htmlFor="background-padding">
-                  <span>Padding</span>
-                  <select
-                    id="background-padding"
-                    name="background-padding"
-                    value={String(padding)}
-                    onInput={(event) =>
-                      setPadding(Number((event.currentTarget as HTMLSelectElement).value))
-                    }
-                  >
-                    {paddingOptions.map((value) => (
-                      <option key={value} value={value}>
-                        {value}px
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <label class="toolbar-field compact-field" htmlFor="background-padding">
+                      <span>Padding</span>
+                      <select
+                        id="background-padding"
+                        name="background-padding"
+                        value={String(padding)}
+                        onInput={(event) =>
+                          setPadding(Number((event.currentTarget as HTMLSelectElement).value))
+                        }
+                      >
+                        {paddingOptions.map((value) => (
+                          <option key={value} value={value}>
+                            {value}px
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
-                <label class="toolbar-field compact-field" htmlFor="corner-radius">
-                  <span>Corner radius</span>
-                  <select
-                    id="corner-radius"
-                    name="corner-radius"
-                    value={String(radius)}
-                    onInput={(event) =>
-                      setRadius(Number((event.currentTarget as HTMLSelectElement).value))
-                    }
-                  >
-                    {radiusOptions.map((value) => (
-                      <option key={value} value={value}>
-                        {value}px
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    <label class="toolbar-field compact-field" htmlFor="corner-radius">
+                      <span>Corner radius</span>
+                      <select
+                        id="corner-radius"
+                        name="corner-radius"
+                        value={String(radius)}
+                        onInput={(event) =>
+                          setRadius(Number((event.currentTarget as HTMLSelectElement).value))
+                        }
+                      >
+                        {radiusOptions.map((value) => (
+                          <option key={value} value={value}>
+                            {value}px
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
-                <label class="toolbar-toggle" htmlFor="show-window-bar">
-                  <input
-                    id="show-window-bar"
-                    name="show-window-bar"
-                    type="checkbox"
-                    checked={showChrome}
-                    onInput={(event) =>
-                      setShowChrome((event.currentTarget as HTMLInputElement).checked)
-                    }
-                  />
-                  <span>Show window bar</span>
-                </label>
+                    <label class="toolbar-toggle" htmlFor="show-window-bar">
+                      <input
+                        id="show-window-bar"
+                        name="show-window-bar"
+                        type="checkbox"
+                        checked={showChrome}
+                        onInput={(event) =>
+                          setShowChrome((event.currentTarget as HTMLInputElement).checked)
+                        }
+                      />
+                      <span>Show window bar</span>
+                    </label>
+                  </>
+                ) : (
+                  <label class="toolbar-field" htmlFor="ambient-title">
+                    <span>Caption</span>
+                    <input
+                      id="ambient-title"
+                      name="ambient-title"
+                      type="text"
+                      value={ambientTitle}
+                      placeholder="untitled"
+                      onInput={(event) =>
+                        setAmbientTitle((event.currentTarget as HTMLInputElement).value)
+                      }
+                    />
+                  </label>
+                )}
               </div>
             </details>
 
