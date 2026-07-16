@@ -99,6 +99,11 @@ export function App() {
           onClearHighlights={clearHighlights}
         />
       </section>
+      <footer className="site-footer">
+        <a href="https://wasp.sh">Built with Wasp</a>
+        <span aria-hidden="true">/</span>
+        <a href="https://github.com/infomiho/code-screenshot">View the source</a>
+      </footer>
     </main>
   )
 }

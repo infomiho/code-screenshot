@@ -117,9 +117,45 @@ input:focus-visible,
 
 .app-shell {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--space-3);
   width: 100%;
   min-height: 100dvh;
   padding: var(--space-5);
+}
+
+.site-footer {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+}
+
+.site-footer a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  color: inherit;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
+  transition:
+    color var(--transition-fast),
+    text-decoration-color var(--transition-fast);
+}
+
+.site-footer a:hover {
+  color: var(--text);
+  text-decoration-color: var(--wasp-yellow);
+}
+
+.site-footer a:focus-visible {
+  border-radius: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .workspace {
