@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react'
 import { getAmbientKey, type AmbientDefinition } from './ambient-themes'
 
 type AmbientSelectorProps = {
@@ -12,7 +17,7 @@ const padIndex = (index: number) => String(index).padStart(2, '0')
 function AmbientMark({ definition }: { definition: AmbientDefinition }) {
   return (
     <span
-      class={`ambient-mark ambient-mark--${definition.manifest.id}`}
+      className={`ambient-mark ambient-mark--${definition.manifest.id}`}
       aria-hidden="true"
     />
   )
@@ -88,7 +93,7 @@ export function AmbientSelector({
     setIsOpen(true)
   }
 
-  const handlePickerKeyDown = (event: KeyboardEvent) => {
+  const handlePickerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     let nextIndex = activeIndex
 
     switch (event.key) {
@@ -143,19 +148,19 @@ export function AmbientSelector({
   }
 
   return (
-    <div class="ambient-selector" ref={rootRef} role="group" aria-label="Ambient">
+    <div className="ambient-selector" ref={rootRef} role="group" aria-label="Ambient">
       <button
-        class="ambient-step ambient-step-previous"
+        className="ambient-step ambient-step-previous"
         type="button"
         aria-label={`Previous ambient: ${previous.manifest.name}`}
         onClick={() => selectAt(selectedIndex - 1)}
       >
-        <span class="ambient-arrow" aria-hidden="true">&#8249;</span>
+        <span className="ambient-arrow" aria-hidden="true">&#8249;</span>
       </button>
 
       <button
         ref={triggerRef}
-        class="ambient-current"
+        className="ambient-current"
         type="button"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -169,31 +174,31 @@ export function AmbientSelector({
         }}
       >
         <AmbientMark definition={selected} />
-        <span class="ambient-current-copy">
-          <span class="ambient-current-name">{selected.manifest.name}</span>
-          <span class="ambient-current-position">
+        <span className="ambient-current-copy">
+          <span className="ambient-current-name">{selected.manifest.name}</span>
+          <span className="ambient-current-position">
             {padIndex(selectedIndex + 1)} / {padIndex(definitions.length)}
           </span>
         </span>
-        <span class="ambient-disclosure" aria-hidden="true">&#8964;</span>
+        <span className="ambient-disclosure" aria-hidden="true">&#8964;</span>
       </button>
 
       <button
-        class="ambient-step ambient-step-next"
+        className="ambient-step ambient-step-next"
         type="button"
         aria-label={`Next ambient: ${next.manifest.name}`}
         onClick={() => selectAt(selectedIndex + 1)}
       >
-        <span class="ambient-arrow" aria-hidden="true">&#8250;</span>
+        <span className="ambient-arrow" aria-hidden="true">&#8250;</span>
       </button>
 
       {isOpen && (
-        <div class="ambient-picker-shell">
-          <div class="ambient-picker-heading">
+        <div className="ambient-picker-shell">
+          <div className="ambient-picker-heading">
             <span>Choose ambient</span>
             <span>{padIndex(selectedIndex + 1)} / {padIndex(definitions.length)}</span>
             <button
-              class="ambient-picker-close"
+              className="ambient-picker-close"
               type="button"
               aria-label="Close ambient picker"
               onClick={() => {
@@ -207,7 +212,7 @@ export function AmbientSelector({
           <div
             id="ambient-picker"
             ref={pickerRef}
-            class="ambient-picker"
+            className="ambient-picker"
             role="listbox"
             aria-label="Choose ambient"
             aria-activedescendant={`ambient-option-${activeIndex}`}
@@ -218,7 +223,7 @@ export function AmbientSelector({
               <div
                 id={`ambient-option-${index}`}
                 key={getAmbientKey(definition)}
-                class="ambient-picker-option"
+                className="ambient-picker-option"
                 role="option"
                 aria-selected={index === selectedIndex}
                 data-active={index === activeIndex}
@@ -234,7 +239,7 @@ export function AmbientSelector({
         </div>
       )}
 
-      <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {status}
       </span>
     </div>

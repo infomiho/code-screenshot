@@ -1,4 +1,4 @@
-import type { ComponentChildren, ComponentType } from 'preact'
+import type { ComponentType, ReactNode } from 'react'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import type { Extension } from '@codemirror/state'
 import { tags } from '@lezer/highlight'
@@ -61,7 +61,7 @@ export type AmbientTokenPalette = {
 
 type AmbientShellProps = {
   content: ScreenshotContent
-  children: ComponentChildren
+  children: ReactNode
 }
 
 export type AmbientDefinition = {
@@ -216,38 +216,38 @@ const getFileTypeMark = (fileTypeId: string) => fileTypeMarks[fileTypeId] ?? fil
 
 function MacosShell({ content, children }: AmbientShellProps) {
   return (
-    <div class="code-window">
-      <header class="window-bar">
-        <div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
-        <span class="window-title">{content.title || 'Untitled'}</span>
-        <span class="window-language">{content.fileType.label}</span>
+    <div className="code-window">
+      <header className="window-bar">
+        <div className="window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+        <span className="window-title">{content.title || 'Untitled'}</span>
+        <span className="window-language">{content.fileType.label}</span>
       </header>
-      <div class="code-body">{children}</div>
+      <div className="code-body">{children}</div>
     </div>
   )
 }
 
 function TechnicalPlateShell({ content, children }: AmbientShellProps) {
   return (
-    <div class="code-window">
-      <div class="ambient-caption">{content.title || 'untitled'}</div>
-      <div class="code-body">{children}</div>
+    <div className="code-window">
+      <div className="ambient-caption">{content.title || 'untitled'}</div>
+      <div className="code-body">{children}</div>
     </div>
   )
 }
 
 function SpecimenCardShell({ content, children }: AmbientShellProps) {
   return (
-    <article class="code-window">
-      <header class="specimen-header">
-        <div class="specimen-kicker">Source archive / Digital specimen</div>
+    <article className="code-window">
+      <header className="specimen-header">
+        <div className="specimen-kicker">Source archive / Digital specimen</div>
         <h2>{content.title || 'Untitled specimen'}</h2>
-        <div class="specimen-accession">
+        <div className="specimen-accession">
           <span>{content.fileType.label}</span><span>No. {padLineCount(content.lineCount)}</span>
         </div>
       </header>
-      <div class="code-body">{children}</div>
-      <footer class="specimen-footer">
+      <div className="code-body">{children}</div>
+      <footer className="specimen-footer">
         <span>Classification: source code</span>
         <span>{padLineCount(content.lineCount)} lines</span>
         <i aria-label={`${content.fileType.label} specimen`}>{getFileTypeMark(content.fileType.id)}</i>
@@ -258,17 +258,17 @@ function SpecimenCardShell({ content, children }: AmbientShellProps) {
 
 function SwissPosterShell({ content, children }: AmbientShellProps) {
   return (
-    <article class="code-window">
-      <header class="swiss-header">
-        <div class="swiss-title">
-          <span class="swiss-label">Title</span>
+    <article className="code-window">
+      <header className="swiss-header">
+        <div className="swiss-title">
+          <span className="swiss-label">Title</span>
           <h2 title={content.title}>{content.title || 'Untitled'}</h2>
         </div>
       </header>
-      <div class="code-body">{children}</div>
-      <footer class="swiss-footer">
-        <div class="swiss-meta"><span class="swiss-label">File type</span><span class="swiss-value">{content.fileType.label}</span></div>
-        <div class="swiss-meta"><span class="swiss-label">Lines</span><span class="swiss-value">{padLineCount(content.lineCount)}</span></div>
+      <div className="code-body">{children}</div>
+      <footer className="swiss-footer">
+        <div className="swiss-meta"><span className="swiss-label">File type</span><span className="swiss-value">{content.fileType.label}</span></div>
+        <div className="swiss-meta"><span className="swiss-label">Lines</span><span className="swiss-value">{padLineCount(content.lineCount)}</span></div>
       </footer>
     </article>
   )
@@ -276,26 +276,26 @@ function SwissPosterShell({ content, children }: AmbientShellProps) {
 
 function FieldNotebookShell({ content, children }: AmbientShellProps) {
   return (
-    <div class="code-window">
-      <header class="notebook-header">
+    <div className="code-window">
+      <header className="notebook-header">
         <h2>{content.title || 'Field note'}</h2>
         <span>Entry 014 / {content.fileType.label}</span>
       </header>
-      <div class="code-body">{children}</div>
+      <div className="code-body">{children}</div>
     </div>
   )
 }
 
 function BareTerminalShell({ content, children }: AmbientShellProps) {
   return (
-    <div class="code-window">
-      <header class="terminal-header">
-        <span class="terminal-power" aria-hidden="true"></span>
+    <div className="code-window">
+      <header className="terminal-header">
+        <span className="terminal-power" aria-hidden="true"></span>
         <span>{content.title || 'TTY-01'}</span>
         <span>{content.fileType.label} / ONLINE</span>
       </header>
-      <div class="code-body">{children}</div>
-      <footer class="terminal-footer">
+      <div className="code-body">{children}</div>
+      <footer className="terminal-footer">
         <span>READY</span><span>UTF-8</span><span>{padLineCount(content.lineCount)} LN</span>
       </footer>
     </div>

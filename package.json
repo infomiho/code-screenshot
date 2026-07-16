@@ -1,12 +1,15 @@
 {
-  "name": "code-screenshot",
-  "private": true,
-  "version": "0.0.0",
+  "name": "codeshot-dev",
   "type": "module",
+  "workspaces": [
+    ".wasp/out/*",
+    ".wasp/out/sdk/wasp"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "wasp start",
+    "build": "tsc -b && wasp build && REACT_APP_API_URL=https://code-screenshot.static.miho.dev npx vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && npx --yes @infomiho/buzz-cli@0.7.0 deploy ./.wasp/out/web-app/build --subdomain code-screenshot --server https://static.miho.dev"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",
@@ -23,12 +26,18 @@
     "codemirror": "^6.0.2",
     "modern-screenshot": "^4.7.0",
     "perfect-freehand": "^1.2.3",
-    "preact": "^10.29.3"
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-router": "^7.12.0"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.10.5",
-    "@types/node": "^24.13.2",
-    "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@wasp.sh/spec": "file:.wasp/spec/",
+    "prisma": "5.19.1",
+    "typescript": "5.9.3",
+    "vite": "^7.0.6",
+    "vitest": "^4.0.16"
   }
 }
