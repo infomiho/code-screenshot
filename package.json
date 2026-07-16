@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "wasp start",
-    "build": "tsc -b && wasp build && REACT_APP_API_URL=https://code-screenshot.static.miho.dev npx vite build",
+    "build": "wasp build && tsc -b && REACT_APP_API_URL=https://code-screenshot.static.miho.dev npx vite build",
     "preview": "vite preview",
     "deploy": "npm run build && npx --yes @infomiho/buzz-cli@0.7.0 deploy ./.wasp/out/web-app/build --subdomain code-screenshot --server https://static.miho.dev"
   },
