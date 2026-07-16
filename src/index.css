@@ -71,6 +71,14 @@
   --disabled-opacity: 0.55;
   --transition-fast: 120ms ease;
   --radius-pill: 999px;
+  --ambient-control-size: 44px;
+  --ambient-mark-width: 40px;
+  --ambient-mark-height: 28px;
+  --ambient-picker-width: 420px;
+  --ambient-selected-bg: rgb(245 200 66 / 10%);
+  --ambient-hover-bg: rgb(247 245 240 / 6%);
+  --ambient-motion-duration: 140ms;
+  --ambient-motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
   color: var(--text);
   background: var(--bg);
@@ -148,13 +156,12 @@ input:focus-visible,
 }
 
 .shot-toolbar {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-areas: 'export ambient draw';
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-7);
-  width: 0;
-  min-width: 100%;
+  gap: var(--space-5);
+  width: 100%;
 }
 
 .toolbar-group {
@@ -164,11 +171,326 @@ input:focus-visible,
   gap: var(--space-2);
 }
 
+.toolbar-export {
+  grid-area: export;
+  justify-self: start;
+}
+
+.toolbar-draw {
+  grid-area: draw;
+  justify-self: end;
+}
+
+.ambient-selector {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-area: ambient;
+  grid-template-columns: var(--ambient-control-size) minmax(160px, 210px) var(--ambient-control-size);
+  min-width: 0;
+  justify-self: center;
+}
+
+.ambient-selector button {
+  min-height: var(--ambient-control-size);
+  border-color: var(--control-border);
+  background: var(--control);
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  transition-property: background-color, color, scale;
+  transition-duration: var(--ambient-motion-duration);
+  transition-timing-function: var(--ambient-motion-ease);
+}
+
+.ambient-selector button:hover {
+  background: color-mix(in oklch, var(--control), var(--text) 6%);
+}
+
+.ambient-selector button:active {
+  scale: 0.96;
+}
+
+.ambient-step {
+  display: grid;
+  place-items: center;
+  align-items: center;
+  padding: 0;
+}
+
+.ambient-arrow {
+  font-family: var(--sans);
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.ambient-current {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border-inline: 0;
+  padding: 6px 12px;
+  text-align: start;
+}
+
+.ambient-current-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.ambient-current-name {
+  overflow: hidden;
+  font-size: var(--font-size-control);
+  font-weight: var(--font-weight-heavy);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ambient-current-position {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+.ambient-disclosure {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+.ambient-mark {
+  position: relative;
+  display: block;
+  width: var(--ambient-mark-width);
+  height: var(--ambient-mark-height);
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgb(247 245 240 / 34%);
+  background: var(--preview-bg);
+}
+
+.ambient-mark::before,
+.ambient-mark::after {
+  position: absolute;
+  content: '';
+}
+
+.ambient-mark--macos {
+  background: var(--wasp-yellow);
+}
+
+.ambient-mark--macos::before {
+  inset: 5px 4px 3px;
+  border-radius: 2px;
+  background: var(--wasp-code-bg);
+}
+
+.ambient-mark--macos::after {
+  top: 7px;
+  left: 7px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--window-red);
+  box-shadow: 5px 0 var(--wasp-yellow), 10px 0 var(--window-green);
+}
+
+.ambient-mark--technical-plate {
+  background: oklch(0.205 0.038 262);
+}
+
+.ambient-mark--technical-plate::before {
+  inset: 5px 5px 5px 4px;
+  border: 1px solid oklch(0.94 0.015 255);
+}
+
+.ambient-mark--technical-plate::after {
+  right: 2px;
+  bottom: 2px;
+  width: 28px;
+  height: 16px;
+  background-image: radial-gradient(circle, oklch(0.94 0.015 255) 0 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+.ambient-mark--specimen-card {
+  background: oklch(0.84 0.018 75);
+}
+
+.ambient-mark--specimen-card::before {
+  inset: 3px 4px;
+  border: 1px solid oklch(0.27 0.025 65);
+  background: oklch(0.95 0.025 88);
+}
+
+.ambient-mark--specimen-card::after {
+  right: 7px;
+  bottom: 5px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid oklch(0.5 0.16 28);
+  border-radius: 50%;
+}
+
+.ambient-mark--swiss-poster {
+  background: oklch(0.58 0.22 28);
+}
+
+.ambient-mark--swiss-poster::before {
+  inset: 4px;
+  border: 1px solid oklch(0.205 0.012 65);
+  background:
+    linear-gradient(to bottom, transparent 0 7px, oklch(0.205 0.012 65) 7px 8px, transparent 8px),
+    oklch(0.965 0.012 88);
+}
+
+.ambient-mark--field-notebook {
+  background: oklch(0.3 0.055 135);
+}
+
+.ambient-mark--field-notebook::before {
+  inset: 4px;
+  background:
+    linear-gradient(90deg, transparent 0 7px, oklch(0.61 0.13 25 / 0.72) 7px 8px, transparent 8px),
+    repeating-linear-gradient(to bottom, transparent 0 4px, oklch(0.63 0.07 245 / 0.45) 4px 5px),
+    oklch(0.96 0.026 92);
+}
+
+.ambient-mark--bare-terminal {
+  background: repeating-linear-gradient(90deg, oklch(0.42 0.012 245) 0 1px, oklch(0.34 0.012 245) 1px 3px);
+}
+
+.ambient-mark--bare-terminal::before {
+  inset: 4px;
+  border: 1px solid oklch(0.63 0.01 245);
+  background: oklch(0.09 0.018 170);
+}
+
+.ambient-mark--bare-terminal::after {
+  top: 8px;
+  left: 8px;
+  width: 20px;
+  height: 1px;
+  background: oklch(0.8 0.15 145);
+  box-shadow: 0 4px oklch(0.54 0.075 145), 0 8px oklch(0.54 0.075 145);
+}
+
+.ambient-picker-shell {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  width: min(var(--ambient-picker-width), calc(100vw - 32px));
+  max-height: min(520px, calc(100vh - 96px));
+  border: var(--border-control);
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 45%);
+  padding: var(--space-3);
+  transform: translateX(-50%);
+  animation: ambient-picker-in var(--ambient-motion-duration) var(--ambient-motion-ease);
+}
+
+.ambient-picker-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: 0.08em;
+  padding: var(--space-3) var(--space-4);
+  text-transform: uppercase;
+}
+
+.ambient-picker-heading > span:nth-child(2) {
+  margin-inline-start: auto;
+}
+
+.ambient-picker-close {
+  display: none;
+  width: 32px;
+  min-height: 32px !important;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  font-family: var(--sans) !important;
+  font-size: 22px;
+}
+
+.ambient-picker {
+  display: grid;
+  max-height: min(430px, calc(100vh - 150px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  outline: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.ambient-picker-option {
+  display: grid;
+  min-height: 64px;
+  grid-template-columns: var(--ambient-mark-width) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  padding: 10px 12px;
+}
+
+.ambient-picker-option[data-active='true'] {
+  background: var(--ambient-hover-bg);
+  box-shadow: inset 2px 0 0 var(--muted);
+}
+
+.ambient-picker-option[aria-selected='true'] {
+  background: var(--ambient-selected-bg);
+  box-shadow: inset 3px 0 0 var(--wasp-yellow);
+}
+
+.ambient-picker-option small {
+  color: var(--wasp-yellow);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@keyframes ambient-picker-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 .shot-frame {
   position: relative;
+  container: shot / inline-size;
   transition:
     background var(--transition-fast),
     padding var(--transition-fast);
+}
+
+.shot-frame--exporting,
+.shot-frame--exporting * {
+  transition: none !important;
+}
+
+.shot-frame--gutterless-export.shot-frame--exporting .cm-gutters {
+  visibility: hidden;
 }
 
 .width-handle {
@@ -252,81 +574,6 @@ input:focus-visible,
   box-shadow: var(--code-window-shadow);
 }
 
-.shot-frame--technical-plate {
-  --plate-ink: oklch(0.205 0.038 262);
-  --plate-line: oklch(0.94 0.015 255);
-  --pen-color: oklch(0.72 0.17 43);
-  --highlight-bg: oklch(0.76 0.09 211 / 0.15);
-  --selection-bg: oklch(0.76 0.09 211 / 0.28);
-}
-
-.shot-frame--technical-plate .code-window {
-  overflow: visible;
-  border: 2px solid var(--plate-line);
-  background: var(--plate-ink);
-  box-shadow: none;
-}
-
-.shot-frame--technical-plate .code-window::after {
-  position: absolute;
-  z-index: 0;
-  inset: 9px -11px -11px 9px;
-  background-image: radial-gradient(circle, var(--plate-line) 1px, transparent 1.2px);
-  background-position: 0 0;
-  background-size: 4px 4px;
-  content: '';
-  pointer-events: none;
-}
-
-.ambient-caption {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  left: 24px;
-  max-width: calc(100% - 48px);
-  overflow: hidden;
-  background: var(--plate-ink);
-  color: var(--plate-line);
-  font-family: var(--mono);
-  font-size: 15px;
-  letter-spacing: 0.035em;
-  line-height: 1;
-  padding: 0 10px;
-  text-overflow: ellipsis;
-  transform: translateY(-50%);
-  white-space: nowrap;
-}
-
-.shot-frame--technical-plate .code-body {
-  position: relative;
-  z-index: 1;
-  min-height: 220px;
-  background: var(--plate-ink);
-  padding: 42px 36px 38px;
-}
-
-.shot-frame--technical-plate .code-editor-host .cm-editor {
-  color: var(--plate-line);
-  font-size: 16px;
-  line-height: 1.65;
-}
-
-.shot-frame--technical-plate .code-editor-host .cm-scroller {
-  line-height: 1.65;
-}
-
-.shot-frame--technical-plate .code-editor-host .cm-content {
-  caret-color: var(--plate-line);
-}
-
-.shot-frame--technical-plate .code-editor-host .cm-gutters {
-  display: none;
-}
-
-.shot-frame--technical-plate .code-editor-host .cm-line {
-  padding-inline: 0;
-}
-
 .window-bar,
 .toolbar-field,
 .toolbar-toggle {
@@ -385,13 +632,16 @@ input:focus-visible,
 }
 
 .code-editor-host .cm-content {
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   padding: 0;
   caret-color: var(--bg);
 }
 
 .code-editor-host .cm-line {
+  overflow-wrap: anywhere;
   padding: 0 var(--space-3);
+  word-break: break-word;
 }
 
 .code-editor-host .cm-gutters {
@@ -489,6 +739,15 @@ input:focus-visible,
   font-weight: var(--font-weight-heavy);
   letter-spacing: var(--letter-spacing-label);
   text-transform: uppercase;
+}
+
+.look-context {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .control-summary::after {
@@ -635,6 +894,53 @@ input[type='text']::placeholder {
     padding: var(--space-8);
   }
 
+  .shot-toolbar {
+    grid-template-areas:
+      'export draw'
+      'ambient ambient';
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ambient-selector {
+    width: 100%;
+    grid-template-columns: var(--ambient-control-size) minmax(0, 1fr) var(--ambient-control-size);
+  }
+
+  .ambient-picker-shell {
+    position: fixed;
+    top: auto;
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: 16px;
+    width: auto;
+    max-height: calc(100dvh - 32px);
+    transform: none;
+  }
+
+  .ambient-picker-heading {
+    align-items: center;
+  }
+
+  .ambient-picker-close {
+    display: grid;
+  }
+
+  .ambient-picker {
+    max-height: calc(100dvh - 96px);
+  }
+
+  @keyframes ambient-picker-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .control-panel {
     width: 100%;
   }
@@ -665,5 +971,39 @@ input[type='text']::placeholder {
 
   .compact-field select {
     width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .preview-stage {
+    padding: var(--space-6);
+  }
+
+  .shot-toolbar {
+    gap: var(--space-2);
+  }
+
+  .shot-toolbar .toolbar-group {
+    gap: var(--space-1);
+  }
+
+  .shot-toolbar .pen-button {
+    padding-inline: var(--space-3);
+  }
+
+  .ambient-picker {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-selector *,
+  .ambient-picker-shell {
+    animation: none;
+    transition-duration: 0ms;
+  }
+
+  .shot-frame {
+    transition: none;
   }
 }

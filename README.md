@@ -1,6 +1,6 @@
-# Wasp Shot
+# codeshot.dev
 
-Minimal Wasp-branded code screenshot generator.
+Minimal code screenshot generator.
 
 ```bash
 npm install

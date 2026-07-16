@@ -6,8 +6,8 @@ import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
 import { python } from '@codemirror/lang-python'
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import {
+  Compartment,
   EditorState,
   RangeSet,
   RangeSetBuilder,
@@ -26,9 +26,17 @@ import {
   type DecorationSet,
 } from '@codemirror/view'
 import { indentWithTab } from '@codemirror/commands'
-import { tags } from '@lezer/highlight'
 import { domToBlob } from 'modern-screenshot'
 import { getStroke } from 'perfect-freehand'
+import { AmbientSelector } from './ambient-selector'
+import {
+  ambientDefinitions,
+  defaultAmbientKey,
+  getAmbientDefinition,
+  resolveAmbientVariables,
+  type AmbientCustomizationState,
+  type ScreenshotContent,
+} from './ambient-themes'
 
 type HighlightLanguage =
   | 'bash'
@@ -52,20 +60,9 @@ type LanguageOption = {
 
 type LineDragMode = 'add' | 'remove'
 type ExportAction = 'copy' | 'download' | null
-type AmbientThemeId = 'macos' | 'technical-plate'
-
-type AmbientTheme = {
-  id: AmbientThemeId
-  label: string
-  background?: string
-  padding?: number
-  radius?: number
-  highlightStyle: HighlightStyle
-}
 
 const languageOptions: LanguageOption[] = [
   { id: 'typescript', label: 'TypeScript', lang: 'typescript' },
-  { id: 'wasp', label: 'Wasp', lang: 'typescript' },
   { id: 'tsx', label: 'TSX', lang: 'tsx' },
   { id: 'javascript', label: 'JavaScript', lang: 'javascript' },
   { id: 'jsx', label: 'JSX', lang: 'jsx' },
@@ -78,34 +75,6 @@ const languageOptions: LanguageOption[] = [
   { id: 'text', label: 'Plain text', lang: 'text' },
 ]
 
-const backgroundOptions = [
-  { id: 'yellow', label: 'Wasp yellow', value: '#f5c842' },
-  {
-    id: 'wasp-glow',
-    label: 'Wasp glow',
-    value: 'radial-gradient(circle at 28% 20%, #fff0a3 0%, #f5c842 42%, #d39b20 100%)',
-  },
-  {
-    id: 'wasp-ink',
-    label: 'Wasp ink',
-    value: 'linear-gradient(135deg, #17120a 0%, #2c230e 48%, #f5c842 100%)',
-  },
-  {
-    id: 'purple-sting',
-    label: 'Purple sting',
-    value: 'linear-gradient(135deg, #211a33 0%, #5f45a8 52%, #f5c842 100%)',
-  },
-  {
-    id: 'teal-complement',
-    label: 'Teal complement',
-    value: 'linear-gradient(135deg, #103737 0%, #1e806f 52%, #f5c842 100%)',
-  },
-  { id: 'paper', label: 'Warm paper', value: '#f7f5f0' },
-  { id: 'charcoal', label: 'Charcoal', value: '#111111' },
-]
-
-const paddingOptions = [32, 48, 64, 80]
-const radiusOptions = [0, 12, 24, 36]
 const minFrameWidth = 420
 const maxFrameWidth = 1280
 const defaultFrameWidth = 860
@@ -194,77 +163,6 @@ const selectedLineNumberField = StateField.define<RangeSet<GutterMarker>>({
   },
   provide: (field) => lineNumberMarkers.from(field),
 })
-
-const waspHighlightStyle = HighlightStyle.define([
-  { tag: tags.comment, color: '#999999', fontStyle: 'italic' },
-  { tag: [tags.string, tags.character, tags.heading], color: '#777777' },
-  { tag: [tags.punctuation, tags.operator], color: '#555555' },
-  {
-    tag: [tags.number, tags.bool, tags.variableName, tags.propertyName, tags.constant(tags.name)],
-    color: '#333333',
-  },
-  {
-    tag: [tags.keyword, tags.atom, tags.tagName, tags.attributeName],
-    color: '#b8941f',
-    fontWeight: '700',
-  },
-  {
-    tag: [
-      tags.function(tags.variableName),
-      tags.className,
-      tags.typeName,
-      tags.standard(tags.name),
-    ],
-    color: '#333333',
-    fontWeight: '700',
-  },
-  { tag: tags.strong, fontWeight: '700' },
-  { tag: tags.emphasis, fontStyle: 'italic' },
-])
-
-const technicalPlateHighlightStyle = HighlightStyle.define([
-  { tag: tags.comment, color: 'oklch(0.59 0.025 257)', fontStyle: 'italic' },
-  {
-    tag: [tags.string, tags.character, tags.heading, tags.regexp],
-    color: 'oklch(0.87 0.12 88)',
-  },
-  {
-    tag: [tags.keyword, tags.atom, tags.bool, tags.operator, tags.modifier, tags.definitionKeyword],
-    color: 'oklch(0.69 0.085 292)',
-  },
-  {
-    tag: [tags.number, tags.variableName, tags.constant(tags.name)],
-    color: 'oklch(0.76 0.09 211)',
-  },
-  {
-    tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
-    color: 'oklch(0.72 0.17 43)',
-    fontWeight: '700',
-  },
-  {
-    tag: [tags.className, tags.typeName, tags.tagName, tags.attributeName],
-    color: 'oklch(0.76 0.09 211)',
-  },
-  { tag: [tags.punctuation, tags.propertyName], color: 'oklch(0.93 0.014 255)' },
-  { tag: tags.strong, fontWeight: '700' },
-  { tag: tags.emphasis, fontStyle: 'italic' },
-])
-
-const ambientThemes: AmbientTheme[] = [
-  {
-    id: 'macos',
-    label: 'macOS window',
-    highlightStyle: waspHighlightStyle,
-  },
-  {
-    id: 'technical-plate',
-    label: 'Technical plate',
-    background: 'oklch(0.205 0.038 262)',
-    padding: 38,
-    radius: 0,
-    highlightStyle: technicalPlateHighlightStyle,
-  },
-]
 
 const getLanguageExtension = (language: LanguageValue): Extension => {
   switch (language) {
@@ -441,6 +339,8 @@ const shouldExportNode = (node: Node) => {
 export function App() {
   const editorHostRef = useRef<HTMLDivElement>(null)
   const editorViewRef = useRef<EditorView | null>(null)
+  const languageCompartmentRef = useRef(new Compartment())
+  const ambientCompartmentRef = useRef(new Compartment())
   const shotRef = useRef<HTMLDivElement>(null)
   const codeRef = useRef('')
   const highlightedLinesRef = useRef(new Set<number>())
@@ -451,14 +351,12 @@ export function App() {
   const isDraggingLineRef = useRef(false)
   const [code, setCode] = useState(getInitialCode)
   const [languageId, setLanguageId] = useState('typescript')
-  const [ambientThemeId, setAmbientThemeId] = useState<AmbientThemeId>('macos')
-  const [ambientTitle, setAmbientTitle] = useState('native embeddings')
-  const [backgroundId, setBackgroundId] = useState('yellow')
-  const [padding, setPadding] = useState(48)
-  const [radius, setRadius] = useState(12)
+  const [ambientKey, setAmbientKey] = useState(defaultAmbientKey)
+  const [title, setTitle] = useState('top secret code')
+  const [ambientCustomizations, setAmbientCustomizations] =
+    useState<AmbientCustomizationState>({})
   const [frameWidth, setFrameWidth] = useState(defaultFrameWidth)
   const widthDragRef = useRef<{ startX: number; startWidth: number; scale: number } | null>(null)
-  const [showChrome, setShowChrome] = useState(true)
   const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set())
   const [exportAction, setExportAction] = useState<ExportAction>(null)
   const [message, setMessage] = useState('')
@@ -471,13 +369,19 @@ export function App() {
 
   const selectedLanguage =
     languageOptions.find((option) => option.id === languageId) ?? languageOptions[0]
-  const selectedAmbientTheme =
-    ambientThemes.find((theme) => theme.id === ambientThemeId) ?? ambientThemes[0]
-  const selectedBackground =
-    backgroundOptions.find((option) => option.id === backgroundId) ?? backgroundOptions[0]
-  const shotBackground = selectedAmbientTheme.background ?? selectedBackground.value
-  const shotPadding = selectedAmbientTheme.padding ?? padding
-  const shotRadius = selectedAmbientTheme.radius ?? radius
+  const selectedAmbient = getAmbientDefinition(ambientKey)
+  const codeLineCount = code.split('\n').length
+  const screenshotContent: ScreenshotContent = {
+    title,
+    fileType: {
+      id: selectedLanguage.id,
+      label: selectedLanguage.label,
+      syntax: selectedLanguage.lang,
+    },
+    lineCount: codeLineCount,
+  }
+  const ambientVariables = resolveAmbientVariables(selectedAmbient, ambientCustomizations)
+  const SelectedAmbientShell = selectedAmbient.Shell
   const selectedLineCount = highlightedLines.size
   const highlightedLineStatus = formatHighlightedLines(highlightedLines)
   const isCopying = exportAction === 'copy'
@@ -561,8 +465,8 @@ export function App() {
         doc: codeRef.current,
         extensions: [
           minimalSetup,
-          getLanguageExtension(selectedLanguage.lang),
-          syntaxHighlighting(selectedAmbientTheme.highlightStyle),
+          languageCompartmentRef.current.of(getLanguageExtension(selectedLanguage.lang)),
+          ambientCompartmentRef.current.of(selectedAmbient.editorExtension),
           EditorState.tabSize.of(2),
           EditorView.lineWrapping,
           placeholder('Paste or type your code...'),
@@ -657,7 +561,27 @@ export function App() {
         editorViewRef.current = null
       }
     }
-  }, [selectedAmbientTheme.highlightStyle, selectedLanguage.lang])
+  }, [])
+
+  useEffect(() => {
+    const editorView = editorViewRef.current
+    if (!editorView) return
+
+    editorView.dispatch({
+      effects: languageCompartmentRef.current.reconfigure(
+        getLanguageExtension(selectedLanguage.lang),
+      ),
+    })
+  }, [selectedLanguage.lang])
+
+  useEffect(() => {
+    const editorView = editorViewRef.current
+    if (!editorView) return
+
+    editorView.dispatch({
+      effects: ambientCompartmentRef.current.reconfigure(selectedAmbient.editorExtension),
+    })
+  }, [selectedAmbient.editorExtension])
 
   const highlightCurrentLine = () => {
     const editorView = editorViewRef.current
@@ -751,18 +675,25 @@ export function App() {
     setFrameWidth((previousWidth) => clampFrameWidth(previousWidth + step))
   }
 
-  const renderPngBlob = () => {
+  const renderPngBlob = async () => {
     const frame = shotRef.current
 
     if (!frame) return null
 
-    return domToBlob(frame, {
-      backgroundColor: null,
-      scale: 2,
-      width: frame.offsetWidth,
-      height: frame.offsetHeight,
-      filter: shouldExportNode,
-    })
+    frame.classList.add('shot-frame--exporting')
+    await document.fonts.ready
+
+    try {
+      return await domToBlob(frame, {
+        backgroundColor: null,
+        scale: 2,
+        width: frame.offsetWidth,
+        height: frame.offsetHeight,
+        filter: shouldExportNode,
+      })
+    } finally {
+      frame.classList.remove('shot-frame--exporting')
+    }
   }
 
   const copyPng = async () => {
@@ -806,13 +737,13 @@ export function App() {
 
   return (
     <main class="app-shell">
-      <h1 class="sr-only">Wasp code screenshot tool</h1>
+      <h1 class="sr-only">codeshot.dev code screenshot tool</h1>
       <section class="workspace" aria-label="Editable screenshot">
         <div class="preview-viewport" ref={previewViewportRef}>
           <div class="preview-stage">
             <div class="stage-cluster">
               <div class="shot-toolbar">
-                <div class="toolbar-group">
+                <div class="toolbar-group toolbar-export">
                   <button
                     class="pen-button pen-button-primary"
                     type="button"
@@ -833,7 +764,12 @@ export function App() {
                     {message}
                   </span>
                 </div>
-                <div class="toolbar-group">
+                <AmbientSelector
+                  definitions={ambientDefinitions}
+                  selectedKey={ambientKey}
+                  onSelect={setAmbientKey}
+                />
+                <div class="toolbar-group toolbar-draw">
                   {penStrokes.length > 0 && (
                     <>
                       <button class="pen-button" type="button" onClick={undoPenStroke}>
@@ -869,32 +805,24 @@ export function App() {
               <div style={previewScale < 1 ? { zoom: previewScale } : undefined}>
                 <div
                   ref={shotRef}
-                  class={`shot-frame shot-frame--${selectedAmbientTheme.id}`}
+                  class={`shot-frame ${selectedAmbient.frameClass}${selectedAmbient.hideGutterOnExport ? ' shot-frame--gutterless-export' : ''}`}
                   style={{
-                    background: shotBackground,
-                    padding: `${shotPadding}px`,
                     width: `${frameWidth}px`,
-                    '--shot-padding': `${shotPadding}px`,
+                    ...ambientVariables,
                   }}
                 >
-                  <div class="code-window" style={{ borderRadius: `${shotRadius}px` }}>
-                    {selectedAmbientTheme.id === 'technical-plate' && (
-                      <div class="ambient-caption">{ambientTitle || 'untitled'}</div>
-                    )}
-                    {selectedAmbientTheme.id === 'macos' && showChrome && (
-                      <div class="window-bar">
-                        <div class="window-dots" aria-hidden="true">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                        </div>
-                        <span>{selectedLanguage.label}</span>
-                      </div>
-                    )}
-                    <div class="code-body">
-                      <div ref={editorHostRef} class="code-editor-host" />
-                    </div>
-                  </div>
+                  <SelectedAmbientShell content={screenshotContent}>
+                    <div
+                      ref={(editorHost) => {
+                        editorHostRef.current = editorHost
+                        const editorView = editorViewRef.current
+                        if (editorHost && editorView && editorView.dom.parentElement !== editorHost) {
+                          editorHost.append(editorView.dom)
+                        }
+                      }}
+                      class="code-editor-host"
+                    />
+                  </SelectedAmbientShell>
                   <div
                     class="width-handle"
                     role="separator"
@@ -945,30 +873,11 @@ export function App() {
             <details class="control-group" open>
               <summary class="control-summary">
                 <span class="control-title">Look</span>
+                <span class="look-context">{selectedAmbient.manifest.name}</span>
               </summary>
               <div class="control-content look-content">
-                <label class="toolbar-field" htmlFor="ambient-theme">
-                  <span>Ambient</span>
-                  <select
-                    id="ambient-theme"
-                    name="ambient-theme"
-                    value={ambientThemeId}
-                    onInput={(event) =>
-                      setAmbientThemeId(
-                        (event.currentTarget as HTMLSelectElement).value as AmbientThemeId,
-                      )
-                    }
-                  >
-                    {ambientThemes.map((theme) => (
-                      <option key={theme.id} value={theme.id}>
-                        {theme.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
                 <label class="toolbar-field" htmlFor="syntax">
-                  <span>Syntax</span>
+                  <span>File type</span>
                   <select
                     id="syntax"
                     name="syntax"
@@ -985,90 +894,57 @@ export function App() {
                   </select>
                 </label>
 
-                {selectedAmbientTheme.id === 'macos' ? (
-                  <>
-                    <label class="toolbar-field" htmlFor="background">
-                      <span>Background</span>
+                <label class="toolbar-field" htmlFor="ambient-title">
+                  <span>Title</span>
+                  <input
+                    id="ambient-title"
+                    name="ambient-title"
+                    type="text"
+                    value={title}
+                    placeholder="untitled"
+                    onInput={(event) => setTitle((event.currentTarget as HTMLInputElement).value)}
+                  />
+                </label>
+
+                {selectedAmbient.manifest.customizations.map((slot) => (
+                  <label class="toolbar-field" htmlFor={`ambient-option-${slot.id}`} key={slot.id}>
+                    <span>{slot.label}</span>
+                    {slot.type === 'palette' ? (
                       <select
-                        id="background"
-                        name="background"
-                        value={backgroundId}
-                        onInput={(event) =>
-                          setBackgroundId((event.currentTarget as HTMLSelectElement).value)
-                        }
+                        class="ambient-option-control"
+                        id={`ambient-option-${slot.id}`}
+                        name={`ambient-option-${slot.id}`}
+                        value={ambientCustomizations[ambientKey]?.[slot.id] ?? slot.defaultOptionId}
+                        onInput={(event) => {
+                          const value = (event.currentTarget as HTMLSelectElement).value
+                          setAmbientCustomizations((current) => ({
+                            ...current,
+                            [ambientKey]: { ...current[ambientKey], [slot.id]: value },
+                          }))
+                        }}
                       >
-                        {backgroundOptions.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.label}
-                          </option>
+                        {slot.options.map((option) => (
+                          <option key={option.id} value={option.id}>{option.label}</option>
                         ))}
                       </select>
-                    </label>
-
-                    <label class="toolbar-field compact-field" htmlFor="background-padding">
-                      <span>Padding</span>
-                      <select
-                        id="background-padding"
-                        name="background-padding"
-                        value={String(padding)}
-                        onInput={(event) =>
-                          setPadding(Number((event.currentTarget as HTMLSelectElement).value))
-                        }
-                      >
-                        {paddingOptions.map((value) => (
-                          <option key={value} value={value}>
-                            {value}px
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label class="toolbar-field compact-field" htmlFor="corner-radius">
-                      <span>Corner radius</span>
-                      <select
-                        id="corner-radius"
-                        name="corner-radius"
-                        value={String(radius)}
-                        onInput={(event) =>
-                          setRadius(Number((event.currentTarget as HTMLSelectElement).value))
-                        }
-                      >
-                        {radiusOptions.map((value) => (
-                          <option key={value} value={value}>
-                            {value}px
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label class="toolbar-toggle" htmlFor="show-window-bar">
+                    ) : (
                       <input
-                        id="show-window-bar"
-                        name="show-window-bar"
-                        type="checkbox"
-                        checked={showChrome}
-                        onInput={(event) =>
-                          setShowChrome((event.currentTarget as HTMLInputElement).checked)
-                        }
+                        class="ambient-option-control"
+                        id={`ambient-option-${slot.id}`}
+                        name={`ambient-option-${slot.id}`}
+                        type="color"
+                        value={ambientCustomizations[ambientKey]?.[slot.id] ?? slot.defaultValue}
+                        onInput={(event) => {
+                          const value = (event.currentTarget as HTMLInputElement).value
+                          setAmbientCustomizations((current) => ({
+                            ...current,
+                            [ambientKey]: { ...current[ambientKey], [slot.id]: value },
+                          }))
+                        }}
                       />
-                      <span>Show window bar</span>
-                    </label>
-                  </>
-                ) : (
-                  <label class="toolbar-field" htmlFor="ambient-title">
-                    <span>Caption</span>
-                    <input
-                      id="ambient-title"
-                      name="ambient-title"
-                      type="text"
-                      value={ambientTitle}
-                      placeholder="untitled"
-                      onInput={(event) =>
-                        setAmbientTitle((event.currentTarget as HTMLInputElement).value)
-                      }
-                    />
+                    )}
                   </label>
-                )}
+                ))}
               </div>
             </details>
 
