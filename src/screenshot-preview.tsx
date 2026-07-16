@@ -7,9 +7,10 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefCallback,
 } from 'react'
-import { domToBlob } from 'modern-screenshot'
 import { getStroke } from 'perfect-freehand'
 import { AmbientSelector } from './ambient-selector'
+import { DeclarativeAmbient } from './declarative-ambient'
+import { renderScreenshotBlob } from './screenshot-export'
 import {
   ambientDefinitions,
   type AmbientDefinition,
@@ -126,15 +127,6 @@ const downloadBlob = (blob: Blob) => {
   window.setTimeout(() => window.URL.revokeObjectURL(url), 0)
 }
 
-const shouldExportNode = (node: Node) => {
-  if (!(node instanceof HTMLElement)) return true
-
-  const className = String(node.className)
-  return !['cm-cursorLayer', 'cm-selectionLayer', 'cm-tooltip', 'cm-announced', 'width-handle'].some(
-    (hiddenClass) => className.includes(hiddenClass),
-  )
-}
-
 export function ScreenshotPreview({
   ambientKey,
   onAmbientChange,
@@ -155,10 +147,38 @@ export function ScreenshotPreview({
   const [isPenActive, setIsPenActive] = useState(false)
   const [penStrokes, setPenStrokes] = useState<number[][][]>([])
   const [, setPenTick] = useState(0)
-  const SelectedAmbientShell = selectedAmbient.Shell
   const isCopying = exportAction === 'copy'
   const isDownloading = exportAction === 'download'
   const isExporting = exportAction !== null
+  const frameClass = selectedAmbient.kind === 'react'
+    ? `shot-frame ${selectedAmbient.frameClass}`
+    : 'shot-frame'
+  const frameStyle = {
+    width: `${frameWidth}px`,
+    '--annotation-ink': selectedAmbient.manifest.annotations.ink,
+    ...(selectedAmbient.kind === 'react' ? ambientVariables : {}),
+  } as CSSProperties
+
+  const renderAmbient = () => {
+    if (selectedAmbient.kind === 'declarative') {
+      return (
+        <DeclarativeAmbient
+          compiledDocument={selectedAmbient.compiledDocument}
+          content={screenshotContent}
+          style={ambientVariables}
+        >
+          <div ref={editorHostRef} className="code-editor-host" slot="code" />
+        </DeclarativeAmbient>
+      )
+    }
+
+    const SelectedAmbientShell = selectedAmbient.Shell
+    return (
+      <SelectedAmbientShell content={screenshotContent}>
+        <div ref={editorHostRef} className="code-editor-host" />
+      </SelectedAmbientShell>
+    )
+  }
 
   useEffect(() => {
     if (!message) return
@@ -247,21 +267,7 @@ export function ScreenshotPreview({
   const renderPngBlob = async () => {
     const frame = shotRef.current
     if (!frame) return null
-
-    frame.classList.add('shot-frame--exporting')
-
-    try {
-      await document.fonts.ready
-      return await domToBlob(frame, {
-        backgroundColor: null,
-        scale: 2,
-        width: frame.offsetWidth,
-        height: frame.offsetHeight,
-        filter: shouldExportNode,
-      })
-    } finally {
-      frame.classList.remove('shot-frame--exporting')
-    }
+    return renderScreenshotBlob(frame)
   }
 
   const copyPng = async () => {
@@ -374,12 +380,11 @@ export function ScreenshotPreview({
           <div style={previewScale < 1 ? { zoom: previewScale } : undefined}>
             <div
               ref={shotRef}
-              className={`shot-frame ${selectedAmbient.frameClass}${selectedAmbient.hideGutterOnExport ? ' shot-frame--gutterless-export' : ''}`}
-              style={{ width: `${frameWidth}px`, ...ambientVariables }}
+              className={frameClass}
+              data-export-gutter={selectedAmbient.manifest.editor.exportGutter}
+              style={frameStyle}
             >
-              <SelectedAmbientShell content={screenshotContent}>
-                <div ref={editorHostRef} className="code-editor-host" />
-              </SelectedAmbientShell>
+              {renderAmbient()}
               <div
                 className="width-handle"
                 role="separator"

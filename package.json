@@ -8,6 +8,10 @@
   "scripts": {
     "dev": "wasp start",
     "build": "wasp build && tsc -b && REACT_APP_API_URL=https://code-screenshot.static.miho.dev npx vite build",
+    "test": "npm run test:unit && npm run test:browser",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:unit:watch": "vitest --config vitest.config.ts",
+    "test:browser": "playwright test",
     "preview": "vite preview",
     "deploy": "npm run build && npx --yes @infomiho/buzz-cli@0.7.0 deploy ./.wasp/out/web-app/build --subdomain code-screenshot --server https://static.miho.dev"
   },
@@ -24,13 +28,17 @@
     "@codemirror/view": "^6.43.6",
     "@lezer/highlight": "^1.2.3",
     "codemirror": "^6.0.2",
+    "css-tree": "^3.2.1",
     "modern-screenshot": "^4.7.0",
+    "parse5": "^8.0.1",
     "perfect-freehand": "^1.2.3",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router": "^7.12.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/css-tree": "^2.3.11",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

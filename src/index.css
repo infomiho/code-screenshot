@@ -227,7 +227,7 @@ input:focus-visible,
   justify-self: center;
 }
 
-.ambient-selector button {
+:where(.ambient-selector) button {
   min-height: var(--ambient-control-size);
   border-color: var(--control-border);
   background: var(--control);
@@ -239,11 +239,11 @@ input:focus-visible,
   transition-timing-function: var(--ambient-motion-ease);
 }
 
-.ambient-selector button:hover {
+:where(.ambient-selector) button:hover {
   background: color-mix(in oklch, var(--control), var(--text) 6%);
 }
 
-.ambient-selector button:active {
+:where(.ambient-selector) button:active {
   scale: 0.96;
 }
 
@@ -452,11 +452,11 @@ input:focus-visible,
 .ambient-picker-close {
   display: none;
   width: 32px;
-  min-height: 32px !important;
+  min-height: 32px;
   place-items: center;
   border: 0;
   padding: 0;
-  font-family: var(--sans) !important;
+  font-family: var(--sans);
   font-size: 22px;
 }
 
@@ -520,20 +520,18 @@ input:focus-visible,
     padding var(--transition-fast);
 }
 
-.shot-frame--exporting,
-.shot-frame--exporting * {
-  transition: none !important;
+.shot-frame--exporting {
+  transition: none;
 }
 
-.shot-frame--gutterless-export.shot-frame--exporting .cm-gutters {
+.shot-frame[data-export-gutter='hide'].shot-frame--exporting .cm-gutters {
   visibility: hidden;
 }
 
 .width-handle {
   position: absolute;
-  top: var(--shot-padding);
-  bottom: var(--shot-padding);
-  right: calc(var(--shot-padding) / 2 - var(--width-handle-size) / 2);
+  inset-block: 0;
+  right: calc(var(--width-handle-size) / -2);
   width: var(--width-handle-size);
   border-radius: var(--radius-pill);
   background: var(--width-handle-bg);
@@ -558,7 +556,7 @@ input:focus-visible,
 }
 
 .draw-layer path {
-  fill: var(--pen-color);
+  fill: var(--annotation-ink, var(--pen-color));
 }
 
 .draw-layer-active {
@@ -654,55 +652,57 @@ input:focus-visible,
 
 .code-editor-host .cm-editor {
   min-height: var(--editor-min-height);
-  background: transparent;
-  color: var(--code-text);
-  font-family: var(--mono);
-  font-size: var(--font-size-code);
-  line-height: var(--line-height-code);
+  background: var(--ambient-editor-background, transparent);
+  color: var(--ambient-editor-text-color, var(--code-text));
+  font-family: var(--ambient-editor-font-family, var(--mono));
+  font-size: var(--ambient-editor-font-size, var(--font-size-code));
+  font-weight: var(--ambient-editor-font-weight, 400);
+  line-height: var(--ambient-editor-line-height, var(--line-height-code));
 }
 
 .code-editor-host .cm-scroller {
   overflow: visible;
   font-family: inherit;
-  line-height: var(--line-height-code);
+  line-height: var(--ambient-editor-line-height, var(--line-height-code));
 }
 
 .code-editor-host .cm-content {
   width: 100%;
   min-width: 0;
   padding: 0;
-  caret-color: var(--bg);
+  caret-color: var(--ambient-editor-caret-color, var(--bg));
 }
 
 .code-editor-host .cm-line {
   overflow-wrap: anywhere;
-  padding: 0 var(--space-3);
+  padding: 0 var(--ambient-editor-content-padding-inline, var(--space-3));
   word-break: break-word;
 }
 
 .code-editor-host .cm-gutters {
   border-right: 0;
-  background: transparent;
-  color: var(--code-gutter);
-  font-family: var(--mono);
-  margin-right: var(--space-5);
+  background: var(--ambient-editor-background, transparent);
+  color: var(--ambient-editor-gutter-color, var(--code-gutter));
+  font-family: var(--ambient-editor-font-family, var(--mono));
+  font-variant-numeric: tabular-nums;
+  margin-right: var(--ambient-editor-gutter-gap, var(--space-5));
 }
 
 .code-editor-host .cm-lineNumbers .cm-gutterElement {
   min-width: var(--gutter-number-width);
-  padding: 0 var(--space-2) 0 0;
+  padding: 0 var(--ambient-editor-gutter-padding-inline-end, var(--space-2)) 0 0;
   cursor: pointer;
 }
 
 .code-editor-host .cm-lineNumbers .cm-gutterElement:hover,
 .code-editor-host .cm-selected-line-number {
-  color: var(--wasp-gold);
+  color: var(--ambient-editor-selected-line-number-color, var(--wasp-gold));
   font-weight: var(--font-weight-code-accent);
 }
 
 .code-editor-host .cm-highlighted-line {
-  background: var(--highlight-bg);
-  box-shadow: inset var(--highlight-strip-width) 0 0 var(--wasp-yellow);
+  background: var(--ambient-editor-highlight-background, var(--highlight-bg));
+  box-shadow: inset var(--highlight-strip-width) 0 0 var(--ambient-editor-highlight-accent, var(--wasp-yellow));
 }
 
 .code-editor-host .cm-activeLine,
@@ -710,10 +710,9 @@ input:focus-visible,
   background: transparent;
 }
 
-.code-editor-host .cm-selectionBackground,
-.code-editor-host .cm-focused .cm-selectionBackground,
-.code-editor-host .cm-content ::selection {
-  background: var(--selection-bg) !important;
+.shot-frame .code-editor-host .cm-editor .cm-selectionLayer .cm-selectionBackground,
+.shot-frame .code-editor-host .cm-content::selection {
+  background: var(--ambient-editor-selection-background, var(--selection-bg));
 }
 
 .control-panel {

@@ -17,7 +17,7 @@ const padIndex = (index: number) => String(index).padStart(2, '0')
 function AmbientMark({ definition }: { definition: AmbientDefinition }) {
   return (
     <span
-      className={`ambient-mark ambient-mark--${definition.manifest.id}`}
+      className={`ambient-mark ambient-mark--${definition.id}`}
       aria-hidden="true"
     />
   )
