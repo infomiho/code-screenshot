@@ -568,6 +568,26 @@ input:focus-visible,
   box-shadow: 0 4px oklch(0.54 0.075 145), 0 8px oklch(0.54 0.075 145);
 }
 
+.ambient-mark--user {
+  background: oklch(0.24 0.012 245);
+}
+
+.ambient-mark--user::before {
+  inset: 4px;
+  border: 1px solid oklch(0.72 0.04 240);
+  background:
+    linear-gradient(135deg, transparent 0 42%, oklch(0.72 0.04 240) 42% 48%, transparent 48%),
+    oklch(0.17 0.006 250);
+}
+
+.ambient-mark--user::after {
+  right: 7px;
+  bottom: 6px;
+  width: 12px;
+  height: 2px;
+  background: oklch(0.72 0.04 240);
+}
+
 .ambient-picker-shell {
   position: absolute;
   z-index: 10;
@@ -625,7 +645,8 @@ input:focus-visible,
   border-top: 1px solid var(--panel-border);
 }
 
-.ambient-picker-group h3 {
+.ambient-picker-group h3,
+.ambient-account h3 {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--muted);
@@ -673,6 +694,61 @@ input:focus-visible,
   font-weight: var(--font-weight-heavy);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.ambient-account {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--panel-border);
+  padding: var(--space-5) var(--space-4) var(--space-4);
+}
+
+.ambient-account h3 {
+  padding: 0;
+}
+
+.ambient-account p,
+.ambient-draft-row span {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: var(--font-size-control);
+  line-height: var(--line-height-help);
+}
+
+.ambient-account-action {
+  justify-self: start;
+}
+
+.ambient-account-meta {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.ambient-draft-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.ambient-draft-row > div {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.ambient-draft-row .ui-button {
+  white-space: nowrap;
+}
+
+.ambient-draft-row strong {
+  overflow: hidden;
+  font-family: var(--sans);
+  font-size: var(--font-size-control);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes ambient-picker-in {

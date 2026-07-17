@@ -1,5 +1,9 @@
 import type { AmbientDefinition } from './ambient-themes'
 
 export function AmbientMark({ definition }: { definition: AmbientDefinition }) {
-  return <span className={`ambient-mark ambient-mark--${definition.id}`} aria-hidden="true" />
+  const markerClass = definition.source === 'built-in'
+    ? `ambient-mark--${definition.id}`
+    : 'ambient-mark--user'
+
+  return <span className={`ambient-mark ${markerClass}`} aria-hidden="true" />
 }

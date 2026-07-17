@@ -1,31 +1,96 @@
 import {
+  useEffect,
   useId,
+  useRef,
   useState,
 } from 'react'
 import './index.css'
+import type { YourAmbientsState } from './ambient-picker'
 import {
   defaultAmbientKey,
   getAmbientDefinition,
+  getAmbientKey,
   resolveAmbientVariables,
   type AmbientCustomizationState,
   type ScreenshotContent,
 } from './ambient-themes'
+import { AgentDraftHud } from './ambient-workspace/agent-draft/AgentDraftHud'
+import { getHudStatus } from './ambient-workspace/agent-draft/model'
+import type {
+  AmbientWorkspaceService,
+  AmbientWorkspaceSnapshot,
+} from './ambient-workspace/ambient-workspace-service'
+import { useAmbientWorkspace } from './ambient-workspace/use-ambient-workspace'
 import { ScreenshotControls } from './screenshot-controls'
 import { ScreenshotPreview } from './screenshot-preview'
 import { SiteHeader } from './site-header'
 import { useCodeEditor } from './use-code-editor'
 
-export function App() {
+type AppProps = {
+  ambientWorkspaceService?: AmbientWorkspaceService
+}
+
+const getDraftRevisionKey = (draft: AmbientWorkspaceSnapshot['draft']) =>
+  draft ? `${draft.id}@${draft.revision}` : null
+
+const getAmbientIdFromKey = (key: string) => key.slice(0, key.lastIndexOf('@'))
+
+function createYourAmbientsState(
+  workspace: AmbientWorkspaceSnapshot,
+  actions: {
+    beginAmbient: () => void
+    openDraft: () => void
+    signIn: () => void
+  },
+): YourAmbientsState {
+  if (workspace.account.kind === 'signed-out') {
+    return { kind: 'signed-out', onSignIn: actions.signIn }
+  }
+
+  return {
+    kind: 'signed-in',
+    username: workspace.account.username,
+    draft: workspace.draft
+      ? {
+          actionLabel: workspace.draft.phase === 'saved' ? 'Open agent session' : 'Open draft',
+          name: workspace.draft.ambientName ?? 'New ambient',
+          status: getHudStatus(workspace.draft),
+        }
+      : null,
+    canCreate: !workspace.draft || workspace.draft.phase === 'saved',
+    onCreateAmbient: actions.beginAmbient,
+    onOpenDraft: actions.openDraft,
+  }
+}
+
+export function App({ ambientWorkspaceService }: AppProps = {}) {
   const editorHelpId = `${useId()}-editor-help`
   const highlightStatusId = `${useId()}-highlight-status`
   const [languageId, setLanguageId] = useState('typescript')
   const [ambientKey, setAmbientKey] = useState(defaultAmbientKey)
   const [title, setTitle] = useState('top secret code')
+  const [isAgentDockOpen, setIsAgentDockOpen] = useState(false)
+  const [dismissedSavedDraftKey, setDismissedSavedDraftKey] = useState<string | null>(null)
+  const {
+    definitions,
+    draftDefinition,
+    service: workspaceService,
+    snapshot: workspace,
+  } = useAmbientWorkspace(ambientWorkspaceService)
+  const lastDraftRef = useRef<{ id: string | null; revision: number }>({
+    id: null,
+    revision: 0,
+  })
   const [ambientCustomizations, setAmbientCustomizations] =
     useState<AmbientCustomizationState>({})
-  const selectedAmbient = getAmbientDefinition(ambientKey)
+  const selectedAmbient = definitions.find(
+    (definition) => getAmbientKey(definition) === ambientKey,
+  ) ?? definitions.find(
+    (definition) => definition.id === getAmbientIdFromKey(ambientKey),
+  ) ?? getAmbientDefinition(defaultAmbientKey, definitions)
+  const selectedAmbientKey = getAmbientKey(selectedAmbient)
   const selectedCustomizationSlots = selectedAmbient.manifest.customizations
-  const selectedCustomizationValues = ambientCustomizations[ambientKey]
+  const selectedCustomizationValues = ambientCustomizations[selectedAmbientKey]
   const ariaDescribedBy = `${editorHelpId} ${highlightStatusId}`
   const {
     languageOptions,
@@ -56,11 +121,24 @@ export function App() {
     ambientCustomizations,
   )
 
+  useEffect(() => {
+    const draft = workspace.draft
+    if (!draftDefinition || !draft || draft.phase !== 'review') return
+
+    const previousDraft = lastDraftRef.current
+    const isFirstAcceptedChange = previousDraft.id !== draft.id || previousDraft.revision === 0
+    const isViewingThisAmbient = getAmbientIdFromKey(ambientKey) === draft.id
+    lastDraftRef.current = { id: draft.id, revision: draft.revision }
+    if (isFirstAcceptedChange || isViewingThisAmbient) {
+      setAmbientKey(getAmbientKey(draftDefinition))
+    }
+  }, [ambientKey, draftDefinition, workspace.draft])
+
   const updateAmbientCustomization = (slotId: string, value: string) => {
     setAmbientCustomizations((current) => ({
       ...current,
-      [ambientKey]: {
-        ...current[ambientKey],
+      [selectedAmbientKey]: {
+        ...current[selectedAmbientKey],
         [slotId]: value,
       },
     }))
@@ -70,13 +148,62 @@ export function App() {
   const selectLanguage = (nextLanguageId: string) => setLanguageId(nextLanguageId)
   const updateTitle = (nextTitle: string) => setTitle(nextTitle)
 
+  const beginAmbient = () => {
+    setDismissedSavedDraftKey(null)
+    workspaceService.beginAmbient()
+    setIsAgentDockOpen(true)
+  }
+
+  const savePrivateVersion = async () => {
+    const record = await workspaceService.savePrivateVersion()
+    if (record && workspaceService.getSnapshot().account.kind === 'signed-in') {
+      setAmbientKey(`${record.id}@${record.version}`)
+    }
+  }
+
+  const signOut = () => {
+    workspaceService.signOut()
+    setDismissedSavedDraftKey(null)
+    setAmbientKey(defaultAmbientKey)
+    setIsAgentDockOpen(false)
+  }
+
+  const updateAgentDockOpen = (isOpen: boolean) => {
+    if (!isOpen && workspace.draft?.phase === 'saved') {
+      setDismissedSavedDraftKey(getDraftRevisionKey(workspace.draft))
+    }
+    setIsAgentDockOpen(isOpen)
+  }
+
+  const openAgentDraft = () => {
+    setDismissedSavedDraftKey(null)
+    setIsAgentDockOpen(true)
+  }
+
+  const yourAmbients = createYourAmbientsState(workspace, {
+    beginAmbient,
+    openDraft: openAgentDraft,
+    signIn: workspaceService.signIn,
+  })
+  const isSavedDraftDismissed = workspace.draft?.phase === 'saved'
+    && dismissedSavedDraftKey === getDraftRevisionKey(workspace.draft)
+
   return (
     <main className="app-shell">
       <h1 className="sr-only">codeshot.dev code screenshot tool</h1>
-      <SiteHeader />
+      <SiteHeader
+        account={workspace.account}
+        onSignIn={workspaceService.signIn}
+        onSignOut={signOut}
+      />
       <section className="workspace" aria-label="Editable screenshot">
         <ScreenshotPreview
-          ambientKey={ambientKey}
+          ambientKey={selectedAmbientKey}
+          definitions={definitions}
+          yourAmbients={yourAmbients}
+          onAmbientPickerOpenChange={(isOpen) => {
+            if (isOpen) updateAgentDockOpen(false)
+          }}
           onAmbientChange={selectAmbient}
           selectedAmbient={selectedAmbient}
           screenshotContent={screenshotContent}
@@ -101,6 +228,18 @@ export function App() {
           onClearHighlights={clearHighlights}
         />
       </section>
+      {workspace.draft && !isSavedDraftDismissed && (
+        <AgentDraftHud
+          isOpen={isAgentDockOpen}
+          model={workspace.draft}
+          onOpenChange={updateAgentDockOpen}
+          onCreateAmbient={workspaceService.createAmbient}
+          onCopyPrompt={workspaceService.copyPrompt}
+          onRenewAgentAccess={workspaceService.renewAgentAccess}
+          onRetryConnection={workspaceService.retryConnection}
+          onSavePrivateVersion={savePrivateVersion}
+        />
+      )}
       <footer className="site-footer">
         <a href="https://wasp.sh">Built with Wasp</a>
         <span aria-hidden="true">/</span>

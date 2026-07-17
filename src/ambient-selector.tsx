@@ -6,12 +6,19 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import { AmbientMark } from './ambient-mark'
-import { AmbientPicker } from './ambient-picker'
+import {
+  AmbientPicker,
+  type YourAmbientsState,
+} from './ambient-picker'
 import { getAmbientKey, type AmbientDefinition } from './ambient-themes'
+
+export type { YourAmbientsState } from './ambient-picker'
 
 type AmbientSelectorProps = {
   definitions: readonly AmbientDefinition[]
   selectedKey: string
+  yourAmbients: YourAmbientsState
+  onOpenChange?: (isOpen: boolean) => void
   onSelect: (key: string) => void
 }
 
@@ -20,6 +27,8 @@ const padIndex = (index: number) => String(index).padStart(2, '0')
 export function AmbientSelector({
   definitions,
   selectedKey,
+  yourAmbients,
+  onOpenChange,
   onSelect,
 }: AmbientSelectorProps) {
   const pickerId = `${useId()}-ambient-picker`
@@ -31,6 +40,8 @@ export function AmbientSelector({
   const previous = definitions[(selectedIndex - 1 + definitions.length) % definitions.length]
   const next = definitions[(selectedIndex + 1) % definitions.length]
   const entries = definitions.map((definition, index) => ({ definition, index }))
+  const builtIns = entries.filter(({ definition }) => definition.source === 'built-in')
+  const personal = entries.filter(({ definition }) => definition.source !== 'built-in')
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -38,8 +49,13 @@ export function AmbientSelector({
   const [activeIndex, setActiveIndex] = useState(selectedIndex)
   const [status, setStatus] = useState('')
 
+  const updateOpen = (nextOpen: boolean) => {
+    setIsOpen(nextOpen)
+    onOpenChange?.(nextOpen)
+  }
+
   const closeAndRestoreFocus = () => {
-    setIsOpen(false)
+    updateOpen(false)
     window.requestAnimationFrame(() => triggerRef.current?.focus())
   }
 
@@ -47,7 +63,7 @@ export function AmbientSelector({
     if (!isOpen) return
 
     const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setIsOpen(false)
+      if (!rootRef.current?.contains(event.target as Node)) updateOpen(false)
     }
 
     document.addEventListener('pointerdown', closeOnOutsidePointer)
@@ -137,11 +153,11 @@ export function AmbientSelector({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={pickerId}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => updateOpen(!isOpen)}
         onKeyDown={(event) => {
           if (event.key !== 'ArrowDown') return
           event.preventDefault()
-          setIsOpen(true)
+          updateOpen(true)
         }}
       >
         <AmbientMark definition={selected} />
@@ -165,12 +181,14 @@ export function AmbientSelector({
       {isOpen && (
         <AmbientPicker
           activeIndex={activeIndex}
-          entries={entries}
+          builtIns={builtIns}
+          personal={personal}
           pickerId={pickerId}
           pickerRef={pickerRef}
           selectedIndex={selectedIndex}
+          yourAmbients={yourAmbients}
           onActiveIndexChange={setActiveIndex}
-          onClose={() => setIsOpen(false)}
+          onClose={() => updateOpen(false)}
           onEscape={closeAndRestoreFocus}
           onKeyDown={handlePickerKeyDown}
           onSelect={(index) => selectAt(index, true)}

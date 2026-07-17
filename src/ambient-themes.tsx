@@ -27,7 +27,7 @@ type AmbientShellProps = {
 type AmbientDefinitionBase = {
   id: string
   version: number
-  source: 'built-in'
+  source: 'built-in' | 'draft' | 'saved'
   manifest: AmbientManifest
   editorExtension: Extension
 }
@@ -70,6 +70,9 @@ const createHighlightStyle = (colors: AmbientTokenPalette) =>
     { tag: tags.strong, fontWeight: '700' },
     { tag: tags.emphasis, fontStyle: 'italic' },
   ])
+
+export const createAmbientEditorExtension = (colors: AmbientTokenPalette) =>
+  syntaxHighlighting(createHighlightStyle(colors))
 
 const waspHighlightStyle = HighlightStyle.define([
   { tag: tags.comment, color: '#999999', fontStyle: 'italic' },
@@ -285,7 +288,7 @@ const swissPosterManifest: AmbientManifest = {
   customizations: swissPosterDocument.customizations,
 }
 
-export const ambientDefinitions: AmbientDefinition[] = [
+export const ambientDefinitions: readonly AmbientDefinition[] = [
   defineAmbient({
     id: 'macos',
     version: 1,
@@ -323,7 +326,7 @@ export const ambientDefinitions: AmbientDefinition[] = [
     kind: 'declarative',
     manifest: swissPosterManifest,
     compiledDocument: compiledSwissPoster,
-    editorExtension: syntaxHighlighting(createHighlightStyle(swissPosterDocument.editor.tokens)),
+    editorExtension: createAmbientEditorExtension(swissPosterDocument.editor.tokens),
   }),
   defineAmbient({
     id: 'field-notebook',
@@ -352,8 +355,11 @@ export const getAmbientKey = (definition: AmbientDefinition) =>
 
 export const defaultAmbientKey = getAmbientKey(ambientDefinitions[0])
 
-export const getAmbientDefinition = (id: string) => {
-  const definition = ambientDefinitions.find((candidate) => getAmbientKey(candidate) === id)
+export const getAmbientDefinition = (
+  id: string,
+  definitions: readonly AmbientDefinition[] = ambientDefinitions,
+) => {
+  const definition = definitions.find((candidate) => getAmbientKey(candidate) === id)
 
   if (!definition) throw new Error(`Unknown ambient: ${id}`)
   return definition

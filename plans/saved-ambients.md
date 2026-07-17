@@ -38,7 +38,7 @@ The React application already has:
 - one persistent CodeMirror instance reparented between ambient shells
 - PNG export through `modern-screenshot`
 
-Built-in shells are currently trusted React components. Presentation still depends on ambient-specific frame classes and CSS selectors that reach into `.cm-*` internals. Export-only gutter behavior also lives outside the manifest. Stage 2A replaces those boundaries for one built-in before accepting mutable definitions.
+Five built-in shells remain trusted React components. Swiss Poster now runs through the schema-v1 compiler, open Shadow DOM runtime, native CodeMirror slot, documented editor variables, and real-browser export coverage. Stage 2B extends that proven boundary to hosted mutable drafts.
 
 ## Target Document
 
@@ -58,6 +58,10 @@ type AmbientDocument = {
   customizations: AmbientCustomizationSlot[]
   template: string
   stylesheet: string
+  thumbnail: {
+    template: string
+    stylesheet: string
+  }
 }
 
 type AmbientManifest = Omit<
@@ -84,7 +88,7 @@ type AmbientTokenPalette = {
 }
 ```
 
-Stage 2A migrates the current `AmbientManifest` toward this document/envelope split. It also renames the token palette's current `muted` field to the semantic `comment` field before schema version 1 is persisted.
+Stage 2A implemented the document/envelope split and renamed the token palette's former `muted` field to `comment`. Before schema version 1 is persisted, Stage 2B adds the required thumbnail contract and migrates the built-in declarative fixture.
 
 ## Screenshot Content
 
@@ -204,6 +208,30 @@ Prefer curated palettes. Palette overrides store option IDs rather than CSS valu
 
 Customization variables must be unique, use the `--ambient-` prefix, and appear in the stylesheet in a property compatible with their value kind. Overrides are keyed by ambient ID and exact version, then applied at the shell host.
 
+## Thumbnail Contract
+
+Each ambient includes a dedicated agent-authored miniature for picker and dashboard cards. The thumbnail is versioned with the ambient but remains independent from the full screenshot template so the picker never mounts CodeMirror or a complete ambient shell.
+
+```ts
+type AmbientThumbnail = {
+  template: string
+  stylesheet: string
+}
+```
+
+Thumbnail rules are stricter than ambient rules:
+
+- one root element
+- only `div`, `span`, and `i`
+- no bindings, slots, text input, or dynamic content
+- no URLs, assets, animations, transitions, or pointer events
+- maximum 24 elements and depth 6
+- maximum 2 KiB HTML and 4 KiB CSS
+- host-owned dimensions, clipping, and `pointer-events: none`
+- percentage, aspect-ratio, and container-relative layout instead of a fixed picker size
+
+The agent creates the thumbnail alongside the ambient. Publishing requires both documents to validate. Built-ins can migrate to the same thumbnail representation over time.
+
 ## Validation
 
 Validation returns stable, machine-readable diagnostics:
@@ -231,6 +259,10 @@ Parse HTML with an allowlist. Reject scripts, event handlers, inline styles, for
 
 Require one code slot and validate every binding, format, fallback, element, and attribute. Bound template bytes, depth, node count, and text length.
 
+### Thumbnail
+
+Parse the thumbnail with its dedicated HTML and CSS profiles. It cannot contain ambient slots or inherit the full template's element allowlist. Validation enforces its node, depth, byte, property, and resource limits before it can appear in the picker.
+
 ### CSS
 
 Parse CSS with an AST rather than regular expressions. Schema version 1 rejects:
@@ -252,9 +284,11 @@ Shadow DOM provides selector isolation but does not replace validation. Authenti
 
 Validators are deterministic and shared by the browser, server, and tests. The server always reruns validation before publishing, regardless of browser results.
 
-## Export Feasibility Gate
+Draft API diagnostics cover schema, security, supported syntax, bindings, declared values, and complexity limits. They do not claim to detect visual overflow or color contrast. Visual review happens in the browser preview; later export certification remains a separate concern.
 
-Before freezing schema version 1, Stage 2A must prove that `modern-screenshot` correctly captures:
+## Export Feasibility Result
+
+Stage 2A proved that `modern-screenshot` correctly captures:
 
 - an open shadow root
 - the slotted CodeMirror host and syntax colors
@@ -264,7 +298,7 @@ Before freezing schema version 1, Stage 2A must prove that `modern-screenshot` c
 - annotations layered above the shell
 - required fonts at fixed dimensions
 
-Test widths are 420, 860, and 1280 px. If the current exporter cannot reliably clone open shadow roots and slotted content, Stage 2A must choose and document a scoped light-DOM fallback before implementing persistence. Persistence cannot begin with an unresolved rendering boundary.
+The automated fixtures cover widths of 420, 860, and 1280 px. These are certification cases, not dedicated user-facing preview controls.
 
 Export freezes interactive state, waits for fonts and images, and captures explicit dimensions. Closed roots, opaque iframes, canvas-dependent visuals, and cross-origin resources remain unsupported.
 
@@ -274,6 +308,7 @@ Export freezes interactive state, waits for fonts and images, and captures expli
 type AmbientRecord = {
   id: string
   ownerId: string
+  slug: string
   name: string
   status: 'draft' | 'published' | 'archived'
   currentVersion: number | null
@@ -305,11 +340,21 @@ type AmbientVersionRecord = {
   certificationStatus: 'pending' | 'passed' | 'failed'
   createdAt: Date
 }
+
+type AmbientAgentSessionRecord = {
+  id: string
+  ambientId: string
+  capabilityHash: string
+  createdBy: string
+  expiresAt: Date
+  lastUsedAt: Date | null
+  createdAt: Date
+}
 ```
 
 `AmbientDraftRecord.ambientId` is unique. `(ambientId, version)` uniquely identifies an immutable version. Publishing runs in a transaction:
 
-1. authorize the principal against the ambient
+1. authorize the signed-in owner against the ambient
 2. compare the submitted base revision with the current draft revision
 3. rerun deterministic validation
 4. create the next immutable version
@@ -317,27 +362,115 @@ type AmbientVersionRecord = {
 
 The draft remains available for subsequent edits. The record's name is denormalized for listings and kept in sync on draft writes and publishing. `galleryVersion` may reference only a certified version and can differ from `currentVersion`, allowing a new private version without removing the previous gallery version. Future saved screenshots or presets must reference an exact ambient ID and version. Screenshot persistence itself is not part of Stage 2.
 
+The main picker displays one entry per ambient ID, resolved to `currentVersion`. Publishing version 2 updates the existing picker entry instead of creating a second theme. Old versions remain available only through version history and exact saved references. Creating a separate picker entry requires an explicit duplicate operation.
+
 ## Ownership And Agents
 
-Stage 2C introduces an authenticated principal shared by browser and agent flows. Browser-facing Wasp Operations and HTTP agent endpoints call the same application services for authorization, validation, draft updates, and publishing.
+The screenshot editor remains usable anonymously. Creating, saving, connecting an agent, and publishing an ambient require GitHub sign-in. GitHub identity owns the ambient; GitHub credentials are never passed to an agent.
 
-Agent credentials are hashed, revocable tokens associated with a user and explicit ambient read/write scopes. Authentication mechanism and server deployment must be selected before Stage 2C begins; `ownerId` and `createdBy` cannot ship as unauthenticated caller input.
+The user generates a ready-to-paste agent prompt containing an opaque capability URL. The capability is the credential, so there is no separate bearer environment variable. Each session:
+
+- can read and replace one ambient draft
+- cannot publish, delete, duplicate, or access account data
+- expires after 24 hours
+- stores only a hash server-side
+- resumes from the same draft when replaced by a new session
+- returns an explicit instruction to ask the user for a new prompt after expiration
+
+Capability values must be redacted from application and proxy logs. Capability routes send `Cache-Control: no-store` and `Referrer-Policy: no-referrer`, load no third-party resources, and never expose the raw capability to browser analytics. Manual revocation is not part of the primary UX; short expiry and narrow authority provide the normal lifecycle.
+
+Browser-facing Wasp Operations and capability HTTP endpoints call the same application services for validation, optimistic revisions, compilation, and publishing. Publishing always requires the signed-in owner.
+
+## Agent Documentation
+
+Public, cacheable agent documentation lives at:
+
+```text
+GET /llms.txt
+GET /agent/ambient-schema.md
+GET /agent/api.md
+GET /agent/starter.json
+```
+
+`/llms.txt` is a short discovery index. The schema Markdown contains the complete document, slot, editor-variable, customization, thumbnail, validation, and publishing contracts. The API Markdown describes the GET, modify, PUT loop and all error recovery. `starter.json` is a complete valid machine-readable document.
+
+The temporary session bootstrap endpoint returns short Markdown containing its expiry, draft endpoint, preview URL, and links to the public documentation. It does not duplicate the schema or current document.
+
+The browser generates one prompt for the user to paste into a coding-agent session:
+
+```text
+Create a codeshot.dev ambient for "Acme Launch".
+
+Read and follow the instructions at this temporary agent-session URL:
+https://codeshot.dev/agent/sessions/:capability
+
+The link expires in 24 hours.
+```
+
+The prompt contains no separate token, environment-variable setup, or schema copy. The bootstrap endpoint tells the agent to read the public Markdown docs, fetch current state, replace the complete document with `baseRevision`, resolve deterministic diagnostics, and ask for a new prompt if the session expires.
+
+## Starter And Current State
+
+A new ambient begins with a valid minimal `AmbientDocument`, including a code slot, safe editor defaults, and a thumbnail. The preview therefore works before the first agent submission. A draft created from an existing ambient starts from its latest published version.
+
+The agent always fetches current state before editing. A renewed session receives the same server-side draft and revision, so session expiry never loses work.
 
 ## Agent API
 
 ```text
-POST  /api/ambients
-GET   /api/ambients/:id
-PUT   /api/ambients/:id/draft
-POST  /api/ambients/:id/draft/validate
-POST  /api/ambients/:id/draft/preview
-POST  /api/ambients/:id/publish
-GET   /api/ambients/:id/versions/:version
+GET  /agent/sessions/:capability
+GET  /agent/sessions/:capability/draft
+PUT  /agent/sessions/:capability/draft
+GET  /agent/sessions/:capability/preview
 ```
 
-Draft updates replace the complete document and include `baseRevision`. A stale revision returns a conflict instead of silently merging nested template data.
+The bootstrap response is Markdown optimized for a coding agent. The draft GET response contains ambient identity, revision, the complete current document, and capability-scoped preview URL. The draft PUT replaces the complete document and includes `baseRevision`:
 
-Validation returns diagnostics. Preview returns diagnostics plus an authenticated browser preview reference for the exact draft revision. The server validates and stores declarative data; rendering occurs in the browser, and submitted JavaScript is never accepted. Publishing is the only operation that creates an immutable version, so there is no separate version-creation endpoint.
+```json
+{
+  "baseRevision": 3,
+  "document": {
+    "schemaVersion": 1,
+    "name": "Acme Launch",
+    "editor": {},
+    "annotations": {},
+    "customizations": [],
+    "template": "<article>...</article>",
+    "stylesheet": ":host { ... }",
+    "thumbnail": {
+      "template": "<div>...</div>",
+      "stylesheet": ":host { ... }"
+    }
+  }
+}
+```
+
+Valid updates increment and return the accepted revision plus `previewUrl`. Responses do not include PNG data or repeated documentation links.
+
+Invalid documents return `422 ambient_invalid` with stable diagnostics and do not advance the accepted draft revision. Stale writes return `409 draft_revision_conflict` with the current revision and an instruction to refetch. Expired sessions return `410 agent_session_expired` with an instruction to ask the user for a new codeshot.dev agent prompt. Unknown capabilities return `404`.
+
+## Browser Operations
+
+Signed-in browser flows create ambients, generate sessions, publish, inspect versions, and poll previews through Wasp Operations backed by the same services:
+
+```text
+createAmbient
+createAmbientAgentSession
+getAmbientDraftRevision
+getAmbientDraft
+publishAmbient
+getAmbientVersions
+```
+
+The agent capability cannot call `publishAmbient`.
+
+## Live Preview
+
+The owner preview uses the signed-in GitHub session. The agent bootstrap and successful PUT responses use `/agent/sessions/:capability/preview`, allowing a browser-capable agent to inspect the same accepted draft without account access. Both render through the declarative runtime.
+
+The preview polls the current revision every two seconds, pauses while the tab is hidden, and uses a revision or `ETag` check so unchanged polls do not transfer the full document. When the revision changes, it fetches and compiles the new document.
+
+No dedicated 420, 860, or 1280 controls are required. The existing resizable screenshot frame, editable title, file type, code, highlights, annotations, and customization controls provide visual testing. WebSockets are unnecessary; SSE remains an optional future optimization if polling latency becomes a problem.
 
 ## Certification And Visibility
 
@@ -349,19 +482,48 @@ Deterministic validation is required to publish an immutable version. Export cer
 - line highlights and annotations
 - widths of 420, 860, and 1280 px
 
-An owner can use a valid private version. Gallery visibility requires `certificationStatus: 'passed'` and an explicit owner action that updates `galleryVersion`. Certification failure never mutates the version; a fix creates a new draft revision and version.
+An owner can publish and use a deterministically valid private version. Gallery visibility requires `certificationStatus: 'passed'` and an explicit owner action that updates `galleryVersion`. Certification failure never mutates the version; a fix creates a new draft revision and version. Certification does not add PNG data to agent API responses.
 
-## Builder Workflow
+## Agent-First Workflow
 
-1. Create or open a draft.
-2. Edit template, stylesheet, token palette, semantic bindings, and customization slots.
-3. Validate continuously with stable diagnostics.
-4. Preview representative content at 420, 860, and 1280 px.
-5. Save the full draft using its base revision.
-6. Publish an immutable private version.
-7. Run export certification before optional gallery visibility.
+1. Use the screenshot editor anonymously or sign in with GitHub to create an ambient.
+2. Seed a valid draft from the starter or latest published version.
+3. Generate a ready-to-paste prompt containing a 24-hour capability URL.
+4. Have the coding agent read the bootstrap Markdown and public schema documentation.
+5. Have the agent fetch the current draft and revision.
+6. Have the agent submit complete replacements until deterministic validation passes.
+7. Poll the accepted revision and review it in the live browser preview.
+8. Give visual feedback to the agent and repeat without losing the draft across renewed sessions.
+9. Publish an immutable private version as the signed-in owner.
+10. Select the single latest entry under **Your ambients** in the main editor.
 
-The visual editor and agent API operate on the same `AmbientDocument` representation.
+The future visual builder and agent API operate on the same `AmbientDocument` representation.
+
+## Customer Language
+
+The customer directs and reviews while the coding agent authors the document. Product UI uses:
+
+- **Ambient** with the first-use explanation “a reusable visual frame around your code”
+- **Draft** instead of document or manifest
+- **Temporary agent link** instead of capability or token
+- **Latest accepted change** instead of accepted revision
+- **Save private version** instead of publish
+- **Picker appearance** instead of thumbnail
+- **Your ambients** instead of saved registry
+
+Schema, revision, diagnostic paths, and HTTP details remain in agent documentation or collapsed technical details. A rejected update keeps the last accepted preview visible and tells the customer that the agent received required fixes.
+
+The capability preview uses a fixed non-sensitive sample fixture. It never receives the customer’s anonymous screenshot code or restored editor state.
+
+## UX Prototype Gate
+
+The agent workflow stays inside the screenshot editor. The ambient picker contains **Your ambients**, including GitHub sign-in, saved entries, active draft status, and **Create ambient**. Anonymous editing and built-in ambients remain available without signing in.
+
+Creating or opening a draft closes the picker and opens a fixed **Agent draft** dock at the bottom. The dock is either closed or open. Closed, it shows the ambient name, status, and **Open**. Open, it shows the complete current step and **Close**. It has no backdrop, modal behavior, focus trap, or page scroll lock.
+
+The four phases are setup, handoff, review, and saved. Handoff and review keep the exact prompt visible. Rejected updates, expired access, offline state, and saving are inline notices or button states. Deterministic URL fixtures cover each state without Wasp, OAuth, PostgreSQL, or real capability security.
+
+The actual client runs the complete workflow against a replaceable in-memory service. Draft and saved mock records enter through the real compiler, registry, declarative runtime, and picker. Implement GitHub auth, persistence, capability routes, polling, and publishing only by replacing that service boundary after the client workflow is accepted.
 
 ## Assets
 
@@ -371,7 +533,7 @@ Future assets must be declared, content-addressed, size-limited, and served from
 
 ## Testing Strategy
 
-Stage 2 adds the currently missing automated test boundary:
+Automated coverage includes:
 
 - unit tests for document, slot, customization, and CSS validation
 - compiler tests proving text-only bindings and one native code slot
@@ -380,48 +542,68 @@ Stage 2 adds the currently missing automated test boundary:
 - regression tests for customization and export-gutter behavior
 - browser export tests for the representative fixtures and widths
 
+Stage 2B adds:
+
+- thumbnail validator and rendering tests with at least 20 miniature fixtures
+- GitHub ownership and owner-only publishing integration tests
+- capability hashing, expiry, ambient scoping, and log-redaction tests
+- current-draft GET, valid PUT, invalid PUT, and stale revision tests
+- owner and capability preview polling tests
+- stable picker identity and current-version resolution tests
+
 Vitest covers deterministic contracts. Browser-level export checks use a real browser because DOM emulation cannot certify Shadow DOM capture or PNG output.
 
 ## Delivery
 
 ### Stage 2A: Declarative Built-In
 
-1. Run the Shadow DOM export feasibility gate.
-2. Finalize schema version 1, diagnostic codes, and documented editor variables.
-3. Implement the minimum document validator and template compiler.
-4. Compile serializable token palettes into host-owned CodeMirror extensions.
-5. Reimplement Swiss Poster through the declarative runtime while keeping its document bundled.
-6. Preserve its composition, responsive behavior, customization, editing, and PNG output.
-7. Add unit and browser regression tests.
+Completed:
+
+- proved Shadow DOM, native slots, CodeMirror, annotations, and PNG export in Chromium
+- implemented schema-v1 contracts, stable diagnostics, HTML compilation, and AST-based CSS validation
+- compiled serializable token palettes into host-owned CodeMirror extensions
+- reimplemented Swiss Poster through the bundled declarative runtime
+- preserved responsive composition, customization, editing, and PNG output
+- added unit, lifecycle, and real-browser export regression coverage
 
 Swiss Poster is the tracer ambient because it exercises a title tooltip, file type, padded line-count formatting, a palette customization, responsive composition, and serializable syntax colors. A separate compiler fixture exercises repeated semantic slots.
 
-Stage 2A accepts only bundled, trusted documents. No user or agent string reaches the declarative runtime until the complete untrusted-input validation path in Stage 2B is active.
+Stage 2A accepts only bundled, trusted documents. No user or agent string reaches the declarative runtime until the hosted validation path in Stage 2B is active.
 
-### Stage 2B: Local Draft Runtime
+### Stage 2B: Hosted Agent Workflow
 
-1. Add strict AST-based CSS validation and complexity limits.
-2. Add local mutable draft editing and diagnostics.
-3. Preview representative fixtures and widths in the browser.
-4. Verify switching between built-in React shells and declarative shells.
-5. Keep all draft data local; no server or database is required yet.
+1. Research the customer journey and inventory the existing frontend constraints.
+2. Integrate **Your ambients**, sign-in entry, creation, and the fixed bottom Agent draft dock into the actual client.
+3. Run the complete frontend against a replaceable in-memory service and real declarative runtime.
+4. Validate setup, prompt handoff, review, rejection, expiry, saving, reuse, mobile, and accessibility before backend work.
+5. Add the thumbnail contract, strict thumbnail validation, and a valid minimal starter document.
+6. Select and configure GitHub authentication and full-stack Wasp deployment.
+7. Add ambient, mutable draft, immutable version, and 24-hour agent-session records.
+8. Publish `/llms.txt`, schema Markdown, API Markdown, and machine-readable starter JSON.
+9. Replace mock service methods with Wasp Operations and capability HTTP adapters.
+10. Share deterministic validation and optimistic revision services across browser and agent paths.
+11. Add authenticated and capability-scoped polling previews using non-sensitive fixtures where required.
+12. Add owner-only transactional private saving and version history.
+13. Add **Your ambients** to the main registry, resolving each ambient to only its latest saved version.
+14. Render agent-authored thumbnails only while the picker or ambient dashboard is open.
+15. Cover session expiry, renewed prompts, conflicts, invalid submissions, polling, saving, and registry loading with integration tests.
 
-### Stage 2C: Persistence And API
+This stage changes the current static-only deployment. A Wasp server, PostgreSQL database, GitHub OAuth credentials, session secrets, migrations, and production API URL become required.
 
-1. Select and configure Wasp authentication and full-stack deployment.
-2. Add ambient, draft, immutable version, owner, and agent-token records.
-3. Implement shared application services, Wasp Operations, and HTTP adapters.
-4. Add optimistic draft revisions and transactional publishing.
-5. Load exact saved versions into the ambient registry.
+### Stage 2C: Hardening And Certification
 
-This stage changes the current static-only deployment: a Wasp server, PostgreSQL database, secrets, migrations, and API URL become production requirements.
+1. Add capability rate limits, log redaction verification, audit events, and abuse controls.
+2. Add duplicate ambient, version inspection, rollback-by-new-version, and archive flows.
+3. Add browser export certification and failure reporting without exposing PNGs through the agent API.
+4. Add operational monitoring for polling load, validation latency, and failed agent sessions.
+5. Prepare optional certified gallery visibility while keeping private publishing the default.
 
-### Stage 2D: Builder And Certification
+### Stage 2D: Builder And Gallery
 
 1. Add the visual builder around the same draft representation.
-2. Add representative fixtures and responsive preview controls.
-3. Add the browser export certification runner and result reporting.
-4. Add optional gallery visibility for certified versions.
+2. Add richer representative fixtures and manual visual QA tools.
+3. Add optional gallery discovery for certified versions.
+4. Explore same-origin, content-addressed assets only after the declarative workflow is stable.
 
 ## Non-Goals
 
@@ -433,3 +615,10 @@ This stage changes the current static-only deployment: a Wasp server, PostgreSQL
 - uploaded assets in schema version 1
 - compatibility with every HTML or CSS feature
 - screenshot persistence in Stage 2
+- long-lived general-purpose API tokens
+- a separate token environment variable for agent sessions
+- manual token revocation as a primary workflow
+- WebSockets for preview updates
+- PNG data in agent API responses
+- dedicated fixed-width preview controls
+- automatic overflow or contrast diagnostics

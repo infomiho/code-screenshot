@@ -5,6 +5,20 @@ import type {
 import { AmbientMark } from './ambient-mark'
 import { getAmbientKey, type AmbientDefinition } from './ambient-themes'
 
+export type YourAmbientsState =
+  | {
+      kind: 'signed-out'
+      onSignIn: () => void
+    }
+  | {
+      kind: 'signed-in'
+      username: string
+      draft: { actionLabel: string; name: string; status: string } | null
+      canCreate: boolean
+      onCreateAmbient: () => void
+      onOpenDraft: () => void
+    }
+
 export type AmbientPickerEntry = {
   definition: AmbientDefinition
   index: number
@@ -12,10 +26,12 @@ export type AmbientPickerEntry = {
 
 type AmbientPickerProps = {
   activeIndex: number
-  entries: AmbientPickerEntry[]
+  builtIns: AmbientPickerEntry[]
+  personal: AmbientPickerEntry[]
   pickerId: string
   pickerRef: RefObject<HTMLDivElement | null>
   selectedIndex: number
+  yourAmbients: YourAmbientsState
   onActiveIndexChange: (index: number) => void
   onClose: () => void
   onEscape: () => void
@@ -31,6 +47,16 @@ type AmbientPickerOptionProps = AmbientPickerEntry & {
   onSelect: (index: number) => void
 }
 
+const getOptionStateLabel = (
+  definition: AmbientDefinition,
+  index: number,
+  selectedIndex: number,
+) => {
+  if (index === selectedIndex) return 'Selected'
+  if (definition.source === 'draft') return 'Draft'
+  return null
+}
+
 function AmbientPickerOption({
   activeIndex,
   definition,
@@ -40,6 +66,8 @@ function AmbientPickerOption({
   onActiveIndexChange,
   onSelect,
 }: AmbientPickerOptionProps) {
+  const stateLabel = getOptionStateLabel(definition, index, selectedIndex)
+
   return (
     <div
       id={`${pickerId}-option-${index}`}
@@ -52,7 +80,7 @@ function AmbientPickerOption({
     >
       <AmbientMark definition={definition} />
       <span>{definition.manifest.name}</span>
-      {index === selectedIndex && <small>Selected</small>}
+      {stateLabel && <small>{stateLabel}</small>}
     </div>
   )
 }
@@ -95,18 +123,79 @@ function AmbientPickerGroup({
   )
 }
 
+function AmbientAccountActions({
+  hasPersonalAmbients,
+  state,
+  onAction,
+}: {
+  hasPersonalAmbients: boolean
+  state: YourAmbientsState
+  onAction: (action: () => void) => void
+}) {
+  if (state.kind === 'signed-out') {
+    return (
+      <section className="ambient-account" aria-label="Your ambients account">
+        {!hasPersonalAmbients && <h3>Your ambients</h3>}
+        <p>Sign in to create and save ambients.</p>
+        <button
+          className="ui-button ambient-account-action"
+          type="button"
+          onClick={() => onAction(state.onSignIn)}
+        >
+          Sign in with GitHub
+        </button>
+      </section>
+    )
+  }
+
+  return (
+    <section className="ambient-account" aria-label="Your ambients account">
+      {!hasPersonalAmbients && <h3>Your ambients</h3>}
+      <div className="ambient-account-meta">@{state.username}</div>
+      {state.draft && (
+        <div className="ambient-draft-row">
+          <div>
+            <strong>{state.draft.name}</strong>
+            <span>{state.draft.status}</span>
+          </div>
+          <button className="ui-button" type="button" onClick={() => onAction(state.onOpenDraft)}>
+            {state.draft.actionLabel}
+          </button>
+        </div>
+      )}
+      {!hasPersonalAmbients && !state.draft && <p>No saved ambients yet.</p>}
+      {state.canCreate && (
+        <button
+          className="ui-button ambient-account-action"
+          type="button"
+          onClick={() => onAction(state.onCreateAmbient)}
+        >
+          Create ambient
+        </button>
+      )}
+    </section>
+  )
+}
+
 export function AmbientPicker({
   activeIndex,
-  entries,
+  builtIns,
+  personal,
   pickerId,
   pickerRef,
   selectedIndex,
+  yourAmbients,
   onActiveIndexChange,
   onClose,
   onEscape,
   onKeyDown,
   onSelect,
 }: AmbientPickerProps) {
+  const runAction = (action: () => void) => {
+    onClose()
+    action()
+  }
+
   return (
     <div
       className="ambient-picker-shell"
@@ -122,7 +211,7 @@ export function AmbientPicker({
     >
       <div className="ambient-picker-heading">
         <span>Choose ambient</span>
-        <span>{String(selectedIndex + 1).padStart(2, '0')} / {String(entries.length).padStart(2, '0')}</span>
+        <span>{String(selectedIndex + 1).padStart(2, '0')} / {String(builtIns.length + personal.length).padStart(2, '0')}</span>
         <button
           className="ui-button ui-button-ghost ui-button-icon ambient-picker-close"
           type="button"
@@ -144,14 +233,30 @@ export function AmbientPicker({
       >
         <AmbientPickerGroup
           activeIndex={activeIndex}
-          entries={entries}
+          entries={builtIns}
           label="Built-in ambients"
           pickerId={pickerId}
           selectedIndex={selectedIndex}
           onActiveIndexChange={onActiveIndexChange}
           onSelect={onSelect}
         />
+        {personal.length > 0 && (
+          <AmbientPickerGroup
+            activeIndex={activeIndex}
+            entries={personal}
+            label="Your ambients"
+            pickerId={pickerId}
+            selectedIndex={selectedIndex}
+            onActiveIndexChange={onActiveIndexChange}
+            onSelect={onSelect}
+          />
+        )}
       </div>
+      <AmbientAccountActions
+        hasPersonalAmbients={personal.length > 0}
+        state={yourAmbients}
+        onAction={runAction}
+      />
     </div>
   )
 }

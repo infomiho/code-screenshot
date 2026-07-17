@@ -8,20 +8,19 @@ import {
   type RefCallback,
 } from 'react'
 import { getStroke } from 'perfect-freehand'
-import { AmbientSelector } from './ambient-selector'
+import { AmbientSelector, type YourAmbientsState } from './ambient-selector'
 import { DeclarativeAmbient } from './declarative-ambient'
 import { renderScreenshotBlob } from './screenshot-export'
-import {
-  ambientDefinitions,
-  type AmbientDefinition,
-  type ScreenshotContent,
-} from './ambient-themes'
+import { type AmbientDefinition, type ScreenshotContent } from './ambient-themes'
 
 type ExportAction = 'copy' | 'download' | null
 type PreviewMode = 'fit' | 'edit'
 
 type ScreenshotPreviewProps = {
   ambientKey: string
+  definitions: readonly AmbientDefinition[]
+  yourAmbients: YourAmbientsState
+  onAmbientPickerOpenChange: (isOpen: boolean) => void
   onAmbientChange: (ambientKey: string) => void
   selectedAmbient: AmbientDefinition
   screenshotContent: ScreenshotContent
@@ -131,6 +130,9 @@ const downloadBlob = (blob: Blob) => {
 
 export function ScreenshotPreview({
   ambientKey,
+  definitions,
+  yourAmbients,
+  onAmbientPickerOpenChange,
   onAmbientChange,
   selectedAmbient,
   screenshotContent,
@@ -359,8 +361,10 @@ export function ScreenshotPreview({
               </button>
             </div>
             <AmbientSelector
-              definitions={ambientDefinitions}
+              definitions={definitions}
               selectedKey={ambientKey}
+              yourAmbients={yourAmbients}
+              onOpenChange={onAmbientPickerOpenChange}
               onSelect={onAmbientChange}
             />
             <div className="toolbar-group toolbar-draw">

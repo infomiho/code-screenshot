@@ -1,0 +1,324 @@
+:root {
+  --agent-surface: oklch(0.17 0.006 250);
+  --agent-surface-raised: oklch(0.205 0.008 247);
+  --agent-control: oklch(0.135 0.005 250);
+  --agent-border: oklch(0.505 0.015 245);
+  --agent-border-subtle: oklch(0.29 0.009 245);
+  --agent-text: oklch(0.95 0.004 240);
+  --agent-text-muted: oklch(0.74 0.008 240);
+  --agent-primary: oklch(0.7 0.075 240);
+  --agent-primary-hover: oklch(0.75 0.07 238);
+  --agent-primary-pressed: oklch(0.65 0.08 242);
+  --agent-on-primary: oklch(0.14 0.008 250);
+  --agent-focus: oklch(0.8 0.07 230);
+  --agent-warning: oklch(0.79 0.12 75);
+  --agent-warning-surface: oklch(0.22 0.045 75);
+  --agent-shadow:
+    0 1px 0 oklch(1 0 0 / 5%) inset,
+    0 8px 24px oklch(0.03 0.015 250 / 28%),
+    0 24px 64px oklch(0.03 0.015 250 / 32%);
+  --agent-dock-edge: 12px;
+  --agent-dock-max-width: 1120px;
+  --agent-font-label: 11px;
+  --agent-font-ui: 13px;
+  --agent-font-body: 14px;
+  --agent-font-input: 16px;
+  --agent-font-heading: 17px;
+}
+
+.agent-layer {
+  color: var(--agent-text);
+  font-family: var(--sans);
+}
+
+.agent-dock-trigger,
+.agent-dock {
+  position: fixed;
+  z-index: 30;
+  inset-inline-start: 50%;
+  inset-block-end: max(var(--agent-dock-edge), env(safe-area-inset-bottom));
+  width: min(var(--panel-width), calc(100vw - var(--agent-dock-edge) * 2));
+  translate: -50% 0;
+}
+
+.agent-dock-trigger {
+  display: grid;
+  min-height: 56px;
+  grid-template-areas: 'identity name status open';
+  grid-template-columns: max-content minmax(120px, 0.8fr) minmax(180px, 1.2fr) 88px;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--agent-border);
+  border-inline-start: 3px solid var(--agent-primary);
+  border-radius: 0;
+  background: var(--agent-surface);
+  box-shadow: var(--agent-shadow);
+  color: var(--agent-text);
+  cursor: pointer;
+  padding: 7px 7px 7px 18px;
+  text-align: start;
+  touch-action: manipulation;
+  transition-property: background-color, border-color, scale;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  user-select: none;
+}
+
+.agent-dock-trigger:hover {
+  border-color: var(--agent-primary);
+  background: var(--agent-surface-raised);
+}
+
+.agent-dock-trigger:active,
+.agent-button:active:not(:disabled),
+.agent-dock-close:active {
+  scale: 0.96;
+}
+
+.agent-dock-trigger:focus-visible,
+.agent-button:focus-visible,
+.agent-dock-close:focus-visible,
+.agent-prompt pre:focus-visible,
+.agent-setup-form :is(input, textarea):focus-visible {
+  outline: 2px solid var(--agent-focus);
+  outline-offset: 3px;
+}
+
+.agent-dock-identity,
+.agent-dock-heading span,
+.agent-status-block span,
+.agent-access-block span {
+  color: var(--agent-primary);
+  font-family: var(--mono);
+  font-size: var(--agent-font-label);
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.agent-dock-identity {
+  grid-area: identity;
+}
+
+.agent-dock-name,
+.agent-dock-trigger-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-dock-name {
+  grid-area: name;
+  font-family: var(--sans);
+  font-size: var(--agent-font-body);
+  line-height: 1.3;
+}
+
+.agent-dock-trigger-status {
+  grid-area: status;
+  color: var(--agent-text-muted);
+  font-size: var(--agent-font-ui);
+  line-height: 1.4;
+  text-align: end;
+}
+
+.agent-dock-open {
+  display: grid;
+  min-height: 40px;
+  grid-area: open;
+  place-items: center;
+  border: 1px solid var(--agent-primary);
+  background: var(--agent-primary);
+  color: var(--agent-on-primary);
+  font-family: var(--mono);
+  font-size: var(--agent-font-ui);
+  font-weight: 800;
+}
+
+.agent-dock {
+  width: min(var(--agent-dock-max-width), calc(100vw - var(--agent-dock-edge) * 2));
+  max-height: calc(100dvh - var(--agent-dock-edge) * 2 - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--agent-border);
+  border-inline-start: 3px solid var(--agent-primary);
+  background: var(--agent-surface);
+  box-shadow: var(--agent-shadow);
+}
+
+.agent-dock-header {
+  display: grid;
+  min-height: 64px;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1.2fr) 96px;
+  align-items: center;
+  gap: 20px;
+  border-block-end: 1px solid var(--agent-border-subtle);
+  background: var(--agent-surface-raised);
+  padding: 8px 8px 8px 20px;
+}
+
+.agent-dock-heading {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+}
+
+.agent-dock-heading h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--agent-text);
+  font-family: var(--sans);
+  font-size: var(--agent-font-body);
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-dock-header > p {
+  overflow: hidden;
+  margin: 0;
+  color: var(--agent-text-muted);
+  font-size: var(--agent-font-ui);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-dock-close,
+.agent-button {
+  min-height: 44px;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--agent-font-ui);
+  font-weight: 800;
+  touch-action: manipulation;
+  transition-property: background-color, border-color, color, opacity, scale;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  user-select: none;
+}
+
+.agent-button {
+  justify-self: start;
+  padding-inline: 16px;
+}
+
+.agent-dock-close,
+.agent-button-secondary {
+  border: 1px solid var(--agent-border);
+  background: var(--agent-control);
+  color: var(--agent-text);
+}
+
+.agent-dock-close:hover,
+.agent-button-secondary:hover:not(:disabled) {
+  border-color: var(--agent-primary);
+  color: var(--agent-primary);
+}
+
+.agent-button-primary {
+  border: 1px solid var(--agent-primary);
+  background: var(--agent-primary);
+  color: var(--agent-on-primary);
+}
+
+.agent-button-primary:hover:not(:disabled) {
+  border-color: var(--agent-primary-hover);
+  background: var(--agent-primary-hover);
+}
+
+.agent-button-primary:active:not(:disabled) {
+  border-color: var(--agent-primary-pressed);
+  background: var(--agent-primary-pressed);
+}
+
+.agent-button:disabled {
+  border-color: var(--agent-border-subtle);
+  background: var(--agent-border-subtle);
+  color: var(--agent-text-muted);
+  cursor: not-allowed;
+}
+
+@media (width <= 720px) {
+  :root {
+    --agent-dock-edge: 8px;
+  }
+
+  .agent-dock-trigger {
+    min-height: 64px;
+    grid-template-areas:
+      'identity identity open'
+      'name status open';
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) 72px;
+    gap: 4px 10px;
+    padding-inline-start: 14px;
+  }
+
+  .agent-dock {
+    max-height: calc(100dvh - 96px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
+  .agent-dock-trigger-status {
+    text-align: start;
+  }
+
+  .agent-dock-header {
+    min-height: 72px;
+    grid-template-areas:
+      'heading close'
+      'status close';
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 2px 12px;
+    padding-inline-start: 14px;
+  }
+
+  .agent-dock-heading {
+    grid-area: heading;
+    gap: 12px;
+  }
+
+  .agent-dock-header > p {
+    grid-area: status;
+  }
+
+  .agent-dock-close {
+    grid-area: close;
+  }
+
+}
+
+@media (width <= 400px) {
+  .agent-dock-trigger {
+    grid-template-areas:
+      'identity open'
+      'name open'
+      'status open';
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+
+  .agent-dock-heading {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .agent-dock-heading span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-dock-trigger,
+  .agent-button,
+  .agent-dock-close {
+    transition-duration: 0ms;
+  }
+}

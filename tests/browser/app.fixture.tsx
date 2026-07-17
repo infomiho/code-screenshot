@@ -1,14 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from '../../src/app'
+import { MockAmbientService } from '../../src/ambient-workspace/mock-ambient-service'
 import { renderScreenshotBlob } from '../../src/screenshot-export'
 
 const root = document.querySelector<HTMLElement>('#root')
 if (!root) throw new Error('Missing app root')
+const ambientWorkspaceService = new MockAmbientService({ agentUpdate: 0, save: 0 })
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <App ambientWorkspaceService={ambientWorkspaceService} />
   </StrictMode>,
 )
 
@@ -89,8 +91,10 @@ async function exportCurrentFrame(width: number) {
 
 declare global {
   interface Window {
+    ambientWorkspaceService: MockAmbientService
     exportCurrentFrame: typeof exportCurrentFrame
   }
 }
 
+window.ambientWorkspaceService = ambientWorkspaceService
 window.exportCurrentFrame = exportCurrentFrame
