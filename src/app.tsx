@@ -32,6 +32,7 @@ export function App() {
     selectedLanguage,
     code,
     editorHostRef,
+    isEditorReady,
     highlightedLineCount,
     highlightedLineStatus,
     highlightCurrentLine,
@@ -83,6 +84,7 @@ export function App() {
           ambientVariables={ambientVariables}
           editorHostRef={editorHostRef}
           editorHelpId={editorHelpId}
+          isEditorReady={isEditorReady}
         />
         <ScreenshotControls
           ambientName={selectedAmbient.manifest.name}

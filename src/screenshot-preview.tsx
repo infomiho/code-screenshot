@@ -10,6 +10,7 @@ import {
 import { getStroke } from 'perfect-freehand'
 import { AmbientSelector } from './ambient-selector'
 import { DeclarativeAmbient } from './declarative-ambient'
+import { EditorSkeleton } from './editor-skeleton'
 import { renderScreenshotBlob } from './screenshot-export'
 import {
   ambientDefinitions,
@@ -28,6 +29,7 @@ type ScreenshotPreviewProps = {
   ambientVariables: CSSProperties
   editorHostRef: RefCallback<HTMLDivElement>
   editorHelpId: string
+  isEditorReady: boolean
 }
 
 const minFrameWidth = 420
@@ -137,6 +139,7 @@ export function ScreenshotPreview({
   ambientVariables,
   editorHostRef,
   editorHelpId,
+  isEditorReady,
 }: ScreenshotPreviewProps) {
   const shotRef = useRef<HTMLDivElement>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
@@ -166,6 +169,8 @@ export function ScreenshotPreview({
   } as CSSProperties
 
   const renderAmbient = () => {
+    const editorSkeleton = !isEditorReady && <EditorSkeleton />
+
     if (selectedAmbient.kind === 'declarative') {
       return (
         <DeclarativeAmbient
@@ -173,7 +178,9 @@ export function ScreenshotPreview({
           content={screenshotContent}
           style={ambientVariables}
         >
-          <div ref={editorHostRef} className="code-editor-host" slot="code" />
+          <div ref={editorHostRef} className="code-editor-host" slot="code">
+            {editorSkeleton}
+          </div>
         </DeclarativeAmbient>
       )
     }
@@ -181,7 +188,9 @@ export function ScreenshotPreview({
     const SelectedAmbientShell = selectedAmbient.Shell
     return (
       <SelectedAmbientShell content={screenshotContent}>
-        <div ref={editorHostRef} className="code-editor-host" />
+        <div ref={editorHostRef} className="code-editor-host">
+          {editorSkeleton}
+        </div>
       </SelectedAmbientShell>
     )
   }
