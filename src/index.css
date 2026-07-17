@@ -3,7 +3,7 @@
   --wasp-gold: #b8941f;
   --wasp-code-bg: #f0ede6;
   --bg: #111111;
-  --preview-bg: #0d0c0a;
+  --chrome-bg: var(--bg);
   --panel: #171511;
   --panel-border: #2d281c;
   --control: #0f0e0b;
@@ -79,6 +79,16 @@
   --ambient-hover-bg: rgb(247 245 240 / 6%);
   --ambient-motion-duration: 140ms;
   --ambient-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --control-inset: 0 0 0 1px rgb(247 245 240 / 9%) inset;
+  --button-border: rgb(247 245 240 / 12%);
+  --button-border-hover: rgb(247 245 240 / 20%);
+  --button-hover-bg: color-mix(in oklch, var(--control), var(--text) 7%);
+  --button-pressed-bg: color-mix(in oklch, var(--control), var(--text) 11%);
+  --button-primary-hover: color-mix(in oklch, var(--wasp-yellow), white 9%);
+  --button-primary-pressed: color-mix(in oklch, var(--wasp-yellow), black 8%);
+  --surface-shadow:
+    0 1px 0 rgb(247 245 240 / 7%) inset,
+    0 14px 36px rgb(0 0 0 / 18%);
 
   color: var(--text);
   background: var(--bg);
@@ -115,9 +125,92 @@ input:focus-visible,
   outline-offset: var(--focus-offset);
 }
 
+.ui-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--button-border);
+  border-radius: 0;
+  background: var(--control);
+  box-shadow: 0 1px 0 rgb(247 245 240 / 5%) inset;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1;
+  padding-inline: var(--space-5);
+  touch-action: manipulation;
+  transition-property: background-color, border-color, box-shadow, color, opacity, scale;
+  transition-duration: var(--ambient-motion-duration);
+  transition-timing-function: var(--ambient-motion-ease);
+  user-select: none;
+}
+
+.ui-button:hover:not(:disabled) {
+  border-color: var(--button-border-hover);
+  background: var(--button-hover-bg);
+}
+
+.ui-button:active:not(:disabled) {
+  background: var(--button-pressed-bg);
+  scale: 0.96;
+}
+
+.ui-button:disabled {
+  cursor: not-allowed;
+  opacity: var(--disabled-opacity);
+}
+
+.ui-button-primary {
+  border-color: var(--wasp-yellow);
+  background: var(--wasp-yellow);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 22%) inset;
+  color: var(--bg);
+}
+
+.ui-button-primary:hover:not(:disabled) {
+  border-color: var(--button-primary-hover);
+  background: var(--button-primary-hover);
+}
+
+.ui-button-primary:active:not(:disabled) {
+  border-color: var(--button-primary-pressed);
+  background: var(--button-primary-pressed);
+}
+
+.ui-button[aria-pressed='true'] {
+  border-color: color-mix(in oklch, var(--wasp-yellow), transparent 42%);
+  background: var(--ambient-selected-bg);
+  box-shadow: none;
+  color: var(--wasp-yellow);
+}
+
+.ui-button[aria-pressed='true']:hover {
+  border-color: color-mix(in oklch, var(--wasp-yellow), transparent 32%);
+  background: color-mix(in oklch, var(--wasp-yellow), transparent 84%);
+}
+
+.ui-button[aria-pressed='true']:active {
+  border-color: color-mix(in oklch, var(--wasp-yellow), transparent 22%);
+  background: color-mix(in oklch, var(--wasp-yellow), transparent 78%);
+}
+
+.ui-button-ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ui-button-icon {
+  width: 40px;
+  padding: 0;
+}
+
 .app-shell {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: var(--space-3);
   width: 100%;
   min-height: 100dvh;
@@ -172,7 +265,6 @@ input:focus-visible,
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  background: var(--preview-bg);
 }
 
 .preview-stage {
@@ -192,6 +284,7 @@ input:focus-visible,
 }
 
 .shot-toolbar {
+  position: relative;
   display: grid;
   grid-template-areas: 'export ambient draw';
   grid-template-columns: 1fr auto 1fr;
@@ -217,6 +310,42 @@ input:focus-visible,
   justify-self: end;
 }
 
+.preview-mode-switch {
+  display: none;
+  grid-area: mode;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-self: center;
+}
+
+.preview-mode-switch .ui-button {
+  min-width: 72px;
+}
+
+.export-status {
+  position: fixed;
+  z-index: 40;
+  top: max(var(--space-7), env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  max-width: calc(100vw - var(--space-10));
+  min-height: 32px;
+  align-items: center;
+  border: 1px solid var(--button-border);
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  padding-inline: var(--space-4);
+  pointer-events: none;
+  text-align: center;
+  translate: -50% 0;
+}
+
+.export-status:empty {
+  display: none;
+}
+
 .ambient-selector {
   position: relative;
   z-index: 4;
@@ -225,11 +354,18 @@ input:focus-visible,
   grid-template-columns: var(--ambient-control-size) minmax(160px, 210px) var(--ambient-control-size);
   min-width: 0;
   justify-self: center;
+  background: var(--control);
+  box-shadow: var(--control-inset);
 }
 
-:where(.ambient-selector) button {
+.ambient-selector[data-picker-open='true'] {
+  z-index: 35;
+}
+
+.ambient-selector > button {
   min-height: var(--ambient-control-size);
-  border-color: var(--control-border);
+  border: 0;
+  border-radius: 0;
   background: var(--control);
   color: var(--text);
   cursor: pointer;
@@ -239,11 +375,11 @@ input:focus-visible,
   transition-timing-function: var(--ambient-motion-ease);
 }
 
-:where(.ambient-selector) button:hover {
+.ambient-selector > button:hover {
   background: color-mix(in oklch, var(--control), var(--text) 6%);
 }
 
-:where(.ambient-selector) button:active {
+.ambient-selector > button:active {
   scale: 0.96;
 }
 
@@ -255,10 +391,19 @@ input:focus-visible,
 }
 
 .ambient-arrow {
-  font-family: var(--sans);
-  font-size: 25px;
-  font-weight: 400;
-  line-height: 1;
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.ambient-step-previous .ambient-arrow {
+  transform: rotate(-135deg);
+}
+
+.ambient-step-next .ambient-arrow {
+  transform: rotate(45deg);
 }
 
 .ambient-current {
@@ -293,10 +438,17 @@ input:focus-visible,
 }
 
 .ambient-disclosure {
+  width: 7px;
+  height: 7px;
   margin-inline-start: auto;
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: 14px;
+  border-right: 1px solid var(--muted);
+  border-bottom: 1px solid var(--muted);
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform var(--transition-fast);
+}
+
+.ambient-current[aria-expanded='true'] .ambient-disclosure {
+  transform: rotate(225deg) translate(-1px, -1px);
 }
 
 .ambient-mark {
@@ -307,7 +459,7 @@ input:focus-visible,
   flex-shrink: 0;
   overflow: hidden;
   border: 1px solid rgb(247 245 240 / 34%);
-  background: var(--preview-bg);
+  background: var(--bg);
 }
 
 .ambient-mark::before,
@@ -451,22 +603,39 @@ input:focus-visible,
 
 .ambient-picker-close {
   display: none;
-  width: 32px;
-  min-height: 32px;
   place-items: center;
-  border: 0;
-  padding: 0;
   font-family: var(--sans);
   font-size: 22px;
 }
 
 .ambient-picker {
   display: grid;
-  max-height: min(430px, calc(100vh - 150px));
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: min(340px, calc(100vh - 250px));
   outline: 0;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+.ambient-picker-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ambient-picker-group + .ambient-picker-group {
+  border-top: 1px solid var(--panel-border);
+}
+
+.ambient-picker-group h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--letter-spacing-label);
+  line-height: 1.2;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  text-transform: uppercase;
 }
 
 .ambient-picker-option {
@@ -490,6 +659,12 @@ input:focus-visible,
 .ambient-picker-option[aria-selected='true'] {
   background: var(--ambient-selected-bg);
   box-shadow: inset 3px 0 0 var(--wasp-yellow);
+}
+
+.ambient-picker-option[aria-selected='true'][data-active='true'] {
+  box-shadow:
+    inset 3px 0 0 var(--wasp-yellow),
+    inset 0 0 0 1px rgb(247 245 240 / 12%);
 }
 
 .ambient-picker-option small {
@@ -565,16 +740,8 @@ input:focus-visible,
   touch-action: none;
 }
 
-.pen-button {
-  display: flex;
-  align-items: center;
+.toolbar-button {
   gap: var(--space-2);
-  background: var(--control);
-  color: var(--text);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--font-size-control);
-  font-weight: var(--font-weight-heavy);
   padding: 0 var(--space-4);
 }
 
@@ -586,18 +753,6 @@ input:focus-visible,
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.5;
-}
-
-.pen-button-active,
-.pen-button-primary {
-  border-color: var(--wasp-yellow);
-  background: var(--wasp-yellow);
-  color: var(--bg);
-}
-
-.pen-button:disabled {
-  cursor: not-allowed;
-  opacity: var(--disabled-opacity);
 }
 
 .code-window {
@@ -718,9 +873,9 @@ input:focus-visible,
 .control-panel {
   width: min(var(--panel-width), 100%);
   justify-self: center;
-  border: var(--border-panel);
-  background: var(--panel);
-  padding: var(--space-5);
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .editor-help {
@@ -732,6 +887,10 @@ input:focus-visible,
   font-size: var(--font-size-control);
   line-height: var(--line-height-help);
   text-align: center;
+}
+
+.editor-help-touch {
+  display: none;
 }
 
 .sr-only {
@@ -750,7 +909,9 @@ input:focus-visible,
 
 .control-group {
   min-width: 0;
-  border: var(--border-panel);
+  border: 0;
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
 }
 
 .control-summary {
@@ -842,8 +1003,7 @@ input:focus-visible,
 }
 
 select,
-input[type='text'],
-button {
+input[type='text'] {
   min-height: var(--control-height);
   border: var(--border-control);
   border-radius: 0;
@@ -851,14 +1011,18 @@ button {
 
 select {
   width: var(--select-width);
+  border-color: transparent;
   background: var(--control);
+  box-shadow: var(--control-inset);
   color: var(--text);
   padding: 0 var(--space-4);
 }
 
 input[type='text'] {
   width: var(--select-width);
+  border-color: transparent;
   background: var(--control);
+  box-shadow: var(--control-inset);
   color: var(--text);
   padding: 0 var(--space-4);
 }
@@ -881,32 +1045,13 @@ input[type='text']::placeholder {
   accent-color: var(--wasp-yellow);
 }
 
-.highlight-status,
-.toolbar-status {
+.highlight-status {
   display: flex;
   align-items: center;
   color: var(--muted);
   font-family: var(--mono);
   font-size: var(--font-size-control);
   line-height: var(--line-height-status);
-}
-
-.toolbar-status {
-  min-height: var(--control-height);
-  padding: 0 var(--space-2);
-}
-
-.secondary-button {
-  background: var(--control);
-  color: var(--text);
-  cursor: pointer;
-  font-weight: var(--font-weight-heavy);
-  padding: 0 var(--space-6);
-}
-
-.secondary-button:disabled {
-  cursor: not-allowed;
-  opacity: var(--disabled-opacity);
 }
 
 @media (max-width: 980px) {
@@ -932,8 +1077,18 @@ input[type='text']::placeholder {
   .shot-toolbar {
     grid-template-areas:
       'export draw'
-      'ambient ambient';
+      'ambient ambient'
+      'mode mode';
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .preview-mode-switch {
+    display: grid;
+    width: 100%;
+  }
+
+  .preview-viewport[data-preview-mode='edit'] .preview-stage {
+    justify-items: start;
   }
 
   .ambient-selector {
@@ -961,7 +1116,7 @@ input[type='text']::placeholder {
   }
 
   .ambient-picker {
-    max-height: calc(100dvh - 96px);
+    max-height: calc(100dvh - 210px);
   }
 
   @keyframes ambient-picker-in {
@@ -984,6 +1139,14 @@ input[type='text']::placeholder {
     text-align: left;
   }
 
+  .editor-help-desktop {
+    display: none;
+  }
+
+  .editor-help-touch {
+    display: inline;
+  }
+
   .control-content {
     align-items: stretch;
     flex-direction: column;
@@ -1000,7 +1163,7 @@ input[type='text']::placeholder {
   .toolbar-field select,
   .toolbar-field input[type='text'],
   .toolbar-toggle,
-  .secondary-button {
+  .control-content > .ui-button {
     width: 100%;
   }
 
@@ -1022,12 +1185,24 @@ input[type='text']::placeholder {
     gap: var(--space-1);
   }
 
-  .shot-toolbar .pen-button {
+  .shot-toolbar .toolbar-button {
     padding-inline: var(--space-3);
   }
 
   .ambient-picker {
     grid-template-columns: 1fr;
+  }
+
+  .ambient-picker-group {
+    grid-template-columns: 1fr;
+  }
+
+  .ui-button {
+    min-height: 44px;
+  }
+
+  .ui-button-icon {
+    width: 44px;
   }
 }
 

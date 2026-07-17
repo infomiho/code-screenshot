@@ -137,11 +137,11 @@ export function ScreenshotControls({
             </span>
           </summary>
           <div className="control-content">
-            <button className="secondary-button" type="button" onClick={onHighlightCurrentLine}>
+            <button className="ui-button" type="button" onClick={onHighlightCurrentLine}>
               Highlight current line
             </button>
             <button
-              className="secondary-button"
+              className="ui-button"
               type="button"
               onClick={onClearHighlights}
               disabled={highlightedLineCount === 0}

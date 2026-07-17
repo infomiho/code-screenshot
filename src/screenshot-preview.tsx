@@ -18,6 +18,7 @@ import {
 } from './ambient-themes'
 
 type ExportAction = 'copy' | 'download' | null
+type PreviewMode = 'fit' | 'edit'
 
 type ScreenshotPreviewProps = {
   ambientKey: string
@@ -33,6 +34,7 @@ const minFrameWidth = 420
 const maxFrameWidth = 1280
 const defaultFrameWidth = 860
 const frameWidthKeyStep = 20
+const minEditablePreviewScale = 0.65
 
 const clampFrameWidth = (width: number) =>
   Math.min(maxFrameWidth, Math.max(minFrameWidth, Math.round(width)))
@@ -142,6 +144,7 @@ export function ScreenshotPreview({
   const activePenPointsRef = useRef<number[][] | null>(null)
   const [frameWidth, setFrameWidth] = useState(defaultFrameWidth)
   const [previewScale, setPreviewScale] = useState(1)
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('fit')
   const [exportAction, setExportAction] = useState<ExportAction>(null)
   const [message, setMessage] = useState('')
   const [isPenActive, setIsPenActive] = useState(false)
@@ -150,6 +153,9 @@ export function ScreenshotPreview({
   const isCopying = exportAction === 'copy'
   const isDownloading = exportAction === 'download'
   const isExporting = exportAction !== null
+  const renderedPreviewScale = previewMode === 'edit'
+    ? Math.max(previewScale, minEditablePreviewScale)
+    : previewScale
   const frameClass = selectedAmbient.kind === 'react'
     ? `shot-frame ${selectedAmbient.frameClass}`
     : 'shot-frame'
@@ -204,11 +210,27 @@ export function ScreenshotPreview({
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    const compactViewport = window.matchMedia('(max-width: 720px)')
+    const resetDesktopMode = () => {
+      if (!compactViewport.matches) setPreviewMode('fit')
+    }
+
+    compactViewport.addEventListener('change', resetDesktopMode)
+    return () => compactViewport.removeEventListener('change', resetDesktopMode)
+  }, [])
+
+  useEffect(() => {
+    if (previewMode === 'fit' && previewViewportRef.current) {
+      previewViewportRef.current.scrollLeft = 0
+    }
+  }, [previewMode])
+
   const getPenPoint = (event: ReactPointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()
     return [
-      (event.clientX - bounds.left) / previewScale,
-      (event.clientY - bounds.top) / previewScale,
+      (event.clientX - bounds.left) / renderedPreviewScale,
+      (event.clientY - bounds.top) / renderedPreviewScale,
       event.pressure,
     ]
   }
@@ -241,7 +263,11 @@ export function ScreenshotPreview({
   const startWidthDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
-    widthDragRef.current = { startX: event.clientX, startWidth: frameWidth, scale: previewScale }
+    widthDragRef.current = {
+      startX: event.clientX,
+      startWidth: frameWidth,
+      scale: renderedPreviewScale,
+    }
   }
 
   const moveWidthDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -310,13 +336,13 @@ export function ScreenshotPreview({
   }
 
   return (
-    <div className="preview-viewport" ref={previewViewportRef}>
+    <div className="preview-viewport" data-preview-mode={previewMode} ref={previewViewportRef}>
       <div className="preview-stage">
         <div className="stage-cluster">
           <div className="shot-toolbar">
             <div className="toolbar-group toolbar-export">
               <button
-                className="pen-button pen-button-primary"
+                className="ui-button ui-button-primary toolbar-button"
                 type="button"
                 onClick={copyPng}
                 disabled={isExporting}
@@ -324,16 +350,13 @@ export function ScreenshotPreview({
                 {isCopying ? 'Copying...' : 'Copy PNG'}
               </button>
               <button
-                className="pen-button"
+                className="ui-button toolbar-button"
                 type="button"
                 onClick={downloadPng}
                 disabled={isExporting}
               >
                 {isDownloading ? 'Downloading...' : 'Download PNG'}
               </button>
-              <span id="export-status" className="toolbar-status" role="status" aria-live="polite">
-                {message}
-              </span>
             </div>
             <AmbientSelector
               definitions={ambientDefinitions}
@@ -344,7 +367,7 @@ export function ScreenshotPreview({
               {penStrokes.length > 0 && (
                 <>
                   <button
-                    className="pen-button"
+                    className="ui-button toolbar-button"
                     type="button"
                     onClick={() => setPenStrokes((previousStrokes) => previousStrokes.slice(0, -1))}
                   >
@@ -354,7 +377,7 @@ export function ScreenshotPreview({
                     </svg>
                     Undo
                   </button>
-                  <button className="pen-button" type="button" onClick={() => setPenStrokes([])}>
+                  <button className="ui-button toolbar-button" type="button" onClick={() => setPenStrokes([])}>
                     <svg className="pen-icon" viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M18 6 6 18" />
                       <path d="m6 6 12 12" />
@@ -364,7 +387,7 @@ export function ScreenshotPreview({
                 </>
               )}
               <button
-                className={isPenActive ? 'pen-button pen-button-active' : 'pen-button'}
+                className="ui-button toolbar-button"
                 type="button"
                 aria-pressed={isPenActive}
                 onClick={() => setIsPenActive((active) => !active)}
@@ -376,8 +399,29 @@ export function ScreenshotPreview({
                 {isPenActive ? 'Drawing' : 'Draw'}
               </button>
             </div>
+            <div className="preview-mode-switch" role="group" aria-label="Preview size">
+              <button
+                className="ui-button"
+                type="button"
+                aria-pressed={previewMode === 'fit'}
+                onClick={() => setPreviewMode('fit')}
+              >
+                Fit
+              </button>
+              <button
+                className="ui-button"
+                type="button"
+                aria-pressed={previewMode === 'edit'}
+                onClick={() => setPreviewMode('edit')}
+              >
+                Edit
+              </button>
+            </div>
+            <span id="export-status" className="export-status" role="status" aria-live="polite">
+              {message}
+            </span>
           </div>
-          <div style={previewScale < 1 ? { zoom: previewScale } : undefined}>
+          <div style={renderedPreviewScale < 1 ? { zoom: renderedPreviewScale } : undefined}>
             <div
               ref={shotRef}
               className={frameClass}
@@ -423,8 +467,13 @@ export function ScreenshotPreview({
           </div>
 
           <p id={editorHelpId} className="editor-help">
-            Edit or paste code. Click line numbers to highlight. Shift-click or drag for ranges.
-            Toggle Draw to sketch on top.
+            <span className="editor-help-desktop">
+              Edit or paste code. Click line numbers to highlight. Shift-click or drag for ranges.
+              Toggle Draw to sketch on top.
+            </span>
+            <span className="editor-help-touch">
+              Tap code to edit. Tap line numbers to highlight. Draw to annotate.
+            </span>
           </p>
         </div>
       </div>

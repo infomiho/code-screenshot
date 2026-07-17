@@ -12,6 +12,7 @@ import {
 } from './ambient-themes'
 import { ScreenshotControls } from './screenshot-controls'
 import { ScreenshotPreview } from './screenshot-preview'
+import { SiteHeader } from './site-header'
 import { useCodeEditor } from './use-code-editor'
 
 export function App() {
@@ -72,6 +73,7 @@ export function App() {
   return (
     <main className="app-shell">
       <h1 className="sr-only">codeshot.dev code screenshot tool</h1>
+      <SiteHeader />
       <section className="workspace" aria-label="Editable screenshot">
         <ScreenshotPreview
           ambientKey={ambientKey}
