@@ -15,12 +15,23 @@ import {
   type AmbientTextSource,
   type CompiledAmbientDocument,
 } from './ambient-schema'
+import { compileAmbientThumbnail } from './ambient-thumbnail'
 
 type JsonObject = Record<string, unknown>
 type HtmlNode = DefaultTreeAdapterTypes.ChildNode
 type HtmlElement = DefaultTreeAdapterTypes.Element
 
-const documentKeys = ['schemaVersion', 'name', 'editor', 'annotations', 'customizations', 'template', 'stylesheet']
+const documentKeys = [
+  'schemaVersion',
+  'name',
+  'editor',
+  'annotations',
+  'customizations',
+  'template',
+  'stylesheet',
+  'thumbnail',
+]
+const thumbnailKeys = ['template', 'stylesheet']
 const editorKeys = ['tokens', 'exportGutter']
 const tokenKeys = ['text', 'comment', 'string', 'keyword', 'number', 'function', 'type', 'punctuation']
 const annotationKeys = ['ink']
@@ -79,6 +90,8 @@ const maxTemplateBytes = 64 * 1024
 const maxStylesheetBytes = 96 * 1024
 const maxTemplateDepth = 32
 const maxTemplateNodes = 512
+const maxThumbnailTemplateBytes = 2 * 1024
+const maxThumbnailStylesheetBytes = 4 * 1024
 
 const isObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -321,6 +334,30 @@ const validateDocument = (value: unknown, diagnostics: AmbientDiagnostic[]): val
   }
   if (typeof value.stylesheet !== 'string' || value.stylesheet.length > maxStylesheetBytes) {
     addDiagnostic(diagnostics, 'stylesheet.limit-exceeded', 'Stylesheet must not exceed 96 KiB.', '/stylesheet')
+  }
+  if (validateKeys(value.thumbnail, thumbnailKeys, '/thumbnail', diagnostics) && isObject(value.thumbnail)) {
+    if (
+      typeof value.thumbnail.template !== 'string'
+      || value.thumbnail.template.length > maxThumbnailTemplateBytes
+    ) {
+      addDiagnostic(
+        diagnostics,
+        'thumbnail.template-limit',
+        'Thumbnail template must not exceed 2 KiB.',
+        '/thumbnail/template',
+      )
+    }
+    if (
+      typeof value.thumbnail.stylesheet !== 'string'
+      || value.thumbnail.stylesheet.length > maxThumbnailStylesheetBytes
+    ) {
+      addDiagnostic(
+        diagnostics,
+        'thumbnail.stylesheet-limit',
+        'Thumbnail stylesheet must not exceed 4 KiB.',
+        '/thumbnail/stylesheet',
+      )
+    }
   }
 
   return diagnostics.length === 0
@@ -615,6 +652,8 @@ export const compileAmbientDocument = (value: unknown) => {
   }
 
   const compiledTemplate = compileTemplate(value.template, diagnostics)
+  const thumbnailResult = compileAmbientThumbnail(value.thumbnail)
+  diagnostics.push(...thumbnailResult.diagnostics)
   validateStylesheet(value.stylesheet, value.customizations, diagnostics)
 
   return {
@@ -624,6 +663,10 @@ export const compileAmbientDocument = (value: unknown) => {
           document: value,
           template: compiledTemplate.template,
           bindings: compiledTemplate.bindings,
+          thumbnail: {
+            template: thumbnailResult.compiled!.template,
+            stylesheet: thumbnailResult.compiled!.stylesheet,
+          },
         } satisfies CompiledAmbientDocument
       : null,
   }

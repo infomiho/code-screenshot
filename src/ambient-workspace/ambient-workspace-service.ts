@@ -1,14 +1,15 @@
 import type { AmbientDocument } from '../ambient-schema'
 
 export type AgentPhase = 'setup' | 'handoff' | 'review' | 'saved'
-export type AgentNotice = 'rejected' | 'expired' | 'offline' | null
+export type AgentNotice = 'rejected' | 'request-error' | 'expired' | 'unavailable' | 'offline' | null
 
 export type AgentDraftModel = {
   id: string
   phase: AgentPhase
   notice: AgentNotice
   ambientName: string | null
-  designDirection: string
+  agentSessionUrl: string | null
+  agentSessionGeneration: number | null
   promptCopied: boolean
   promptExpiresAt: string | null
   saveState: 'idle' | 'saving'
@@ -39,7 +40,7 @@ export interface AmbientWorkspaceService {
   signIn: () => void
   signOut: () => void
   beginAmbient: () => void
-  createAmbient: (ambientName: string, designDirection: string) => void
+  createAmbient: (ambientName: string) => void
   copyPrompt: () => void
   renewAgentAccess: () => void
   retryConnection: () => void

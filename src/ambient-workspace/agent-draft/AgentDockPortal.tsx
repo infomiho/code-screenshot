@@ -6,14 +6,14 @@ import { getHudStatus } from './model'
 type AgentDockPortalProps = {
   children: ReactNode
   model: AgentDraftModel
-  onClose: () => void
+  onMinimize: () => void
 }
 
-export function AgentDockPortal({ children, model, onClose }: AgentDockPortalProps) {
+export function AgentDockPortal({ children, model, onMinimize }: AgentDockPortalProps) {
   const dockRef = useRef<HTMLElement>(null)
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
   const dockKind = model.phase === 'setup' || model.phase === 'saved' ? 'ambient' : 'draft'
-  const closeDock = useEffectEvent(onClose)
+  const minimizeDock = useEffectEvent(onMinimize)
 
   useEffect(() => {
     setPortalRoot(document.body)
@@ -34,7 +34,7 @@ export function AgentDockPortal({ children, model, onClose }: AgentDockPortalPro
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.preventDefault()
-      closeDock()
+      minimizeDock()
     }
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
@@ -65,9 +65,9 @@ export function AgentDockPortal({ children, model, onClose }: AgentDockPortalPro
           className="agent-dock-close"
           data-dock-focus={model.phase === 'setup' ? undefined : true}
           type="button"
-          onClick={onClose}
+          onClick={onMinimize}
         >
-          Close
+          Minimize
         </button>
       </header>
       <div className="agent-dock-body">{children}</div>

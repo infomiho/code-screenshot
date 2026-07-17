@@ -14,7 +14,7 @@ describe('MockAmbientService', () => {
 
     service.signIn()
     service.beginAmbient()
-    service.createAmbient('Signal study', 'Editorial and restrained')
+    service.createAmbient('Signal study')
     service.copyPrompt()
     await vi.runAllTimersAsync()
 
@@ -41,7 +41,7 @@ describe('MockAmbientService', () => {
 
     service.signIn()
     service.beginAmbient()
-    service.createAmbient('Signal study', '')
+    service.createAmbient('Signal study')
     service.copyPrompt()
     service.signOut()
 

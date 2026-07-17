@@ -46,6 +46,33 @@ test('renders Swiss Poster declaratively without recreating CodeMirror', async (
   )).toBe('Untitled')
 })
 
+test('renders the Swiss Poster thumbnail consistently in both picker contexts', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html')
+  const current = page.locator('.ambient-current')
+  await current.click()
+  await page.getByRole('option', { name: 'Swiss poster' }).click()
+  await current.click()
+
+  const thumbnails = await page.evaluate(() => {
+    const inspect = (host: Element | null) => {
+      const poster = host?.shadowRoot?.querySelector<HTMLElement>('.poster')
+      if (!poster) return null
+      const rect = poster.getBoundingClientRect()
+      return { background: getComputedStyle(poster).backgroundColor, height: rect.height, width: rect.width }
+    }
+    const option = [...document.querySelectorAll('.ambient-picker-option')]
+      .find((element) => element.textContent?.includes('Swiss poster'))
+    return {
+      current: inspect(document.querySelector('.ambient-current .ambient-mark')),
+      option: inspect(option?.querySelector('.ambient-mark') ?? null),
+    }
+  })
+
+  expect(thumbnails.current?.background).toBe(thumbnails.option?.background)
+  expect(thumbnails.current?.width).toBeGreaterThan(20)
+  expect(thumbnails.option?.width).toBeGreaterThan(20)
+})
+
 for (const width of [420, 860, 1280]) {
   test(`exports the declarative Swiss Poster at ${width}px`, async ({ page }) => {
     await openAppFixture(page)

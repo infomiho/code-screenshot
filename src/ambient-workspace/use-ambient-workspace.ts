@@ -5,11 +5,11 @@ import type {
   AmbientWorkspaceService,
   SavedAmbientRecord,
 } from './ambient-workspace-service'
-import { MockAmbientService } from './mock-ambient-service'
+import { HostedAmbientService } from './hosted-ambient-service'
 
 export function useAmbientWorkspace(providedService?: AmbientWorkspaceService) {
   const [service] = useState(
-    () => providedService ?? new MockAmbientService(),
+    () => providedService ?? new HostedAmbientService(),
   )
   const storedSnapshot = useSyncExternalStore(
     service.subscribe,

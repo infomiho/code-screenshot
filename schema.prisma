@@ -6,3 +6,86 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+enum AmbientStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CertificationStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
+model User {
+  id              String    @id @default(cuid())
+  githubLogin     String
+  githubAvatarUrl String?
+  activeAmbientId String?
+  ambients        Ambient[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Ambient {
+  id               String                @id @default(cuid())
+  ownerId          String
+  owner            User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  slug             String
+  name             String
+  status           AmbientStatus         @default(DRAFT)
+  currentVersion   Int?
+  agentSessionGeneration Int             @default(0)
+  draft            AmbientDraft?
+  versions         AmbientVersion[]
+  agentSessions    AmbientAgentSession[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([ownerId, slug])
+  @@index([ownerId, updatedAt])
+}
+
+model AmbientDraft {
+  ambientId       String   @id
+  ambient         Ambient  @relation(fields: [ambientId], references: [id], onDelete: Cascade)
+  revision        Int      @default(0)
+  schemaVersion   Int      @default(1)
+  document        Json
+  updatedBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model AmbientVersion {
+  id                  String              @id @default(cuid())
+  ambientId           String
+  ambient             Ambient             @relation(fields: [ambientId], references: [id], onDelete: Cascade)
+  version             Int
+  draftRevision       Int
+  schemaVersion       Int
+  document            Json
+  createdBy           String
+  certificationStatus CertificationStatus @default(PENDING)
+  createdAt           DateTime            @default(now())
+
+  @@unique([ambientId, version])
+  @@unique([ambientId, draftRevision])
+  @@index([ambientId, createdAt])
+}
+
+model AmbientAgentSession {
+  id             String    @id @default(cuid())
+  ambientId      String
+  ambient        Ambient   @relation(fields: [ambientId], references: [id], onDelete: Cascade)
+  capabilityHash String    @unique
+  generation     Int
+  createdBy      String
+  expiresAt      DateTime
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([ambientId, expiresAt])
+}

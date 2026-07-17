@@ -7,22 +7,28 @@ import { formatExpiry } from './model'
 type AgentDraftContentProps = {
   copyLabel: string
   model: AgentDraftModel
-  onClose: () => void
+  onExit: () => void
   onCopyPrompt: () => void
-  onCreateAmbient: (ambientName: string, designDirection: string) => void
+  onCreateAmbient: (ambientName: string) => void
   onSavePrivateVersion: () => void
+}
+
+const getPromptAction = (model: AgentDraftModel, copyLabel: string) => {
+  if (model.notice === 'expired') return { label: 'Prompt expired', isDisabled: true }
+  if (model.notice === 'unavailable') return { label: 'Link unavailable', isDisabled: true }
+  return { label: copyLabel, isDisabled: false }
 }
 
 export function AgentDraftContent({
   copyLabel,
   model,
-  onClose,
+  onExit,
   onCopyPrompt,
   onCreateAmbient,
   onSavePrivateVersion,
 }: AgentDraftContentProps) {
-  const isExpired = model.notice === 'expired'
   const isOffline = model.notice === 'offline'
+  const promptAction = getPromptAction(model, copyLabel)
 
   if (model.phase === 'setup') {
     return (
@@ -45,8 +51,8 @@ export function AgentDraftContent({
     return (
       <div className="agent-work-layout">
         <AgentPrompt
-          copyLabel={isExpired ? 'Prompt expired' : copyLabel}
-          isDisabled={isExpired}
+          copyLabel={promptAction.label}
+          isDisabled={promptAction.isDisabled}
           model={model}
           onCopyPrompt={onCopyPrompt}
         />
@@ -74,8 +80,8 @@ export function AgentDraftContent({
     return (
       <div className="agent-work-layout">
         <AgentPrompt
-          copyLabel={isExpired ? 'Prompt expired' : copyLabel}
-          isDisabled={isExpired}
+          copyLabel={promptAction.label}
+          isDisabled={promptAction.isDisabled}
           model={model}
           onCopyPrompt={onCopyPrompt}
         />
@@ -104,8 +110,8 @@ export function AgentDraftContent({
   return (
     <div className="agent-work-layout">
       <AgentPrompt
-        copyLabel={isExpired ? 'Prompt expired' : copyLabel}
-        isDisabled={isExpired}
+        copyLabel={promptAction.label}
+        isDisabled={promptAction.isDisabled}
         model={model}
         onCopyPrompt={onCopyPrompt}
       />
@@ -115,7 +121,7 @@ export function AgentDraftContent({
           <p>{model.ambientName} is saved and selected.</p>
           <p>Copy the prompt again to continue this agent session.</p>
         </div>
-        <AgentButton variant="secondary" onClick={onClose}>Back to editor</AgentButton>
+        <AgentButton variant="secondary" onClick={onExit}>Exit edit mode</AgentButton>
         <div className="agent-access-block">
           <span>Access ends</span>
           <strong>{formatExpiry(model.promptExpiresAt)}</strong>

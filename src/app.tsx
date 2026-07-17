@@ -70,7 +70,7 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
   const [ambientKey, setAmbientKey] = useState(defaultAmbientKey)
   const [title, setTitle] = useState('top secret code')
   const [isAgentDockOpen, setIsAgentDockOpen] = useState(false)
-  const [dismissedSavedDraftKey, setDismissedSavedDraftKey] = useState<string | null>(null)
+  const [dismissedAgentDraftKey, setDismissedAgentDraftKey] = useState<string | null>(null)
   const {
     definitions,
     draftDefinition,
@@ -123,7 +123,16 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
 
   useEffect(() => {
     const draft = workspace.draft
-    if (!draftDefinition || !draft || draft.phase !== 'review') return
+    if (!draftDefinition || !draft) return
+
+    const isInitialDraft = draft.revision === 0
+      && (draft.phase === 'setup' || draft.phase === 'handoff')
+    if (isInitialDraft) {
+      lastDraftRef.current = { id: draft.id, revision: draft.revision }
+      setAmbientKey(getAmbientKey(draftDefinition))
+      return
+    }
+    if (draft.phase !== 'review') return
 
     const previousDraft = lastDraftRef.current
     const isFirstAcceptedChange = previousDraft.id !== draft.id || previousDraft.revision === 0
@@ -149,7 +158,7 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
   const updateTitle = (nextTitle: string) => setTitle(nextTitle)
 
   const beginAmbient = () => {
-    setDismissedSavedDraftKey(null)
+    setDismissedAgentDraftKey(null)
     workspaceService.beginAmbient()
     setIsAgentDockOpen(true)
   }
@@ -163,21 +172,23 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
 
   const signOut = () => {
     workspaceService.signOut()
-    setDismissedSavedDraftKey(null)
+    setDismissedAgentDraftKey(null)
     setAmbientKey(defaultAmbientKey)
     setIsAgentDockOpen(false)
   }
 
   const updateAgentDockOpen = (isOpen: boolean) => {
-    if (!isOpen && workspace.draft?.phase === 'saved') {
-      setDismissedSavedDraftKey(getDraftRevisionKey(workspace.draft))
-    }
     setIsAgentDockOpen(isOpen)
   }
 
   const openAgentDraft = () => {
-    setDismissedSavedDraftKey(null)
+    setDismissedAgentDraftKey(null)
     setIsAgentDockOpen(true)
+  }
+
+  const exitAgentDraft = () => {
+    setDismissedAgentDraftKey(getDraftRevisionKey(workspace.draft))
+    setIsAgentDockOpen(false)
   }
 
   const yourAmbients = createYourAmbientsState(workspace, {
@@ -185,9 +196,7 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
     openDraft: openAgentDraft,
     signIn: workspaceService.signIn,
   })
-  const isSavedDraftDismissed = workspace.draft?.phase === 'saved'
-    && dismissedSavedDraftKey === getDraftRevisionKey(workspace.draft)
-
+  const isAgentDraftDismissed = dismissedAgentDraftKey === getDraftRevisionKey(workspace.draft)
   return (
     <main className="app-shell">
       <h1 className="sr-only">codeshot.dev code screenshot tool</h1>
@@ -228,11 +237,12 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
           onClearHighlights={clearHighlights}
         />
       </section>
-      {workspace.draft && !isSavedDraftDismissed && (
+      {workspace.draft && !isAgentDraftDismissed && (
         <AgentDraftHud
           isOpen={isAgentDockOpen}
           model={workspace.draft}
           onOpenChange={updateAgentDockOpen}
+          onExit={exitAgentDraft}
           onCreateAmbient={workspaceService.createAmbient}
           onCopyPrompt={workspaceService.copyPrompt}
           onRenewAgentAccess={workspaceService.renewAgentAccess}

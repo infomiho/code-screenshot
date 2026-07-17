@@ -49,6 +49,10 @@ const validDocument: AmbientDocument = {
       --ambient-editor-text-color: #f8fafc;
     }
   `,
+  thumbnail: {
+    template: '<div class="frame"><span class="line"></span></div>',
+    stylesheet: ':host { display: block; } .frame { height: 100%; } .line { display: block; }',
+  },
 }
 
 describe('compileAmbientDocument', () => {
@@ -70,6 +74,61 @@ describe('compileAmbientDocument', () => {
       { id: 1, source: 'lineCount', format: 'pad-3', fallback: undefined, tooltip: false },
       { id: 2, source: 'lineCount', format: 'plain', fallback: undefined, tooltip: false },
     ])
+  })
+
+  it('rejects dynamic or externally styled thumbnails', () => {
+    const result = compileAmbientDocument({
+      ...validDocument,
+      thumbnail: {
+        template: '<div><ambient-slot name="title"></ambient-slot></div>',
+        stylesheet: '.frame { background: url("https://example.com/image.png"); transition: opacity 1s; }',
+      },
+    })
+
+    expect(result.compiled).toBeNull()
+    expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(expect.arrayContaining([
+      'thumbnail.element-not-allowed',
+      'thumbnail.attribute-not-allowed',
+      'thumbnail.external-resource',
+      'thumbnail.declaration-not-allowed',
+    ]))
+  })
+
+  it('contains thumbnail selectors and declarations', () => {
+    const result = compileAmbientDocument({
+      ...validDocument,
+      thumbnail: {
+        template: '<div class="frame"></div>',
+        stylesheet: `
+          :host { display: block; }
+          .frame { --position: fixed; position: var(--position); all: initial; }
+          :\\68 ost { color: red; }
+        `,
+      },
+    })
+
+    expect(result.compiled).toBeNull()
+    expect(result.diagnostics.map(({ code }) => code)).toEqual(expect.arrayContaining([
+      'thumbnail.declaration-not-allowed',
+      'thumbnail.selector-not-allowed',
+    ]))
+  })
+
+  it('scopes thumbnail hosts and counts only elements', () => {
+    const children = Array.from({ length: 23 }, (_, index) =>
+      `\n  <span class="line-${index}"></span>`,
+    ).join('')
+    const result = compileAmbientDocument({
+      ...validDocument,
+      thumbnail: {
+        template: `<div class="frame">${children}\n</div>`,
+        stylesheet: ':host { display: block; }',
+      },
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.compiled?.thumbnail.stylesheet).toContain('[data-codeshot-thumbnail-canvas]')
+    expect(result.compiled?.thumbnail.stylesheet).not.toContain(':host')
   })
 
   it('rejects missing and duplicate code slots', () => {

@@ -10,6 +10,8 @@ export const formatExpiry = (value: string | null) => value
 export const getHudStatus = (model: AgentDraftModel) => {
   if (model.notice === 'offline') return 'Offline'
   if (model.notice === 'expired') return 'Access expired'
+  if (model.notice === 'unavailable') return 'New link required'
+  if (model.notice === 'request-error') return 'Request failed'
   if (model.notice === 'rejected') return 'Update rejected'
 
   switch (model.phase) {
@@ -26,8 +28,8 @@ export const getHudStatus = (model: AgentDraftModel) => {
 
 export const getPrompt = (model: AgentDraftModel) => `Create a codeshot.dev ambient for “${model.ambientName}”.
 
-${model.designDirection ? `Design direction: ${model.designDirection}\n\n` : ''}Read and follow the instructions at this temporary URL:
-https://codeshot.dev/agent/sessions/cap_demo_7c92f
+Open this temporary session with an HTTP or web-fetch tool. Read both linked references and fetch the current draft:
+${model.agentSessionUrl ?? 'Generate a new temporary agent link in codeshot.dev.'}
 
-This link can only read and update this ambient draft.
-It expires ${formatExpiry(model.promptExpiresAt)}.`
+Ask me for the visual direction. Do not update the draft until I answer.
+`

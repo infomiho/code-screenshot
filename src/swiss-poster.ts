@@ -1,4 +1,5 @@
-import type { AmbientDocument, CompiledAmbientDocument } from './ambient-schema'
+import { assertCompiledAmbientDocument } from './ambient-compiler'
+import type { AmbientDocument } from './ambient-schema'
 
 export const swissPosterDocument = {
   schemaVersion: 1,
@@ -200,34 +201,21 @@ export const swissPosterDocument = {
       ::slotted([slot='code']) { --ambient-editor-font-size: 16px; }
     }
   `,
+  thumbnail: {
+    template: `
+      <div class="poster">
+        <span class="header"></span>
+        <span class="body"></span>
+      </div>
+    `,
+    stylesheet: `
+      :host { display: block; height: 100%; background: oklch(0.58 0.22 28); padding: 9%; }
+      * { box-sizing: border-box; }
+      .poster { height: 100%; border: 1px solid oklch(0.205 0.012 65); background: oklch(0.965 0.012 88); }
+      .header { display: block; height: 30%; border-top: 3px solid oklch(0.58 0.22 28); border-bottom: 1px solid oklch(0.205 0.012 65); }
+      .body { display: block; width: 58%; height: 1px; margin: 22% 14%; background: oklch(0.205 0.012 65); }
+    `,
+  },
 } satisfies AmbientDocument
 
-export const compiledSwissPoster = {
-  document: swissPosterDocument,
-  template: `
-    <article class="shell">
-      <header class="swiss-header">
-        <div class="swiss-title">
-          <span class="swiss-label">Title</span>
-          <h2><span data-ambient-binding="0"></span></h2>
-        </div>
-      </header>
-      <div class="code-body"><slot name="code"></slot></div>
-      <footer class="swiss-footer">
-        <div class="swiss-meta">
-          <span class="swiss-label">File type</span>
-          <span class="swiss-value"><span data-ambient-binding="1"></span></span>
-        </div>
-        <div class="swiss-meta">
-          <span class="swiss-label">Lines</span>
-          <span class="swiss-value"><span data-ambient-binding="2"></span></span>
-        </div>
-      </footer>
-    </article>
-  `,
-  bindings: [
-    { id: 0, source: 'title', format: 'plain', fallback: 'Untitled', tooltip: true },
-    { id: 1, source: 'fileTypeLabel', format: 'plain', tooltip: false },
-    { id: 2, source: 'lineCount', format: 'pad-3', tooltip: false },
-  ],
-} satisfies CompiledAmbientDocument
+export const compiledSwissPoster = assertCompiledAmbientDocument(swissPosterDocument)

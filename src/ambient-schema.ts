@@ -43,6 +43,11 @@ export type AmbientColorSlot = {
 
 export type AmbientCustomizationSlot = AmbientPaletteSlot | AmbientColorSlot
 
+export type AmbientThumbnail = {
+  template: string
+  stylesheet: string
+}
+
 export type AmbientDocument = {
   schemaVersion: 1
   name: string
@@ -56,11 +61,12 @@ export type AmbientDocument = {
   customizations: readonly AmbientCustomizationSlot[]
   template: string
   stylesheet: string
+  thumbnail: AmbientThumbnail
 }
 
 export type AmbientManifest = Omit<
   AmbientDocument,
-  'schemaVersion' | 'template' | 'stylesheet'
+  'schemaVersion' | 'template' | 'stylesheet' | 'thumbnail'
 >
 
 export type AmbientDiagnostic = {
@@ -84,6 +90,7 @@ export type CompiledAmbientDocument = {
   document: AmbientDocument
   template: string
   bindings: readonly AmbientTextBinding[]
+  thumbnail: AmbientThumbnail
 }
 
 export const ambientEditorVariables = [

@@ -9,7 +9,7 @@ const acceptFirstAgentUpdate = async (page: Page) => {
   await page.evaluate(() => {
     window.ambientWorkspaceService.signIn()
     window.ambientWorkspaceService.beginAmbient()
-    window.ambientWorkspaceService.createAmbient('Signal study', 'Editorial and restrained')
+    window.ambientWorkspaceService.createAmbient('Signal study')
     window.ambientWorkspaceService.copyPrompt()
   })
   await expect.poll(() => page.evaluate(
@@ -33,7 +33,7 @@ test('reopens a saved session and saves another accepted revision', async ({ pag
   await page.locator('.ambient-current').click()
   await page.getByRole('button', { name: 'Open agent session' }).click()
   await expect(page.getByRole('heading', { name: 'Ready-to-paste prompt' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Close' })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Minimize' })).toBeFocused()
   const copyPrompt = page.getByRole('button', { name: 'Copy prompt' })
   await expect(copyPrompt).toBeVisible()
   await copyPrompt.focus()
@@ -48,6 +48,33 @@ test('reopens a saved session and saves another accepted revision', async ({ pag
   await expect.poll(() => page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().savedAmbients[0]?.version,
   )).toBe(2)
+})
+
+test('minimizes or exits a saved edit session', async ({ page }) => {
+  await openApp(page)
+  await acceptFirstAgentUpdate(page)
+  await saveCurrentVersion(page)
+
+  await page.locator('.agent-dock-trigger').click()
+  await page.getByRole('button', { name: 'Minimize' }).click()
+  await expect(page.locator('.agent-dock-trigger')).toBeVisible()
+  await page.locator('.agent-dock-trigger').click()
+  await page.getByRole('button', { name: 'Exit edit mode' }).click()
+
+  await expect(page.locator('.agent-dock')).toHaveCount(0)
+  await expect(page.locator('.agent-dock-trigger')).toHaveCount(0)
+  await expect(page.locator('.cm-editor')).toBeVisible()
+})
+
+test('selects the minimal draft as soon as custom design starts', async ({ page }) => {
+  await openApp(page)
+  await page.evaluate(() => {
+    window.ambientWorkspaceService.signIn()
+    window.ambientWorkspaceService.beginAmbient()
+  })
+
+  await expect(page.locator('.ambient-current')).toContainText('New ambient')
+  await expect(page.locator('.declarative-ambient')).toBeVisible()
 })
 
 test('later revisions do not steal a built-in selection', async ({ page }) => {

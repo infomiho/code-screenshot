@@ -12,8 +12,9 @@ type AgentDraftHudProps = {
   isOpen: boolean
   model: AgentDraftModel
   onOpenChange: (isOpen: boolean) => void
+  onExit: () => void
   onCopyPrompt: () => void
-  onCreateAmbient: (ambientName: string, designDirection: string) => void
+  onCreateAmbient: (ambientName: string) => void
   onRenewAgentAccess: () => void
   onRetryConnection: () => void
   onSavePrivateVersion: () => void
@@ -37,6 +38,7 @@ export function AgentDraftHud({
   isOpen,
   model,
   onOpenChange,
+  onExit,
   onCopyPrompt,
   onCreateAmbient,
   onRenewAgentAccess,
@@ -46,16 +48,18 @@ export function AgentDraftHud({
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle')
   const triggerRef = useRef<HTMLButtonElement>(null)
   const copyTimerRef = useRef<number | null>(null)
-  const closeDock = useCallback(() => {
+  const minimizeDock = useCallback(() => {
     onOpenChange(false)
     window.requestAnimationFrame(() => {
-      if (model.phase === 'saved') {
-        document.querySelector<HTMLElement>('.ambient-current')?.focus()
-      } else {
-        triggerRef.current?.focus()
-      }
+      triggerRef.current?.focus()
     })
-  }, [model.phase, onOpenChange])
+  }, [onOpenChange])
+  const exitEditMode = useCallback(() => {
+    onExit()
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('.cm-content')?.focus()
+    })
+  }, [onExit])
 
   useEffect(() => () => {
     if (copyTimerRef.current !== null) window.clearTimeout(copyTimerRef.current)
@@ -89,7 +93,7 @@ export function AgentDraftHud({
         />
       )}
       {isOpen && (
-        <AgentDockPortal model={model} onClose={closeDock}>
+        <AgentDockPortal model={model} onMinimize={minimizeDock}>
           <AgentRecoveryNotice
             model={model}
             onRenewAgentAccess={onRenewAgentAccess}
@@ -98,7 +102,7 @@ export function AgentDraftHud({
           <AgentDraftContent
             copyLabel={copyLabels[copyStatus]}
             model={model}
-            onClose={closeDock}
+            onExit={exitEditMode}
             onCopyPrompt={copyPrompt}
             onCreateAmbient={onCreateAmbient}
             onSavePrivateVersion={onSavePrivateVersion}

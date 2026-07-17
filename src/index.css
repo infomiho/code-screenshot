@@ -458,6 +458,7 @@ input:focus-visible,
   height: var(--ambient-mark-height);
   flex-shrink: 0;
   overflow: hidden;
+  box-sizing: border-box;
   border: 1px solid rgb(247 245 240 / 34%);
   background: var(--bg);
 }
@@ -466,6 +467,10 @@ input:focus-visible,
 .ambient-mark::after {
   position: absolute;
   content: '';
+}
+
+.ambient-mark--declarative {
+  background: transparent;
 }
 
 .ambient-mark--macos {

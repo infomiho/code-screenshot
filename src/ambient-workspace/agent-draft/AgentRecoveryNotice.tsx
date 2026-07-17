@@ -33,6 +33,28 @@ export function AgentRecoveryNotice({
     )
   }
 
+  if (model.notice === 'unavailable') {
+    return (
+      <aside className="agent-notice agent-notice-warning">
+        <strong>Agent link unavailable</strong>
+        <p>Create a new link for this browser to continue.</p>
+        <AgentButton variant={model.phase === 'review' ? 'secondary' : 'primary'} onClick={onRenewAgentAccess}>
+          Create new link
+        </AgentButton>
+      </aside>
+    )
+  }
+
+  if (model.notice === 'request-error') {
+    return (
+      <aside className="agent-notice agent-notice-warning">
+        <strong>Request failed</strong>
+        <p>Refresh the workspace and try again.</p>
+        <AgentButton variant="secondary" onClick={onRetryConnection}>Refresh workspace</AgentButton>
+      </aside>
+    )
+  }
+
   if (model.notice === 'offline') {
     return (
       <aside className="agent-notice">

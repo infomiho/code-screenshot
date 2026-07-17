@@ -1,4 +1,4 @@
-import { swissPosterDocument } from '../swiss-poster'
+import { createMinimalDraftDocument } from './minimal-draft'
 import type {
   AgentDraftModel,
   AmbientWorkspaceService,
@@ -18,18 +18,16 @@ const createDraft = (id: string): AgentDraftModel => ({
   phase: 'setup',
   notice: null,
   ambientName: null,
-  designDirection: '',
+  agentSessionUrl: null,
+  agentSessionGeneration: null,
   promptCopied: false,
   promptExpiresAt: null,
   saveState: 'idle',
   revision: 0,
-  document: null,
+  document: createMinimalDraftDocument(),
 })
 
-const createDraftDocument = (name: string) => ({
-  ...swissPosterDocument,
-  name,
-})
+const createDraftDocument = (name: string) => createMinimalDraftDocument(name)
 
 export class MockAmbientService implements AmbientWorkspaceService {
   private snapshot: AmbientWorkspaceSnapshot = {
@@ -90,13 +88,14 @@ export class MockAmbientService implements AmbientWorkspaceService {
     this.update({ ...this.snapshot, draft: createDraft(id) })
   }
 
-  createAmbient = (ambientName: string, designDirection: string) => {
+  createAmbient = (ambientName: string) => {
     this.updateDraft((draft) => ({
       ...draft,
       phase: 'handoff',
       notice: null,
       ambientName,
-      designDirection,
+      agentSessionUrl: 'https://codeshot.dev/agent/sessions/cap_demo_7c92f',
+      agentSessionGeneration: 0,
       promptExpiresAt: hoursFromNow(24),
     }))
   }
