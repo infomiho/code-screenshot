@@ -18,6 +18,7 @@ jobs:
       WASP_VERSION: 0.24.0
       RAILWAY_PROJECT_NAME: code-screenshot
       RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_ENVIRONMENT_ID: 84734a86-c838-4ad8-a926-75256c36932a
     steps:
       - uses: actions/checkout@v7
 
