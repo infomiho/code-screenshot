@@ -27,6 +27,7 @@ jobs:
           cache: npm
 
       - run: npm install --global @wasp.sh/wasp-cli@$WASP_VERSION @railway/cli
+      - run: wasp install
       - run: wasp deploy railway deploy $RAILWAY_PROJECT_NAME --existing-project-id $RAILWAY_PROJECT_ID
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
