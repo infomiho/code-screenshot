@@ -3,6 +3,7 @@ import { HttpError, prisma } from 'wasp/server'
 import type {
   CreateAmbient,
   CreateAmbientAgentSession,
+  DiscardAmbientDraft,
   GetAmbientDraft,
   GetAmbientDraftRevision,
   GetAmbientWorkspace,
@@ -20,6 +21,8 @@ import type {
   CreateAgentSessionInput,
   CreateAmbientInput,
   CreateAmbientResult,
+  DiscardAmbientDraftInput,
+  DiscardAmbientDraftResult,
   PublishAmbientInput,
   PublishedAmbientDto,
   WorkspaceDocumentDto,
@@ -210,8 +213,31 @@ export const createAmbientAgentSession: CreateAmbientAgentSession<
 
   const access = createAgentSessionAccess()
   const generation = await prisma.$transaction(async (transaction) => {
-    const ambient = await transaction.ambient.update({
+    const ambient = await transaction.ambient.findFirst({
       where: { id: ambientId, ownerId: user.id },
+      select: { currentVersion: true, draft: { select: { ambientId: true } } },
+    })
+    if (!ambient) throw new HttpError(404, 'Ambient not found.')
+
+    if (!ambient.draft) {
+      if (ambient.currentVersion === null) throw new HttpError(404, 'Ambient draft not found.')
+      const latestVersion = await transaction.ambientVersion.findUnique({
+        where: { ambientId_version: { ambientId, version: ambient.currentVersion } },
+      })
+      if (!latestVersion) throw new HttpError(404, 'Ambient version not found.')
+      await transaction.ambientDraft.create({
+        data: {
+          ambientId,
+          revision: latestVersion.draftRevision,
+          schemaVersion: latestVersion.schemaVersion,
+          document: serializeDocument(readDocument(latestVersion.document)),
+          updatedBy: user.id,
+        },
+      })
+    }
+
+    const updatedAmbient = await transaction.ambient.update({
+      where: { id: ambientId },
       data: { agentSessionGeneration: { increment: 1 } },
       select: { agentSessionGeneration: true },
     })
@@ -225,10 +251,14 @@ export const createAmbientAgentSession: CreateAmbientAgentSession<
         capabilityHash: hashAgentCapability(access.capability),
         createdBy: user.id,
         expiresAt: access.expiresAt,
-        generation: ambient.agentSessionGeneration,
+        generation: updatedAmbient.agentSessionGeneration,
       },
     })
-    return ambient.agentSessionGeneration
+    await transaction.user.update({
+      where: { id: user.id },
+      data: { activeAmbientId: ambientId },
+    })
+    return updatedAmbient.agentSessionGeneration
   })
 
   return {
@@ -267,6 +297,44 @@ export const getAmbientDraft: GetAmbientDraft<AmbientIdInput, WorkspaceDraftRevi
     revision: ambient.draft.revision,
     document: readDocument(ambient.draft.document),
   }
+}
+
+export const discardAmbientDraft: DiscardAmbientDraft<
+  DiscardAmbientDraftInput,
+  DiscardAmbientDraftResult
+> = async (args, context) => {
+  const user = requireUser(context.user)
+  const { ambientId } = parseInput(ambientIdInputSchema, args)
+  const now = new Date()
+
+  return prisma.$transaction(async (transaction) => {
+    const ambient = await transaction.ambient.findFirst({
+      where: { id: ambientId, ownerId: user.id },
+      select: { id: true, _count: { select: { versions: true } } },
+    })
+    if (!ambient) throw new HttpError(404, 'Ambient not found.')
+
+    await transaction.user.updateMany({
+      where: { id: user.id, activeAmbientId: ambientId },
+      data: { activeAmbientId: null },
+    })
+
+    if (ambient._count.versions === 0) {
+      await transaction.ambient.delete({ where: { id: ambientId } })
+      return { ambientDeleted: true }
+    }
+
+    await transaction.ambient.update({
+      where: { id: ambientId },
+      data: { agentSessionGeneration: { increment: 1 } },
+    })
+    await transaction.ambientAgentSession.updateMany({
+      where: { ambientId, expiresAt: { gt: now } },
+      data: { expiresAt: now },
+    })
+    await transaction.ambientDraft.deleteMany({ where: { ambientId } })
+    return { ambientDeleted: false }
+  }, { isolationLevel: 'Serializable' })
 }
 
 export const publishAmbient: PublishAmbient<PublishAmbientInput, PublishedAmbientDto> = async (

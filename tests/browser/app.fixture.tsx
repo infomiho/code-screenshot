@@ -1,16 +1,39 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from '../../src/app'
+import { loadAmbientDefinition } from '../../src/ambient-registry'
+import { AgentPreviewCanvas } from '../../src/ambient-workspace/agent-preview-page'
 import { MockAmbientService } from '../../src/ambient-workspace/mock-ambient-service'
 import { renderScreenshotBlob } from '../../src/screenshot-export'
+import { swissPosterDocument } from '../../src/swiss-poster'
 
 const root = document.querySelector<HTMLElement>('#root')
 if (!root) throw new Error('Missing app root')
 const ambientWorkspaceService = new MockAmbientService({ agentUpdate: 0, save: 0 })
+const previewResult = loadAmbientDefinition({
+  id: 'agent-preview',
+  version: 1,
+  document: swissPosterDocument,
+}, 'draft')
+const isAgentPreview = new URLSearchParams(window.location.search).has('agent-preview')
+const hasExistingDraft = new URLSearchParams(window.location.search).has('existing-draft')
+
+if (hasExistingDraft) {
+  ambientWorkspaceService.signIn()
+  ambientWorkspaceService.beginAmbient()
+  ambientWorkspaceService.createAmbient('Existing draft')
+  ambientWorkspaceService.forgetAgentAccess()
+}
+
+if (!previewResult.definition || previewResult.definition.kind !== 'declarative') {
+  throw new Error('Invalid agent preview fixture')
+}
 
 createRoot(root).render(
   <StrictMode>
-    <App ambientWorkspaceService={ambientWorkspaceService} />
+    {isAgentPreview
+      ? <AgentPreviewCanvas definition={previewResult.definition} />
+      : <App ambientWorkspaceService={ambientWorkspaceService} />}
   </StrictMode>,
 )
 

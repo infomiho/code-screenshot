@@ -12,6 +12,7 @@ import {
   type ParserError,
 } from 'parse5'
 import type { AmbientDiagnostic, AmbientThumbnail } from './ambient-schema'
+import { validateRasterDataUrl } from './ambient-raster-data-url'
 
 type HtmlNode = DefaultTreeAdapterTypes.ChildNode
 type HtmlElement = DefaultTreeAdapterTypes.Element
@@ -139,12 +140,15 @@ const compileStylesheet = (stylesheet: string, diagnostics: AmbientDiagnostic[])
 
   walk(ast, (node, item) => {
     if (node.type === 'Url') {
-      addDiagnostic(
-        diagnostics,
-        'thumbnail.external-resource',
-        'Thumbnail URLs are not allowed.',
-        '/thumbnail/stylesheet',
-      )
+      const raster = validateRasterDataUrl(node.value)
+      if (!raster.allowed) {
+        addDiagnostic(
+          diagnostics,
+          'thumbnail.external-resource',
+          raster.message,
+          '/thumbnail/stylesheet',
+        )
+      }
     }
     if (node.type === 'Function' && externalResourceFunctions.has(node.name.toLowerCase())) {
       addDiagnostic(

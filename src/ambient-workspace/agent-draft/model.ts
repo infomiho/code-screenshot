@@ -29,7 +29,7 @@ export const getHudStatus = (model: AgentDraftModel) => {
 export const getPrompt = (model: AgentDraftModel) => `Create a codeshot.dev ambient for “${model.ambientName}”.
 
 Open this temporary session with an HTTP or web-fetch tool. Read both linked references and fetch the current draft:
-${model.agentSessionUrl ?? 'Generate a new temporary agent link in codeshot.dev.'}
+${model.agentSessionUrl ?? ''}
 
 Ask me for the visual direction. Do not update the draft until I answer.
 `

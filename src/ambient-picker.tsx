@@ -16,6 +16,7 @@ export type YourAmbientsState =
       draft: { actionLabel: string; name: string; status: string } | null
       canCreate: boolean
       onCreateAmbient: () => void
+      onEditAmbient: (ambientId: string) => void
       onOpenDraft: () => void
     }
 
@@ -44,6 +45,7 @@ type AmbientPickerOptionProps = AmbientPickerEntry & {
   pickerId: string
   selectedIndex: number
   onActiveIndexChange: (index: number) => void
+  columnSpan?: number
   onSelect: (index: number) => void
 }
 
@@ -64,6 +66,7 @@ function AmbientPickerOption({
   pickerId,
   selectedIndex,
   onActiveIndexChange,
+  columnSpan,
   onSelect,
 }: AmbientPickerOptionProps) {
   const stateLabel = getOptionStateLabel(definition, index, selectedIndex)
@@ -72,8 +75,9 @@ function AmbientPickerOption({
     <div
       id={`${pickerId}-option-${index}`}
       className="ambient-picker-option"
-      role="option"
+      role="gridcell"
       aria-selected={index === selectedIndex}
+      aria-colspan={columnSpan}
       data-active={index === activeIndex}
       onPointerMove={() => onActiveIndexChange(index)}
       onClick={() => onSelect(index)}
@@ -89,37 +93,72 @@ function AmbientPickerGroup({
   activeIndex,
   entries,
   label,
+  layout,
   pickerId,
   selectedIndex,
   onActiveIndexChange,
+  onEdit,
   onSelect,
 }: {
   activeIndex: number
   entries: AmbientPickerEntry[]
   label: string
+  layout: 'grid' | 'list'
   pickerId: string
   selectedIndex: number
   onActiveIndexChange: (index: number) => void
+  onEdit?: (ambientId: string) => void
   onSelect: (index: number) => void
 }) {
   const headingId = `${pickerId}-${label.toLocaleLowerCase().replaceAll(' ', '-')}`
+  const rowSize = layout === 'grid' ? 2 : 1
+  const rows = Array.from(
+    { length: Math.ceil(entries.length / rowSize) },
+    (_, rowIndex) => entries.slice(rowIndex * rowSize, rowIndex * rowSize + rowSize),
+  )
 
   return (
-    <div className="ambient-picker-group" role="group" aria-labelledby={headingId}>
+    <section className="ambient-picker-section" aria-labelledby={headingId}>
       <h3 id={headingId}>{label}</h3>
-      {entries.map(({ definition, index }) => (
-        <AmbientPickerOption
-          activeIndex={activeIndex}
-          definition={definition}
-          index={index}
-          key={getAmbientKey(definition)}
-          pickerId={pickerId}
-          selectedIndex={selectedIndex}
-          onActiveIndexChange={onActiveIndexChange}
-          onSelect={onSelect}
-        />
-      ))}
-    </div>
+      <div className="ambient-picker-group" role="rowgroup">
+        {rows.map((row) => (
+          <div
+            className={`ambient-picker-row ambient-picker-row-${layout}`}
+            role="row"
+            key={row.map(({ definition }) => getAmbientKey(definition)).join(':')}
+          >
+            {row.map(({ definition, index }) => {
+              const canEdit = Boolean(onEdit && definition.source === 'saved')
+              return (
+                <AmbientPickerOption
+                  activeIndex={activeIndex}
+                  columnSpan={layout === 'list' && !canEdit ? 2 : undefined}
+                  definition={definition}
+                  index={index}
+                  key={getAmbientKey(definition)}
+                  pickerId={pickerId}
+                  selectedIndex={selectedIndex}
+                  onActiveIndexChange={onActiveIndexChange}
+                  onSelect={onSelect}
+                />
+              )
+            })}
+            {row.length === 1 && onEdit && row[0].definition.source === 'saved' && (
+              <div className="ambient-picker-action-cell" role="gridcell">
+                <button
+                  className="ambient-picker-edit"
+                  type="button"
+                  aria-label={`Edit ${row[0].definition.manifest.name}`}
+                  onClick={() => onEdit(row[0].definition.id)}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -170,7 +209,7 @@ function AmbientAccountActions({
           type="button"
           onClick={() => onAction(state.onCreateAmbient)}
         >
-          Create ambient
+          New ambient
         </button>
       )}
     </section>
@@ -225,16 +264,19 @@ export function AmbientPicker({
         id={pickerId}
         ref={pickerRef}
         className="ambient-picker"
-        role="listbox"
+        role="grid"
         aria-label="Choose ambient"
         aria-activedescendant={`${pickerId}-option-${activeIndex}`}
         tabIndex={0}
-        onKeyDown={onKeyDown}
+        onKeyDown={(event) => {
+          if (event.target === event.currentTarget) onKeyDown(event)
+        }}
       >
         <AmbientPickerGroup
           activeIndex={activeIndex}
           entries={builtIns}
           label="Built-in ambients"
+          layout="grid"
           pickerId={pickerId}
           selectedIndex={selectedIndex}
           onActiveIndexChange={onActiveIndexChange}
@@ -245,9 +287,13 @@ export function AmbientPicker({
             activeIndex={activeIndex}
             entries={personal}
             label="Your ambients"
+            layout="list"
             pickerId={pickerId}
             selectedIndex={selectedIndex}
             onActiveIndexChange={onActiveIndexChange}
+            onEdit={yourAmbients.kind === 'signed-in' && !yourAmbients.draft
+              ? (ambientId) => runAction(() => yourAmbients.onEditAmbient(ambientId))
+              : undefined}
             onSelect={onSelect}
           />
         )}

@@ -421,7 +421,6 @@ The agent always fetches current state before editing. A renewed session receive
 GET  /agent/sessions/:capability
 GET  /agent/sessions/:capability/draft
 PUT  /agent/sessions/:capability/draft
-GET  /agent/sessions/:capability/preview
 ```
 
 The bootstrap response is Markdown optimized for a coding agent. The draft GET response contains ambient identity, revision, the complete current document, and capability-scoped preview URL. The draft PUT replaces the complete document and includes `baseRevision`:
@@ -466,11 +465,11 @@ The agent capability cannot call `publishAmbient`.
 
 ## Live Preview
 
-The owner preview uses the signed-in GitHub session. The agent bootstrap and successful PUT responses use `/agent/sessions/:capability/preview`, allowing a browser-capable agent to inspect the same accepted draft without account access. Both render through the declarative runtime.
+The owner preview uses the signed-in GitHub session. The agent bootstrap and successful PUT responses link to the client route `/agent-preview/:capability`, allowing a browser-capable agent to inspect the same accepted draft without account access. Both render through the declarative runtime.
 
-The preview polls the current revision every two seconds, pauses while the tab is hidden, and uses a revision or `ETag` check so unchanged polls do not transfer the full document. When the revision changes, it fetches and compiles the new document.
+The agent preview fetches the accepted draft through the capability API and renders it with the production ambient, editor, and thumbnail components. The agent reloads the preview after an accepted update.
 
-No dedicated 420, 860, or 1280 controls are required. The existing resizable screenshot frame, editable title, file type, code, highlights, annotations, and customization controls provide visual testing. WebSockets are unnecessary; SSE remains an optional future optimization if polling latency becomes a problem.
+No dedicated live-update transport is required.
 
 ## Certification And Visibility
 

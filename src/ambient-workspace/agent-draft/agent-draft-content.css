@@ -28,6 +28,15 @@
   grid-template-columns: minmax(0, 1.8fr) minmax(280px, 0.9fr);
 }
 
+.agent-work-layout-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.agent-work-layout-single .agent-status-panel {
+  border-inline-start: 0;
+  padding-inline-start: 0;
+}
+
 .agent-setup-form,
 .agent-next-steps,
 .agent-prompt,
@@ -36,6 +45,44 @@
 .agent-status-block,
 .agent-access-block {
   display: grid;
+}
+
+.agent-discard-confirmation {
+  display: grid;
+  gap: 10px;
+  flex: 1 0 100%;
+  border: 1px solid var(--agent-border-subtle);
+  background: var(--agent-control);
+  padding: 12px;
+}
+
+.agent-discard-confirmation p {
+  margin: 0;
+  color: var(--agent-text-muted);
+  font-size: var(--agent-font-body);
+  line-height: 1.5;
+}
+
+.agent-discard-confirmation > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-review-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-review-actions > .agent-button-primary {
+  width: 100%;
+}
+
+.agent-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
 .agent-setup-form,
@@ -231,5 +278,10 @@
 
   .agent-button {
     width: 100%;
+  }
+
+  .agent-secondary-actions .agent-button {
+    width: auto;
+    flex: 1;
   }
 }

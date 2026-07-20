@@ -2,12 +2,14 @@ import type { AgentDraftModel } from '../ambient-workspace-service'
 import { AgentButton } from './AgentButton'
 
 type AgentRecoveryNoticeProps = {
+  isRenewingAccess: boolean
   model: AgentDraftModel
   onRenewAgentAccess: () => void
   onRetryConnection: () => void
 }
 
 export function AgentRecoveryNotice({
+  isRenewingAccess,
   model,
   onRenewAgentAccess,
   onRetryConnection,
@@ -26,8 +28,12 @@ export function AgentRecoveryNotice({
       <aside className="agent-notice agent-notice-warning">
         <strong>Access expired</strong>
         <p>Create a new link to continue.</p>
-        <AgentButton variant={model.phase === 'review' ? 'secondary' : 'primary'} onClick={onRenewAgentAccess}>
-          Renew access
+        <AgentButton
+          variant={model.phase === 'review' ? 'secondary' : 'primary'}
+          isDisabled={isRenewingAccess}
+          onClick={onRenewAgentAccess}
+        >
+          {isRenewingAccess ? 'Renewing...' : 'Renew access'}
         </AgentButton>
       </aside>
     )
@@ -38,8 +44,12 @@ export function AgentRecoveryNotice({
       <aside className="agent-notice agent-notice-warning">
         <strong>Agent link unavailable</strong>
         <p>Create a new link for this browser to continue.</p>
-        <AgentButton variant={model.phase === 'review' ? 'secondary' : 'primary'} onClick={onRenewAgentAccess}>
-          Create new link
+        <AgentButton
+          variant={model.phase === 'review' ? 'secondary' : 'primary'}
+          isDisabled={isRenewingAccess}
+          onClick={onRenewAgentAccess}
+        >
+          {isRenewingAccess ? 'Creating link...' : 'Create new link'}
         </AgentButton>
       </aside>
     )

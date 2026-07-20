@@ -643,14 +643,25 @@ input:focus-visible,
 
 .ambient-picker-group {
   display: grid;
+}
+
+.ambient-picker-row {
+  display: grid;
+}
+
+.ambient-picker-row-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.ambient-picker-group + .ambient-picker-group {
+.ambient-picker-row-list {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ambient-picker-section + .ambient-picker-section {
   border-top: 1px solid var(--panel-border);
 }
 
-.ambient-picker-group h3,
+.ambient-picker-section h3,
 .ambient-account h3 {
   grid-column: 1 / -1;
   margin: 0;
@@ -675,6 +686,44 @@ input:focus-visible,
   font-family: var(--mono);
   font-size: var(--font-size-control);
   padding: 10px 12px;
+}
+
+.ambient-picker-action-cell {
+  display: grid;
+}
+
+.ambient-picker-row-list .ambient-picker-option {
+  grid-template-columns: var(--ambient-mark-width) minmax(0, 1fr);
+}
+
+.ambient-picker-row-list .ambient-picker-option small {
+  display: none;
+}
+
+.ambient-picker-edit {
+  min-width: 64px;
+  border: 0;
+  border-inline-start: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  text-transform: uppercase;
+  transition-property: background-color, color;
+  transition-duration: 120ms;
+}
+
+.ambient-picker-edit:hover,
+.ambient-picker-edit:focus-visible {
+  background: var(--ambient-hover-bg);
+  color: var(--wasp-yellow);
+}
+
+.ambient-picker-edit:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -3px;
 }
 
 .ambient-picker-option[data-active='true'] {

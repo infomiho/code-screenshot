@@ -20,6 +20,7 @@ export function useAmbientWorkspace(providedService?: AmbientWorkspaceService) {
     () => storedSnapshot.account.kind === 'signed-in'
       ? storedSnapshot
       : {
+          isHydrated: storedSnapshot.isHydrated,
           account: storedSnapshot.account,
           draft: null,
           savedAmbients: [],

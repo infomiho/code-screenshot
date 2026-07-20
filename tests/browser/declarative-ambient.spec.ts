@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 const selectSwissPoster = async (page: import('@playwright/test').Page) => {
   await page.locator('.ambient-current').click()
-  await page.getByRole('option', { name: 'Swiss poster' }).click()
+  await page.getByRole('gridcell', { name: 'Swiss poster' }).click()
 }
 
 const openAppFixture = async (page: import('@playwright/test').Page) => {
@@ -50,7 +50,7 @@ test('renders the Swiss Poster thumbnail consistently in both picker contexts', 
   await page.goto('/tests/browser/app.fixture.html')
   const current = page.locator('.ambient-current')
   await current.click()
-  await page.getByRole('option', { name: 'Swiss poster' }).click()
+  await page.getByRole('gridcell', { name: 'Swiss poster' }).click()
   await current.click()
 
   const thumbnails = await page.evaluate(() => {
@@ -96,6 +96,38 @@ test('contains user thumbnail dimensions inside the ambient mark', async ({ page
   await expect(mark).toHaveCSS('width', '40px')
   await expect(mark).toHaveCSS('height', '28px')
   await expect(page.locator('.ambient-selector')).toHaveCSS('height', '44px')
+})
+
+test('agent preview uses the real editor and picker thumbnail', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html?agent-preview')
+  await expect(page.locator('.agent-preview-frame .cm-editor')).toBeVisible()
+  await expect(page.locator('.agent-preview-frame')).toHaveCSS(
+    '--ambient-poster-ground',
+    'oklch(0.58 0.22 28)',
+  )
+
+  const mark = page.locator('.agent-preview-thumbnail-stage .ambient-mark')
+  await expect(mark).toBeVisible()
+  await expect(mark).toHaveCSS('width', '40px')
+  await expect(mark).toHaveCSS('height', '28px')
+  expect(await mark.evaluate((element) =>
+    element.shadowRoot?.querySelector('[data-codeshot-thumbnail-canvas]')?.tagName,
+  )).toBe('DIV')
+
+  const alignment = await page.evaluate(() => {
+    const firstLine = document.querySelector<HTMLElement>('.agent-preview-frame .cm-line')
+    const firstGutter = [...document.querySelectorAll<HTMLElement>(
+      '.agent-preview-frame .cm-lineNumbers .cm-gutterElement',
+    )].find((element) => element.getBoundingClientRect().height > 0)
+    const scroller = document.querySelector<HTMLElement>('.agent-preview-frame .cm-scroller')
+    return {
+      gutterTop: firstGutter?.getBoundingClientRect().top,
+      lineTop: firstLine?.getBoundingClientRect().top,
+      scrollerDisplay: scroller ? getComputedStyle(scroller).display : null,
+    }
+  })
+  expect(alignment.scrollerDisplay).toBe('flex')
+  expect(alignment.lineTop).toBeCloseTo(alignment.gutterTop ?? 0, 1)
 })
 
 for (const width of [420, 860, 1280]) {

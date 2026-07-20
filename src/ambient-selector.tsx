@@ -24,6 +24,33 @@ type AmbientSelectorProps = {
 
 const padIndex = (index: number) => String(index).padStart(2, '0')
 
+export const getVerticalAmbientIndex = (
+  activeIndex: number,
+  direction: -1 | 1,
+  builtInCount: number,
+  totalCount: number,
+) => {
+  if (activeIndex >= builtInCount) {
+    if (direction === -1) return activeIndex === builtInCount ? builtInCount - 1 : activeIndex - 1
+    return activeIndex === totalCount - 1 ? 0 : activeIndex + 1
+  }
+
+  const column = activeIndex % 2
+  const row = Math.floor(activeIndex / 2)
+  const lastBuiltInRow = Math.ceil(builtInCount / 2) - 1
+  if (direction === -1) {
+    if (row > 0) return (row - 1) * 2 + column
+    const wrapped = lastBuiltInRow * 2 + column
+    return Math.min(wrapped, builtInCount - 1)
+  }
+
+  if (row < lastBuiltInRow) {
+    const next = (row + 1) * 2 + column
+    return Math.min(next, builtInCount - 1)
+  }
+  return builtInCount < totalCount ? builtInCount : column
+}
+
 export function AmbientSelector({
   definitions,
   selectedKey,
@@ -104,13 +131,16 @@ export function AmbientSelector({
   }
 
   const handlePickerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const columnStep = window.matchMedia('(max-width: 420px)').matches ? 1 : 2
     let nextIndex = activeIndex
+    const builtInCount = builtIns.length
 
     if (event.key === 'ArrowLeft') nextIndex -= 1
     else if (event.key === 'ArrowRight') nextIndex += 1
-    else if (event.key === 'ArrowUp') nextIndex -= columnStep
-    else if (event.key === 'ArrowDown') nextIndex += columnStep
+    else if (event.key === 'ArrowUp') {
+      nextIndex = getVerticalAmbientIndex(activeIndex, -1, builtInCount, definitions.length)
+    } else if (event.key === 'ArrowDown') {
+      nextIndex = getVerticalAmbientIndex(activeIndex, 1, builtInCount, definitions.length)
+    }
     else if (event.key === 'Home') nextIndex = 0
     else if (event.key === 'End') nextIndex = definitions.length - 1
     else if (event.key === 'Enter' || event.key === ' ') {
@@ -150,7 +180,7 @@ export function AmbientSelector({
         ref={triggerRef}
         className="ambient-current"
         type="button"
-        aria-haspopup="listbox"
+        aria-haspopup="grid"
         aria-expanded={isOpen}
         aria-controls={pickerId}
         onClick={() => updateOpen(!isOpen)}

@@ -55,6 +55,8 @@ const validDocument: AmbientDocument = {
   },
 }
 
+const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+
 describe('compileAmbientDocument', () => {
   it('compiles the bundled Swiss Poster document', () => {
     const result = compileAmbientDocument(swissPosterDocument)
@@ -230,6 +232,72 @@ describe('compileAmbientDocument', () => {
     })
 
     expect(result.diagnostics.map(({ code }) => code)).toContain('stylesheet.external-resource')
+  })
+
+  it('allows bounded base64 raster images but rejects SVG data URLs', () => {
+    const raster = compileAmbientDocument({
+      ...validDocument,
+      stylesheet: `:host { background: var(--ambient-ground); background-image: url("${onePixelPng}"); }`,
+      thumbnail: {
+        ...validDocument.thumbnail,
+        stylesheet: `:host { background-image: url("${onePixelPng}"); }`,
+      },
+    })
+    const svg = compileAmbientDocument({
+      ...validDocument,
+      stylesheet: ':host { background: var(--ambient-ground); background-image: url("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="); }',
+    })
+
+    expect(raster.diagnostics).toEqual([])
+    expect(svg.diagnostics.map(({ code }) => code)).toContain('stylesheet.external-resource')
+  })
+
+  it('rejects truncated raster images', () => {
+    const encoded = onePixelPng.split(',')[1]
+    const truncated = Buffer.from(encoded, 'base64').subarray(0, -8).toString('base64')
+    const result = compileAmbientDocument({
+      ...validDocument,
+      stylesheet: `:host { background: var(--ambient-ground); background-image: url("data:image/png;base64,${truncated}"); }`,
+    })
+
+    expect(result.diagnostics.map(({ code }) => code)).toContain('stylesheet.external-resource')
+  })
+
+  it('limits the complete ambient document size', () => {
+    const oversizedDocument = {
+      ...validDocument,
+      template: `<article>${'x'.repeat(192 * 1024)}<ambient-slot name="code"></ambient-slot></article>`,
+    }
+    const result = compileAmbientDocument(oversizedDocument)
+    const currentBytes = new TextEncoder().encode(JSON.stringify(oversizedDocument)).byteLength
+
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'document.size-limit',
+      message: `Document is ${currentBytes} bytes; maximum is 196608 bytes.`,
+    }))
+  })
+
+  it('measures field limits as UTF-8 bytes', () => {
+    const stylesheet = `/*${'é'.repeat(49_152)}*/`
+    const result = compileAmbientDocument({ ...validDocument, stylesheet })
+
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'stylesheet.limit-exceeded',
+      message: 'Stylesheet is 98308 bytes; maximum is 98304 bytes.',
+    }))
+  })
+
+  it('reports decoded raster byte limits exactly', () => {
+    const oversizedRaster = Buffer.alloc(48 * 1024 + 1).toString('base64')
+    const result = compileAmbientDocument({
+      ...validDocument,
+      stylesheet: `:host { background: var(--ambient-ground); background-image: url("data:image/png;base64,${oversizedRaster}"); }`,
+    })
+
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'stylesheet.external-resource',
+      message: 'Decoded raster is 49153 bytes; maximum is 49152 bytes.',
+    }))
   })
 
   it('rejects external resources in paint values and stylesheets', () => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentDraftModel } from '../ambient-workspace-service'
+import type { AgentAccessState, AgentMutationState } from '../agent-workflow-machine'
 import { AgentDockPortal } from './AgentDockPortal'
 import { AgentDraftContent } from './AgentDraftContent'
 import { AgentHudTrigger } from './AgentHudTrigger'
@@ -10,6 +11,8 @@ import './agent-draft-content.css'
 
 type AgentDraftHudProps = {
   isOpen: boolean
+  access: AgentAccessState | 'renewing'
+  mutation: AgentMutationState
   model: AgentDraftModel
   onOpenChange: (isOpen: boolean) => void
   onExit: () => void
@@ -18,6 +21,7 @@ type AgentDraftHudProps = {
   onRenewAgentAccess: () => void
   onRetryConnection: () => void
   onSavePrivateVersion: () => void
+  onDiscardDraft: () => Promise<boolean>
 }
 
 type CopyStatus = 'idle' | 'copied' | 'failed'
@@ -36,6 +40,8 @@ const copyAnnouncements: Record<CopyStatus, string> = {
 
 export function AgentDraftHud({
   isOpen,
+  access,
+  mutation,
   model,
   onOpenChange,
   onExit,
@@ -44,6 +50,7 @@ export function AgentDraftHud({
   onRenewAgentAccess,
   onRetryConnection,
   onSavePrivateVersion,
+  onDiscardDraft,
 }: AgentDraftHudProps) {
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle')
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -95,17 +102,21 @@ export function AgentDraftHud({
       {isOpen && (
         <AgentDockPortal model={model} onMinimize={minimizeDock}>
           <AgentRecoveryNotice
+            isRenewingAccess={access === 'renewing'}
             model={model}
             onRenewAgentAccess={onRenewAgentAccess}
             onRetryConnection={onRetryConnection}
           />
           <AgentDraftContent
             copyLabel={copyLabels[copyStatus]}
+            access={access}
+            isCreating={mutation === 'creating'}
             model={model}
             onExit={exitEditMode}
             onCopyPrompt={copyPrompt}
             onCreateAmbient={onCreateAmbient}
             onSavePrivateVersion={onSavePrivateVersion}
+            onDiscardDraft={onDiscardDraft}
           />
           <span className="sr-only" role="status" aria-live="polite">
             {copyAnnouncements[copyStatus]}

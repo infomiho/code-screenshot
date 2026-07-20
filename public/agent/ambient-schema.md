@@ -1,6 +1,6 @@
 # Ambient document schema
 
-An ambient is declarative JSON containing presentation data only. Scripts, event handlers, external resources, imports, and executable packages are not allowed.
+An ambient is declarative JSON containing presentation data only. Scripts, event handlers, network resources, imports, and executable packages are not allowed. Bounded base64 PNG and JPEG images are the only asset exception.
 
 ```ts
 type AmbientDocument = {
@@ -67,9 +67,31 @@ Use literal values; lengths must use `px`.
 
 ## Customizations
 
-Customization CSS variables must start with `--ambient-`. Palette options provide fixed values; color customizations provide a default color.
+Every customization requires `type`, `id`, `label`, and `cssVariable`. IDs use lowercase kebab-case. CSS variables start with `--ambient-`.
 
-Stylesheets are scoped to the ambient. Use `:host` as the root selector and `::slotted([slot=code])` for the code editor. Network URLs, `@import`, scriptable values, and selectors that escape the ambient are rejected.
+```ts
+type ColorCustomization = {
+  type: 'color'
+  id: string
+  label: string
+  cssVariable: `--ambient-${string}`
+  defaultValue: string
+}
+
+type PaletteCustomization = {
+  type: 'palette'
+  id: string
+  label: string
+  cssVariable: `--ambient-${string}`
+  valueKind: 'color' | 'paint'
+  defaultOptionId: string
+  options: Array<{ id: string; label: string; value: string }>
+}
+```
+
+Color variables work in color-bearing properties such as `color`, `background`, `border`, `box-shadow`, `fill`, and `stroke`. Paint palettes work only in `background` and `background-image`.
+
+Stylesheets are scoped to the ambient. Use `:host` as the root selector and `::slotted([slot=code])` for the code editor. Remote URLs, SVG data URLs, `@import`, scriptable values, and selectors that escape the ambient are rejected.
 
 ## Thumbnail
 
@@ -79,6 +101,9 @@ Create a dedicated miniature that represents the ambient in the picker. It is in
 - Use only kebab-case `class` attributes and no text.
 - Keep the template under 2 KiB, at most 24 elements, and at most 6 levels deep.
 - Keep CSS under 4 KiB and use percentages or host-relative layout.
-- URLs, assets, animations, transitions, CSS resets, fixed or sticky positioning, and pointer events are rejected.
+- Remote URLs, animations, transitions, CSS resets, fixed or sticky positioning, and pointer events are rejected.
+- `:host` is the only allowed pseudo-class. Pseudo-elements and selectors such as `:nth-child()` are rejected; use distinct classes instead.
+
+The complete JSON document must stay under 192 KiB. Remote URLs and SVG data URLs are rejected. Stylesheets may use base64 `data:image/png` and `data:image/jpeg` URLs when the decoded image is at most 48 KiB, each dimension is at most 2048 px, and the image is at most 4 megapixels.
 
 A rejected PUT does not advance the revision. Fix every diagnostic and resubmit from the latest accepted revision.

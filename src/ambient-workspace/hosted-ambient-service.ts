@@ -2,6 +2,7 @@ import { githubSignInUrl, logout } from 'wasp/client/auth'
 import {
   createAmbient as createAmbientOperation,
   createAmbientAgentSession,
+  discardAmbientDraft as discardAmbientDraftOperation,
   getAmbientDraft,
   getAmbientDraftRevision,
   getAmbientWorkspace,
@@ -18,9 +19,15 @@ import type { AgentSessionDto, WorkspaceSnapshotDto } from './contracts'
 import { createMinimalDraftDocument } from './minimal-draft'
 
 const signedOutSnapshot: AmbientWorkspaceSnapshot = {
+  isHydrated: true,
   account: { kind: 'signed-out' },
   draft: null,
   savedAmbients: [],
+}
+
+const loadingSnapshot: AmbientWorkspaceSnapshot = {
+  ...signedOutSnapshot,
+  isHydrated: false,
 }
 
 const sessionStorageKey = 'codeshot.agent-session'
@@ -85,6 +92,7 @@ const toSnapshot = (workspace: WorkspaceSnapshotDto): AmbientWorkspaceSnapshot =
   const cachedSession = readCachedSession()
   const activeSession = getCachedSessionForDraft(cachedSession, workspace.draft)
   return {
+    isHydrated: true,
     ...workspace,
     draft: workspace.draft
       ? {
@@ -102,16 +110,17 @@ const toSnapshot = (workspace: WorkspaceSnapshotDto): AmbientWorkspaceSnapshot =
 }
 
 export class HostedAmbientService implements AmbientWorkspaceService {
-  private snapshot: AmbientWorkspaceSnapshot = signedOutSnapshot
+  private snapshot: AmbientWorkspaceSnapshot = loadingSnapshot
   private listeners = new Set<() => void>()
   private pollingTimer: ReturnType<typeof setInterval> | null = null
   private isPolling = false
   private isCreating = false
   private isRenewingAgentAccess = false
+  private isDiscarding = false
   private requestGeneration = 0
 
   getSnapshot = () => this.snapshot
-  getServerSnapshot = () => signedOutSnapshot
+  getServerSnapshot = () => loadingSnapshot
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
@@ -203,6 +212,42 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     this.requestGeneration += 1
     this.stopPolling()
     this.update({ ...this.snapshot, draft: createSetupDraft() })
+  }
+
+  editAmbient = async (ambientId: string) => {
+    if (this.snapshot.account.kind !== 'signed-in' || this.snapshot.draft || this.isRenewingAgentAccess) {
+      return false
+    }
+    this.isRenewingAgentAccess = true
+    const generation = ++this.requestGeneration
+
+    try {
+      const session = await createAmbientAgentSession({ ambientId })
+      const latest = await getAmbientDraft({ ambientId })
+      if (generation !== this.requestGeneration) return false
+      const agentAccess = storeAgentSession(session)
+      this.update({
+        ...this.snapshot,
+        draft: {
+          id: latest.ambientId,
+          phase: 'handoff',
+          notice: agentAccess.notice,
+          ambientName: latest.name,
+          agentSessionUrl: agentAccess.agentSessionUrl,
+          agentSessionGeneration: agentAccess.agentSessionGeneration,
+          promptCopied: false,
+          promptExpiresAt: agentAccess.promptExpiresAt,
+          saveState: 'idle',
+          revision: latest.revision,
+          document: latest.document,
+        },
+      })
+      return true
+    } catch {
+      return false
+    } finally {
+      this.isRenewingAgentAccess = false
+    }
   }
 
   createAmbient = async (ambientName: string) => {
@@ -307,6 +352,27 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     } catch (error) {
       this.handleOperationError(error, generation, draft.id)
       return null
+    }
+  }
+
+  discardAmbientDraft = async () => {
+    const draft = this.snapshot.draft
+    if (!draft || draft.id === 'ambient-pending' || this.isDiscarding) return false
+    this.isDiscarding = true
+    const generation = ++this.requestGeneration
+    this.stopPolling()
+
+    try {
+      await discardAmbientDraftOperation({ ambientId: draft.id })
+      if (generation !== this.requestGeneration) return false
+      cacheSession(null)
+      this.update({ ...this.snapshot, draft: null })
+      return true
+    } catch (error) {
+      this.handleOperationError(error, generation, draft.id)
+      return false
+    } finally {
+      this.isDiscarding = false
     }
   }
 

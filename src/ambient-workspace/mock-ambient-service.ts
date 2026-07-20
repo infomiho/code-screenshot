@@ -31,6 +31,7 @@ const createDraftDocument = (name: string) => createMinimalDraftDocument(name)
 
 export class MockAmbientService implements AmbientWorkspaceService {
   private snapshot: AmbientWorkspaceSnapshot = {
+    isHydrated: true,
     account: signedOutAccount,
     draft: null,
     savedAmbients: [],
@@ -83,14 +84,38 @@ export class MockAmbientService implements AmbientWorkspaceService {
   beginAmbient = () => {
     if (this.snapshot.account.kind !== 'signed-in') return
     this.cancelAgentUpdate()
-    const id = `ambient-mock-${this.nextAmbientId}`
-    this.nextAmbientId += 1
-    this.update({ ...this.snapshot, draft: createDraft(id) })
+    this.update({ ...this.snapshot, draft: createDraft('ambient-pending') })
+  }
+
+  editAmbient = async (ambientId: string) => {
+    if (this.snapshot.draft) return false
+    const saved = this.snapshot.savedAmbients.find((ambient) => ambient.id === ambientId)
+    if (!saved) return false
+    this.update({
+      ...this.snapshot,
+      draft: {
+        id: saved.id,
+        phase: 'handoff',
+        notice: null,
+        ambientName: saved.document.name,
+        agentSessionUrl: 'https://codeshot.dev/agent/sessions/cap_demo_7c92f',
+        agentSessionGeneration: 1,
+        promptCopied: false,
+        promptExpiresAt: hoursFromNow(24),
+        saveState: 'idle',
+        revision: saved.version,
+        document: saved.document,
+      },
+    })
+    return true
   }
 
   createAmbient = (ambientName: string) => {
+    const id = `ambient-mock-${this.nextAmbientId}`
+    this.nextAmbientId += 1
     this.updateDraft((draft) => ({
       ...draft,
+      id,
       phase: 'handoff',
       notice: null,
       ambientName,
@@ -133,8 +158,17 @@ export class MockAmbientService implements AmbientWorkspaceService {
     this.updateDraft((draft) => ({
       ...draft,
       notice: null,
+      agentSessionUrl: 'https://codeshot.dev/agent/sessions/cap_demo_renewed',
       promptCopied: false,
       promptExpiresAt: hoursFromNow(24),
+    }))
+  }
+
+  forgetAgentAccess = () => {
+    this.updateDraft((draft) => ({
+      ...draft,
+      notice: 'unavailable',
+      agentSessionUrl: null,
     }))
   }
 
@@ -178,5 +212,12 @@ export class MockAmbientService implements AmbientWorkspaceService {
         resolve(record)
       }, this.delays.save)
     })
+  }
+
+  discardAmbientDraft = async () => {
+    if (!this.snapshot.draft) return false
+    this.cancelAgentUpdate()
+    this.update({ ...this.snapshot, draft: null })
+    return true
   }
 }

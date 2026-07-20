@@ -132,7 +132,7 @@ describe('agent capability API', () => {
     }))
     expect(response.json).toHaveBeenCalledWith({
       revision: 2,
-      previewUrl: `http://localhost:3001/agent/sessions/${capability}/preview`,
+      previewUrl: `http://localhost:3000/agent-preview/${capability}`,
     })
   })
 })

@@ -217,10 +217,34 @@
   color: var(--agent-text);
 }
 
+.agent-button-quiet,
+.agent-button-danger {
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.agent-button-quiet {
+  color: var(--agent-text-muted);
+}
+
+.agent-button-danger {
+  color: var(--agent-warning);
+}
+
 .agent-dock-close:hover,
 .agent-button-secondary:hover:not(:disabled) {
   border-color: var(--agent-primary);
   color: var(--agent-primary);
+}
+
+.agent-button-quiet:hover:not(:disabled),
+.agent-button-danger:hover:not(:disabled) {
+  border-color: var(--agent-border-subtle);
+  background: var(--agent-surface-raised);
+}
+
+.agent-button-quiet:hover:not(:disabled) {
+  color: var(--agent-text);
 }
 
 .agent-button-primary {

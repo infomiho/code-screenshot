@@ -33,7 +33,7 @@ for (const ambientName of ambientNames) {
   test(`pen draws a stroke over the code editor (${ambientName})`, async ({ page }) => {
     await openAppFixture(page)
     await page.locator('.ambient-current').click()
-    await page.getByRole('option', { name: ambientName }).click()
+    await page.getByRole('gridcell', { name: ambientName }).click()
     await expect(page.locator('.cm-editor')).toBeVisible()
     await page.getByRole('button', { name: 'Draw', exact: true }).click()
 

@@ -28,6 +28,7 @@ export type AmbientAccount =
   | { kind: 'signed-in'; username: string }
 
 export type AmbientWorkspaceSnapshot = {
+  isHydrated: boolean
   account: AmbientAccount
   draft: AgentDraftModel | null
   savedAmbients: readonly SavedAmbientRecord[]
@@ -40,9 +41,11 @@ export interface AmbientWorkspaceService {
   signIn: () => void
   signOut: () => void
   beginAmbient: () => void
+  editAmbient: (ambientId: string) => Promise<boolean>
   createAmbient: (ambientName: string) => void
   copyPrompt: () => void
   renewAgentAccess: () => void
   retryConnection: () => void
   savePrivateVersion: () => Promise<SavedAmbientRecord | null>
+  discardAmbientDraft: () => Promise<boolean>
 }

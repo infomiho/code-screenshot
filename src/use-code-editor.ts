@@ -53,6 +53,8 @@ type UseCodeEditorOptions = {
   languageId: string
   ambientEditorExtension: Extension
   ariaDescribedBy: string
+  initialCode?: string
+  persistCode?: boolean
 }
 
 const languageOptions: readonly LanguageOption[] = [
@@ -71,7 +73,7 @@ const languageOptions: readonly LanguageOption[] = [
 
 const codeStorageKey = 'wasp-shot:last-code'
 
-const defaultCode = `import { HttpError } from 'wasp/server'
+export const defaultCode = `import { HttpError } from 'wasp/server'
 
 export const createTask = async ({ description }, context) => {
   if (!context.user) {
@@ -228,6 +230,8 @@ export function useCodeEditor({
   languageId,
   ambientEditorExtension,
   ariaDescribedBy,
+  initialCode = defaultCode,
+  persistCode = true,
 }: UseCodeEditorOptions) {
   const editorViewRef = useRef<EditorView | null>(null)
   const editorHostElementRef = useRef<HTMLDivElement | null>(null)
@@ -239,7 +243,8 @@ export function useCodeEditor({
   const lineDragBaseRef = useRef<Set<number> | null>(null)
   const lineDragModeRef = useRef<LineDragMode>('add')
   const isDraggingLineRef = useRef(false)
-  const [code, setCode] = useState(defaultCode)
+  const [editorHostElement, setEditorHostElement] = useState<HTMLDivElement | null>(null)
+  const [code, setCode] = useState(initialCode)
   const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set())
   const [isEditorReady, setIsEditorReady] = useState(false)
 
@@ -247,35 +252,35 @@ export function useCodeEditor({
     languageOptions.find((option) => option.id === languageId) ?? languageOptions[0]
 
   const editorHostRef: RefCallback<HTMLDivElement> = useCallback((host) => {
+    editorHostElementRef.current = host
+    if (!editorViewRef.current) setEditorHostElement(host)
     if (!host) return
 
-    editorHostElementRef.current = host
     const editorView = editorViewRef.current
 
     if (editorView && editorView.dom.parentElement !== host) {
+      editorView.setRoot(host.getRootNode() as Document | ShadowRoot)
       host.append(editorView.dom)
       editorView.requestMeasure()
-    }
-
-    return () => {
-      if (editorHostElementRef.current === host) {
-        editorHostElementRef.current = null
-      }
     }
   }, [])
 
   useEffect(() => {
-    let restoredCode = defaultCode
+    if (!editorHostElement) return
 
-    try {
-      const persistedCode = window.localStorage.getItem(codeStorageKey)
-      if (persistedCode === null) {
-        window.localStorage.setItem(codeStorageKey, defaultCode)
-      } else {
-        restoredCode = persistedCode
+    let restoredCode = initialCode
+
+    if (persistCode) {
+      try {
+        const persistedCode = window.localStorage.getItem(codeStorageKey)
+        if (persistedCode === null) {
+          window.localStorage.setItem(codeStorageKey, initialCode)
+        } else {
+          restoredCode = persistedCode
+        }
+      } catch {
+        // Storage can be unavailable while the editor remains fully usable.
       }
-    } catch {
-      // Storage can be unavailable while the editor remains fully usable.
     }
 
     setCode(restoredCode)
@@ -308,13 +313,14 @@ export function useCodeEditor({
     }
 
     const editorView = new EditorView({
-      parent: editorHostElementRef.current ?? undefined,
+      parent: editorHostElement,
+      root: editorHostElement.ownerDocument,
       state: EditorState.create({
         doc: restoredCode,
         extensions: [
           minimalSetup,
-          languageCompartmentRef.current.of([]),
-          ambientCompartmentRef.current.of([]),
+          languageCompartmentRef.current.of(getLanguageExtension(selectedLanguage.lang)),
+          ambientCompartmentRef.current.of(ambientEditorExtension),
           EditorState.tabSize.of(2),
           EditorView.lineWrapping,
           placeholder('Paste or type your code...'),
@@ -380,10 +386,12 @@ export function useCodeEditor({
             const nextCode = update.state.doc.toString()
             setCode(nextCode)
 
-            try {
-              window.localStorage.setItem(codeStorageKey, nextCode)
-            } catch {
-              // Editing must not depend on storage availability.
+            if (persistCode) {
+              try {
+                window.localStorage.setItem(codeStorageKey, nextCode)
+              } catch {
+                // Editing must not depend on storage availability.
+              }
             }
 
             const nextLines = readHighlightedLines(update.state)
@@ -413,8 +421,9 @@ export function useCodeEditor({
       finishLineDrag()
       editorView.destroy()
       if (editorViewRef.current === editorView) editorViewRef.current = null
+      setIsEditorReady(false)
     }
-  }, [])
+  }, [editorHostElement, initialCode, persistCode])
 
   useEffect(() => {
     const editorView = editorViewRef.current

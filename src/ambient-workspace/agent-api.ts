@@ -2,15 +2,13 @@ import express from 'express'
 import { config, prisma, type MiddlewareConfigFn } from 'wasp/server'
 import type {
   GetAgentDraft,
-  GetAgentPreview,
   GetAgentSession,
   ReplaceAgentDraft,
 } from 'wasp/server/api'
 import { compileAmbientDocument } from '../ambient-compiler'
-import type { AmbientDocument } from '../ambient-schema'
 import { capabilityParamsSchema, replaceAgentDraftInputSchema } from './contracts'
 import type { AgentDraftDto, ReplaceAgentDraftInput, WorkspaceDocumentDto } from './contracts'
-import { agentPreviewUrl, hashAgentCapability } from './agent-session-access'
+import { agentPreviewUrl, agentSessionUrl, hashAgentCapability } from './agent-session-access'
 
 type CapabilityParams = { capability: string }
 type AgentError = {
@@ -85,7 +83,7 @@ export const getAgentSession: GetAgentSession<CapabilityParams, string | AgentEr
   const session = await getActiveSession(req.params.capability, res)
   if (!session) return
 
-  const baseUrl = agentPreviewUrl(req.params.capability).replace(/\/preview$/, '')
+  const baseUrl = agentSessionUrl(req.params.capability)
   const docsUrl = config.frontendUrl.replace(/\/$/, '')
   res.type('text/markdown').send(`# codeshot.dev ambient session
 
@@ -201,69 +199,4 @@ export const replaceAgentDraft: ReplaceAgentDraft<
   }
 
   res.json({ revision: updated.revision, previewUrl: agentPreviewUrl(req.params.capability) })
-}
-
-const escapeHtml = (value: string) => value
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;')
-
-const renderPreview = (document: AmbientDocument) => {
-  const compiled = compileAmbientDocument(document).compiled!
-  const content = {
-    title: 'Agent preview',
-    fileTypeId: 'typescript',
-    fileTypeLabel: 'TypeScript',
-    lineCount: 4,
-  }
-  let template = compiled.template.replace(
-    '<slot name="code"></slot>',
-    '<pre class="code-slot"><code>const ambient = {\n  status: \'preview\',\n  private: true,\n}</code></pre>',
-  )
-  for (const binding of compiled.bindings) {
-    const raw = content[binding.source]
-    const value = binding.format === 'pad-3'
-      ? String(raw).padStart(3, '0')
-      : String(raw)
-    template = template.replace(
-      `<span data-ambient-binding="${binding.id}"></span>`,
-      `<span data-ambient-binding="${binding.id}">${escapeHtml(value)}</span>`,
-    )
-  }
-  const stylesheet = document.stylesheet
-    .replaceAll(':host', '.ambient-preview')
-    .replaceAll('::slotted([slot=code])', '.ambient-preview .code-slot')
-    .replaceAll(/<\/style/gi, '<\\/style')
-
-  return `<!doctype html>
-<html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(document.name)} preview</title>
-<style>
-html,body{margin:0;min-height:100%;background:#111;color:#f7f5f0;font-family:system-ui,sans-serif}
-body{display:grid;place-items:center;padding:24px;box-sizing:border-box}
-.ambient-preview{width:min(860px,100%);box-sizing:border-box}
-.code-slot{margin:0;white-space:pre-wrap;font:14px/1.6 ui-monospace,monospace}
-${stylesheet}
-</style>
-<main class="ambient-preview">${template}</main>
-</html>`
-}
-
-export const getAgentPreview: GetAgentPreview<CapabilityParams, string | AgentError> = async (
-  req,
-  res,
-) => {
-  setPrivateHeaders(res)
-  res.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'")
-  const session = await getActiveSession(req.params.capability, res)
-  if (!session?.ambient.draft) return
-  const document = readDocument(session.ambient.draft.document)
-  if (!document) {
-    res.status(500).json({ error: 'stored_draft_invalid', message: 'Stored ambient is invalid.' })
-    return
-  }
-  res.type('html').send(renderPreview(document))
 }

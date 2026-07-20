@@ -15,6 +15,7 @@ import {
   type AmbientTextSource,
   type CompiledAmbientDocument,
 } from './ambient-schema'
+import { validateRasterDataUrl } from './ambient-raster-data-url'
 import { compileAmbientThumbnail } from './ambient-thumbnail'
 
 type JsonObject = Record<string, unknown>
@@ -92,6 +93,10 @@ const maxTemplateDepth = 32
 const maxTemplateNodes = 512
 const maxThumbnailTemplateBytes = 2 * 1024
 const maxThumbnailStylesheetBytes = 4 * 1024
+const maxDocumentBytes = 192 * 1024
+const byteLength = (value: string) => new TextEncoder().encode(value).byteLength
+const sizeLimitMessage = (label: string, current: number, maximum: number) =>
+  `${label} is ${current} bytes; maximum is ${maximum} bytes.`
 
 const isObject = (value: unknown): value is JsonObject =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -291,6 +296,11 @@ const validateCustomization = (
 const validateDocument = (value: unknown, diagnostics: AmbientDiagnostic[]): value is AmbientDocument => {
   if (!validateKeys(value, documentKeys, '', diagnostics) || !isObject(value)) return false
 
+  const documentBytes = byteLength(JSON.stringify(value))
+  if (documentBytes > maxDocumentBytes) {
+    addDiagnostic(diagnostics, 'document.size-limit', sizeLimitMessage('Document', documentBytes, maxDocumentBytes), '/')
+  }
+
   if (value.schemaVersion !== 1) {
     addDiagnostic(diagnostics, 'schema.unsupported', 'Only schema version 1 is supported.', '/schemaVersion')
   }
@@ -329,32 +339,42 @@ const validateDocument = (value: unknown, diagnostics: AmbientDiagnostic[]): val
     }
   }
 
-  if (typeof value.template !== 'string' || value.template.length > maxTemplateBytes) {
-    addDiagnostic(diagnostics, 'template.limit-exceeded', 'Template must not exceed 64 KiB.', '/template')
+  if (typeof value.template !== 'string' || byteLength(value.template) > maxTemplateBytes) {
+    const current = typeof value.template === 'string' ? byteLength(value.template) : 0
+    addDiagnostic(diagnostics, 'template.limit-exceeded', sizeLimitMessage('Template', current, maxTemplateBytes), '/template')
   }
-  if (typeof value.stylesheet !== 'string' || value.stylesheet.length > maxStylesheetBytes) {
-    addDiagnostic(diagnostics, 'stylesheet.limit-exceeded', 'Stylesheet must not exceed 96 KiB.', '/stylesheet')
+  if (typeof value.stylesheet !== 'string' || byteLength(value.stylesheet) > maxStylesheetBytes) {
+    const current = typeof value.stylesheet === 'string' ? byteLength(value.stylesheet) : 0
+    addDiagnostic(diagnostics, 'stylesheet.limit-exceeded', sizeLimitMessage('Stylesheet', current, maxStylesheetBytes), '/stylesheet')
   }
   if (validateKeys(value.thumbnail, thumbnailKeys, '/thumbnail', diagnostics) && isObject(value.thumbnail)) {
     if (
       typeof value.thumbnail.template !== 'string'
-      || value.thumbnail.template.length > maxThumbnailTemplateBytes
+      || byteLength(value.thumbnail.template) > maxThumbnailTemplateBytes
     ) {
       addDiagnostic(
         diagnostics,
         'thumbnail.template-limit',
-        'Thumbnail template must not exceed 2 KiB.',
+        sizeLimitMessage(
+          'Thumbnail template',
+          typeof value.thumbnail.template === 'string' ? byteLength(value.thumbnail.template) : 0,
+          maxThumbnailTemplateBytes,
+        ),
         '/thumbnail/template',
       )
     }
     if (
       typeof value.thumbnail.stylesheet !== 'string'
-      || value.thumbnail.stylesheet.length > maxThumbnailStylesheetBytes
+      || byteLength(value.thumbnail.stylesheet) > maxThumbnailStylesheetBytes
     ) {
       addDiagnostic(
         diagnostics,
         'thumbnail.stylesheet-limit',
-        'Thumbnail stylesheet must not exceed 4 KiB.',
+        sizeLimitMessage(
+          'Thumbnail stylesheet',
+          typeof value.thumbnail.stylesheet === 'string' ? byteLength(value.thumbnail.stylesheet) : 0,
+          maxThumbnailStylesheetBytes,
+        ),
         '/thumbnail/stylesheet',
       )
     }
@@ -560,7 +580,10 @@ const validateStylesheet = (
   walk(ast, {
     enter(node: CssNode) {
       if (node.type === 'Url') {
-        addDiagnostic(diagnostics, 'stylesheet.external-resource', 'URLs are not allowed.', '/stylesheet')
+        const raster = validateRasterDataUrl(node.value)
+        if (!raster.allowed) {
+          addDiagnostic(diagnostics, 'stylesheet.external-resource', raster.message, '/stylesheet')
+        }
       }
       if (node.type === 'ClassSelector' && node.name.startsWith('cm-')) {
         addDiagnostic(diagnostics, 'stylesheet.editor-selector', 'CodeMirror selectors are not allowed.', '/stylesheet')

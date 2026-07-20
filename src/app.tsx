@@ -19,8 +19,10 @@ import { getHudStatus } from './ambient-workspace/agent-draft/model'
 import type {
   AmbientWorkspaceService,
   AmbientWorkspaceSnapshot,
+  SavedAmbientRecord,
 } from './ambient-workspace/ambient-workspace-service'
 import { useAmbientWorkspace } from './ambient-workspace/use-ambient-workspace'
+import { useAgentWorkflow } from './ambient-workspace/use-agent-workflow'
 import { ScreenshotControls } from './screenshot-controls'
 import { ScreenshotPreview } from './screenshot-preview'
 import { SiteHeader } from './site-header'
@@ -30,15 +32,13 @@ type AppProps = {
   ambientWorkspaceService?: AmbientWorkspaceService
 }
 
-const getDraftRevisionKey = (draft: AmbientWorkspaceSnapshot['draft']) =>
-  draft ? `${draft.id}@${draft.revision}` : null
-
 const getAmbientIdFromKey = (key: string) => key.slice(0, key.lastIndexOf('@'))
 
 function createYourAmbientsState(
   workspace: AmbientWorkspaceSnapshot,
   actions: {
     beginAmbient: () => void
+    editAmbient: (ambientId: string) => void
     openDraft: () => void
     signIn: () => void
   },
@@ -59,6 +59,7 @@ function createYourAmbientsState(
       : null,
     canCreate: !workspace.draft || workspace.draft.phase === 'saved',
     onCreateAmbient: actions.beginAmbient,
+    onEditAmbient: actions.editAmbient,
     onOpenDraft: actions.openDraft,
   }
 }
@@ -69,18 +70,14 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
   const [languageId, setLanguageId] = useState('typescript')
   const [ambientKey, setAmbientKey] = useState(defaultAmbientKey)
   const [title, setTitle] = useState('top secret code')
-  const [isAgentDockOpen, setIsAgentDockOpen] = useState(false)
-  const [dismissedAgentDraftKey, setDismissedAgentDraftKey] = useState<string | null>(null)
+  const initiatedDraftIdRef = useRef<string | null>(null)
   const {
     definitions,
     draftDefinition,
     service: workspaceService,
     snapshot: workspace,
   } = useAmbientWorkspace(ambientWorkspaceService)
-  const lastDraftRef = useRef<{ id: string | null; revision: number }>({
-    id: null,
-    revision: 0,
-  })
+  const agentWorkflow = useAgentWorkflow(workspace)
   const [ambientCustomizations, setAmbientCustomizations] =
     useState<AmbientCustomizationState>({})
   const selectedAmbient = definitions.find(
@@ -124,25 +121,21 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
 
   useEffect(() => {
     const draft = workspace.draft
-    if (!draftDefinition || !draft) return
-
-    const isInitialDraft = draft.revision === 0
-      && (draft.phase === 'setup' || draft.phase === 'handoff')
-    if (isInitialDraft) {
-      lastDraftRef.current = { id: draft.id, revision: draft.revision }
-      setAmbientKey(getAmbientKey(draftDefinition))
+    if (!draft) {
+      initiatedDraftIdRef.current = null
       return
     }
-    if (draft.phase !== 'review') return
 
-    const previousDraft = lastDraftRef.current
-    const isFirstAcceptedChange = previousDraft.id !== draft.id || previousDraft.revision === 0
+    const isNewClientDraft = draft.id === 'ambient-pending'
+      || initiatedDraftIdRef.current === 'ambient-pending'
+    initiatedDraftIdRef.current = draft.id === 'ambient-pending' ? draft.id : null
+    if (!draftDefinition) return
+
     const isViewingThisAmbient = getAmbientIdFromKey(ambientKey) === draft.id
-    lastDraftRef.current = { id: draft.id, revision: draft.revision }
-    if (isFirstAcceptedChange || isViewingThisAmbient) {
+    if (isNewClientDraft || agentWorkflow.isOpen || isViewingThisAmbient) {
       setAmbientKey(getAmbientKey(draftDefinition))
     }
-  }, [ambientKey, draftDefinition, workspace.draft])
+  }, [agentWorkflow.isOpen, ambientKey, draftDefinition, workspace.draft])
 
   const updateAmbientCustomization = (slotId: string, value: string) => {
     setAmbientCustomizations((current) => ({
@@ -159,13 +152,34 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
   const updateTitle = (nextTitle: string) => setTitle(nextTitle)
 
   const beginAmbient = () => {
-    setDismissedAgentDraftKey(null)
+    agentWorkflow.send({ type: 'BEGIN' })
     workspaceService.beginAmbient()
-    setIsAgentDockOpen(true)
+  }
+
+  const editAmbient = async (ambientId: string) => {
+    if (!agentWorkflow.startMutation('EDIT_STARTED')) return
+    agentWorkflow.send({ type: 'OPEN' })
+    let opened = false
+    try {
+      opened = await workspaceService.editAmbient(ambientId)
+    } catch {
+      opened = false
+    } finally {
+      agentWorkflow.send({ type: 'EDIT_FINISHED' })
+    }
+    if (!opened) agentWorkflow.send({ type: 'RESET' })
   }
 
   const savePrivateVersion = async () => {
-    const record = await workspaceService.savePrivateVersion()
+    if (!agentWorkflow.startMutation('SAVE_STARTED')) return
+    let record: SavedAmbientRecord | null = null
+    try {
+      record = await workspaceService.savePrivateVersion()
+    } catch {
+      record = null
+    } finally {
+      agentWorkflow.send({ type: 'SAVE_FINISHED' })
+    }
     if (record && workspaceService.getSnapshot().account.kind === 'signed-in') {
       setAmbientKey(`${record.id}@${record.version}`)
     }
@@ -173,31 +187,55 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
 
   const signOut = () => {
     workspaceService.signOut()
-    setDismissedAgentDraftKey(null)
+    agentWorkflow.send({ type: 'RESET' })
     setAmbientKey(defaultAmbientKey)
-    setIsAgentDockOpen(false)
   }
 
   const updateAgentDockOpen = (isOpen: boolean) => {
-    setIsAgentDockOpen(isOpen)
+    agentWorkflow.send({ type: isOpen ? 'OPEN' : 'MINIMIZE' })
   }
 
   const openAgentDraft = () => {
-    setDismissedAgentDraftKey(null)
-    setIsAgentDockOpen(true)
+    const agentAmbient = draftDefinition
+      ?? definitions.find((definition) => definition.id === workspace.draft?.id)
+    if (agentAmbient) setAmbientKey(getAmbientKey(agentAmbient))
+    agentWorkflow.send({ type: 'OPEN' })
+    if (workspace.draft?.notice === 'unavailable' || workspace.draft?.notice === 'expired') {
+      agentWorkflow.send({ type: 'RENEW_STARTED' })
+      void workspaceService.renewAgentAccess()
+    }
   }
 
   const exitAgentDraft = () => {
-    setDismissedAgentDraftKey(getDraftRevisionKey(workspace.draft))
-    setIsAgentDockOpen(false)
+    agentWorkflow.send({ type: 'EXIT' })
+  }
+
+  const discardAgentDraft = async () => {
+    const draftId = workspace.draft?.id
+    if (!draftId) return false
+    const savedVersion = workspace.savedAmbients.find((ambient) => ambient.id === draftId)
+    if (!agentWorkflow.startMutation('DISCARD_STARTED')) return false
+    let discarded = false
+    try {
+      discarded = await workspaceService.discardAmbientDraft()
+    } catch {
+      discarded = false
+    } finally {
+      agentWorkflow.send({ type: 'DISCARD_FINISHED' })
+    }
+    if (!discarded) return false
+
+    agentWorkflow.send({ type: 'RESET' })
+    setAmbientKey(savedVersion ? `${savedVersion.id}@${savedVersion.version}` : defaultAmbientKey)
+    return true
   }
 
   const yourAmbients = createYourAmbientsState(workspace, {
     beginAmbient,
+    editAmbient: (ambientId) => void editAmbient(ambientId),
     openDraft: openAgentDraft,
     signIn: workspaceService.signIn,
   })
-  const isAgentDraftDismissed = dismissedAgentDraftKey === getDraftRevisionKey(workspace.draft)
   return (
     <main className="app-shell">
       <h1 className="sr-only">codeshot.dev code screenshot tool</h1>
@@ -212,7 +250,7 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
           definitions={definitions}
           yourAmbients={yourAmbients}
           onAmbientPickerOpenChange={(isOpen) => {
-            if (isOpen) updateAgentDockOpen(false)
+            if (isOpen && agentWorkflow.isOpen) updateAgentDockOpen(false)
           }}
           onAmbientChange={selectAmbient}
           selectedAmbient={selectedAmbient}
@@ -239,17 +277,28 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
           onClearHighlights={clearHighlights}
         />
       </section>
-      {workspace.draft && !isAgentDraftDismissed && (
+      {workspace.draft && agentWorkflow.isVisible && (
         <AgentDraftHud
-          isOpen={isAgentDockOpen}
+          access={agentWorkflow.access}
+          isOpen={agentWorkflow.isOpen}
+          mutation={agentWorkflow.mutation}
           model={workspace.draft}
           onOpenChange={updateAgentDockOpen}
           onExit={exitAgentDraft}
-          onCreateAmbient={workspaceService.createAmbient}
+          onCreateAmbient={(ambientName) => {
+            if (!agentWorkflow.startMutation('CREATE_STARTED')) return
+            void Promise.resolve(workspaceService.createAmbient(ambientName))
+              .catch(() => undefined)
+              .finally(() => agentWorkflow.send({ type: 'CREATE_FINISHED' }))
+          }}
           onCopyPrompt={workspaceService.copyPrompt}
-          onRenewAgentAccess={workspaceService.renewAgentAccess}
+          onRenewAgentAccess={() => {
+            agentWorkflow.send({ type: 'RENEW_STARTED' })
+            void workspaceService.renewAgentAccess()
+          }}
           onRetryConnection={workspaceService.retryConnection}
           onSavePrivateVersion={savePrivateVersion}
+          onDiscardDraft={discardAgentDraft}
         />
       )}
       <footer className="site-footer">

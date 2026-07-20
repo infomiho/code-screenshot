@@ -73,6 +73,12 @@ export type CreateAmbientResult = {
 
 export type CreateAgentSessionInput = z.infer<typeof ambientIdInputSchema>
 
+export type DiscardAmbientDraftInput = z.infer<typeof ambientIdInputSchema>
+
+export type DiscardAmbientDraftResult = {
+  ambientDeleted: boolean
+}
+
 export type AgentSessionDto = {
   ambientId: string
   generation: number
