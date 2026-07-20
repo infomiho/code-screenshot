@@ -15,10 +15,8 @@ function DeclarativeAmbientMark({ definition }: { definition: AmbientDefinition 
     style.textContent = `
       :host {
         display: block !important;
-      }
-      :host, ${canvasSelector} {
-        width: 100% !important;
-        height: 100% !important;
+        width: var(--ambient-mark-width) !important;
+        height: var(--ambient-mark-height) !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
         pointer-events: none !important;
@@ -26,6 +24,12 @@ function DeclarativeAmbientMark({ definition }: { definition: AmbientDefinition 
       }
       ${thumbnail.stylesheet}
       ${canvasSelector} {
+        width: 100% !important;
+        height: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+        contain: layout paint style !important;
         position: relative !important;
       }
     `

@@ -73,6 +73,31 @@ test('renders the Swiss Poster thumbnail consistently in both picker contexts', 
   expect(thumbnails.option?.width).toBeGreaterThan(20)
 })
 
+test('contains user thumbnail dimensions inside the ambient mark', async ({ page }) => {
+  await openAppFixture(page)
+  await page.evaluate(() => {
+    window.ambientWorkspaceService.signIn()
+    window.ambientWorkspaceService.beginAmbient()
+    const draft = window.ambientWorkspaceService.getSnapshot().draft
+    if (!draft) throw new Error('Missing draft')
+    draft.document.thumbnail.stylesheet = `
+      :host {
+        display: block;
+        width: 860px;
+        height: 400px;
+        background: green;
+      }
+    `
+    window.ambientWorkspaceService.createAmbient('Oversized thumbnail')
+  })
+
+  const mark = page.locator('.ambient-current .ambient-mark')
+  await expect(mark).toBeVisible()
+  await expect(mark).toHaveCSS('width', '40px')
+  await expect(mark).toHaveCSS('height', '28px')
+  await expect(page.locator('.ambient-selector')).toHaveCSS('height', '44px')
+})
+
 for (const width of [420, 860, 1280]) {
   test(`exports the declarative Swiss Poster at ${width}px`, async ({ page }) => {
     await openAppFixture(page)
