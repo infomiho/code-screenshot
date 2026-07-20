@@ -7,14 +7,14 @@
   ],
   "scripts": {
     "dev": "wasp start",
-    "build": "wasp build && REACT_APP_API_URL=https://code-screenshot.static.miho.dev npx vite build",
+    "build": "wasp build && tsc -b && REACT_APP_API_URL=https://code-screenshot-server-production.up.railway.app npx vite build",
     "check": "wasp compile",
     "test": "npm run test:unit && npm run test:browser",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:unit:watch": "vitest --config vitest.config.ts",
     "test:browser": "playwright test",
     "preview": "vite preview",
-    "deploy": "npm run build && npx --yes @infomiho/buzz-cli@0.7.0 deploy ./.wasp/out/web-app/build --subdomain code-screenshot --server https://static.miho.dev"
+    "deploy": "wasp deploy railway deploy code-screenshot"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",

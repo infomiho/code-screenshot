@@ -805,6 +805,8 @@ input:focus-visible,
 
 .draw-layer {
   position: absolute;
+  /* Above ambient decor layers, which use z-index up to 3 in ambient-themes.css */
+  z-index: 5;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -884,6 +886,41 @@ input:focus-visible,
 
 .code-body {
   padding: var(--space-9) var(--code-padding-x) var(--code-padding-bottom);
+}
+
+.editor-skeleton {
+  --skeleton-font-size: var(--ambient-editor-font-size, var(--font-size-code));
+  --skeleton-row-height: calc(
+    var(--skeleton-font-size) * var(--ambient-editor-line-height, var(--line-height-code))
+  );
+  display: grid;
+  /* Fixed at the 15 lines of the default snippet so the loaded editor lands at the same height */
+  height: calc(15 * var(--skeleton-row-height));
+  grid-auto-rows: var(--skeleton-row-height);
+  align-items: center;
+  overflow: hidden;
+  padding: 0 var(--ambient-editor-content-padding-inline, var(--space-3));
+}
+
+.editor-skeleton span {
+  height: calc(var(--skeleton-font-size) * 0.55);
+  background: color-mix(
+    in oklch,
+    var(--ambient-editor-text-color, var(--code-text)),
+    transparent 85%
+  );
+  animation: editor-skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes editor-skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Covers the window between CodeMirror attaching and React dropping the skeleton */
+.code-editor-host:has(.cm-editor) .editor-skeleton {
+  display: none;
 }
 
 .code-editor-host .cm-editor {
@@ -1296,5 +1333,9 @@ input[type='text']::placeholder {
 
   .shot-frame {
     transition: none;
+  }
+
+  .editor-skeleton span {
+    animation: none;
   }
 }

@@ -97,6 +97,7 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
     selectedLanguage,
     code,
     editorHostRef,
+    isEditorReady,
     highlightedLineCount,
     highlightedLineStatus,
     highlightCurrentLine,
@@ -219,6 +220,7 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
           ambientVariables={ambientVariables}
           editorHostRef={editorHostRef}
           editorHelpId={editorHelpId}
+          isEditorReady={isEditorReady}
         />
         <ScreenshotControls
           ambientName={selectedAmbient.manifest.name}

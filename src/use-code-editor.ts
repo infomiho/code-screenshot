@@ -241,6 +241,7 @@ export function useCodeEditor({
   const isDraggingLineRef = useRef(false)
   const [code, setCode] = useState(defaultCode)
   const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set())
+  const [isEditorReady, setIsEditorReady] = useState(false)
 
   const selectedLanguage =
     languageOptions.find((option) => option.id === languageId) ?? languageOptions[0]
@@ -405,6 +406,7 @@ export function useCodeEditor({
 
     editorViewRef.current = editorView
     editorView.dispatch({ effects: lineHighlightEffect.of(highlightedLinesRef.current) })
+    setIsEditorReady(true)
 
     return () => {
       window.removeEventListener('mouseup', finishLineDrag)
@@ -470,6 +472,7 @@ export function useCodeEditor({
     selectedLanguage,
     code,
     editorHostRef,
+    isEditorReady,
     highlightedLineCount: highlightedLines.size,
     highlightedLineStatus: formatHighlightedLines(highlightedLines),
     highlightCurrentLine,
