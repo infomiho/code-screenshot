@@ -4,8 +4,8 @@ import { App } from "./src/app" with { type: "ref" };
 const description =
   "Create polished, shareable code screenshots with ambient themes, line highlights, freehand annotations, and one-click PNG export.";
 const title = "codeshot.dev | Beautiful code screenshots";
-const siteUrl = "https://code-screenshot.static.miho.dev/";
-const imageUrl = "https://code-screenshot.static.miho.dev/og-image-v1.png";
+const siteUrl = "https://codeshot.dev/";
+const imageUrl = "https://codeshot.dev/og-image-v1.png";
 const imageAlt =
   "TypeScript code framed in codeshot.dev's navy Technical plate ambient theme.";
 
