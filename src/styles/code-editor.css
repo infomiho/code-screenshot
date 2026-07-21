@@ -1,4 +1,8 @@
 .code-editor-host {
+  /* Falls back to the editor text color, which always contrasts with the
+     editor background. */
+  --editor-caret-color: var(--ambient-editor-caret-color, var(--ambient-editor-text-color, var(--code-text)));
+
   .cm-editor {
     min-height: var(--editor-min-height);
     background: var(--ambient-editor-background, transparent);
@@ -19,7 +23,14 @@
     width: 100%;
     min-width: 0;
     padding: 0;
-    caret-color: var(--ambient-editor-caret-color, var(--bg));
+    caret-color: var(--editor-caret-color);
+  }
+
+  /* drawSelection replaces the native caret with a drawn .cm-cursor, so the
+     caret color has to reach it too. */
+  .cm-editor .cm-cursor,
+  .cm-editor .cm-dropCursor {
+    border-left-color: var(--editor-caret-color);
   }
 
   .cm-line {

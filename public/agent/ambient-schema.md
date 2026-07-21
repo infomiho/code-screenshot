@@ -69,6 +69,8 @@ Supported non-color variables:
 
 Use literal values; lengths must use `px`.
 
+The caret falls back to `--ambient-editor-text-color` when unset. Set `--ambient-editor-caret-color` explicitly to a color with strong contrast against `--ambient-editor-background`, especially on dark editors.
+
 ## Customizations
 
 Every customization requires `type`, `id`, `label`, and `cssVariable`. IDs use lowercase kebab-case. CSS variables start with `--ambient-`.
