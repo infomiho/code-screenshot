@@ -29,7 +29,6 @@ import {
 import { minimalSetup } from 'codemirror'
 
 type HighlightLanguage =
-  | 'bash'
   | 'css'
   | 'html'
   | 'javascript'
@@ -67,7 +66,6 @@ const languageOptions: readonly LanguageOption[] = [
   { id: 'json', label: 'JSON', lang: 'json' },
   { id: 'css', label: 'CSS', lang: 'css' },
   { id: 'html', label: 'HTML', lang: 'html' },
-  { id: 'bash', label: 'Bash', lang: 'bash' },
   { id: 'php', label: 'PHP', lang: 'php' },
   { id: 'python', label: 'Python', lang: 'python' },
   { id: 'markdown', label: 'Markdown', lang: 'markdown' },
