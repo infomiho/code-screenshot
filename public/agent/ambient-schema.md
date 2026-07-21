@@ -30,6 +30,10 @@ type AmbientDocument = {
 }
 ```
 
+## Editor tokens
+
+`editor.tokens` is the syntax highlighting palette for the rendered code. Each entry colors one token group with a literal CSS color: `keyword` also covers operators and booleans, `text` covers plain identifiers, and `punctuation` covers brackets and delimiters. Give the groups clearly distinguishable colors that read against the editor background; the starting draft ships a near-grayscale ramp with a single accent that you should replace with the ambient's own palette.
+
 ## Template subset
 
 - Use exactly one root element and exactly one `<ambient-slot name="code"></ambient-slot>`.
