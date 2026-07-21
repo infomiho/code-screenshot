@@ -28,7 +28,7 @@
 .site-account {
   position: relative;
 
-  > :where(.ui-button, .account-menu) {
+  > :where(.ui-button, .account-menu-trigger) {
     animation: skeleton-reveal var(--skeleton-reveal-duration) var(--skeleton-reveal-ease);
 
     @media (prefers-reduced-motion: reduce) {

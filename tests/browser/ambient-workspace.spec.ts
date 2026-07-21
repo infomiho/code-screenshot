@@ -19,8 +19,8 @@ const openAmbientPicker = async (page: Page) => {
 }
 
 const openAmbientLibraryPage = async (page: Page) => {
-  await page.locator('.account-menu summary').click()
-  await page.getByRole('button', { name: /Your ambients/ }).click()
+  await page.locator('.account-menu-trigger').click()
+  await page.getByRole('menuitem', { name: /Your ambients/ }).click()
   await expect(page.getByRole('heading', { name: 'Your ambients' })).toBeVisible()
 }
 
@@ -29,7 +29,7 @@ const openWorkspaceFromLibrary = async (page: Page, ambientName: string) => {
   const row = page.locator('.ambient-library-row').filter({ hasText: ambientName })
   await row.getByRole('button', { name: 'Edit' }).click()
   await expect(page.locator('.workspace-ambient-identity')).toContainText(ambientName)
-  await expect(page.locator('.subpage-header .account-menu')).toBeVisible()
+  await expect(page.locator('.subpage-header .account-menu-trigger')).toBeVisible()
 }
 
 test('keeps included ambients in a two-column grid', async ({ page }) => {
@@ -353,8 +353,8 @@ test('account navigation opens the ambient library and logs out private state', 
 
   await page.getByRole('button', { name: 'Back to editor' }).click()
   await expect(page.locator('.cm-editor')).toBeVisible()
-  await page.locator('.account-menu summary').click()
-  await page.getByRole('button', { name: 'Log out' }).click()
+  await page.locator('.account-menu-trigger').click()
+  await page.getByRole('menuitem', { name: 'Log out' }).click()
 
   await openAmbientPicker(page)
   await expect(page.getByRole('rowgroup', { name: 'Your ambients' })).toHaveCount(0)

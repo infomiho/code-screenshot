@@ -405,8 +405,10 @@
 }
 
 .workspace-sidebar-collapse:active,
+/* No press scale here: shrinking the full-height strip visibly drags its
+   top-anchored chevron downward. */
 .workspace-collapsed-rail:active {
-  scale: 0.96;
+  background: var(--workspace-surface-raised);
 }
 
 .workspace-sidebar-collapse:focus-visible,
@@ -429,24 +431,6 @@
 
 .workspace-rail-chevron {
   rotate: -135deg;
-}
-
-@keyframes rail-attention {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in oklch, var(--wasp-yellow), transparent 30%);
-  }
-
-  70% {
-    box-shadow: 0 0 0 7px color-mix(in oklch, var(--wasp-yellow), transparent 100%);
-  }
-
-  100% {
-    box-shadow: 0 0 0 4px color-mix(in oklch, var(--wasp-yellow), transparent 84%);
-  }
-}
-
-.workspace-activity-indicator--rail[data-status='review-ready'] .workspace-activity-dot {
-  animation: rail-attention 560ms var(--ambient-motion-ease) 1;
 }
 
 .workspace-sidebar-panel {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { Menu } from '@base-ui/react/menu'
 import './account-menu.css'
 
 type AccountMenuProps = {
@@ -15,54 +15,32 @@ const formatLibraryLabel = (draftCount: number) =>
   draftCount > 0 ? `Your ambients (${draftCount} draft${draftCount === 1 ? '' : 's'})` : 'Your ambients'
 
 export function AccountMenu({ username, avatarUrl = null, draftCount = 0, onOpenLibrary, onSignOut }: AccountMenuProps) {
-  const menuRef = useRef<HTMLDetailsElement>(null)
-
-  useEffect(() => {
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        menuRef.current?.removeAttribute('open')
-      }
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !menuRef.current?.open) return
-      event.preventDefault()
-      menuRef.current.removeAttribute('open')
-      menuRef.current.querySelector<HTMLElement>('summary')?.focus()
-    }
-    document.addEventListener('pointerdown', closeOnOutsidePointer)
-    document.addEventListener('keydown', closeOnEscape)
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePointer)
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [])
-
   return (
-    <details className="account-menu" ref={menuRef}>
-      <summary>
+    <Menu.Root>
+      <Menu.Trigger className="account-menu-trigger">
         <span className="account-avatar" aria-hidden="true">
           {avatarUrl ? <img src={avatarUrl} alt="" /> : getAvatarInitial(username)}
         </span>
         <span className="account-username">@{username}</span>
         <span className="account-disclosure" aria-hidden="true" />
-      </summary>
-      <div className="account-menu-content">
-        {onOpenLibrary && (
-          <button
-            className="account-menu-link"
-            type="button"
-            onClick={() => {
-              menuRef.current?.removeAttribute('open')
-              onOpenLibrary()
-            }}
-          >
-            {formatLibraryLabel(draftCount)}
-          </button>
-        )}
-        <button className="ui-button account-menu-action" type="button" onClick={onSignOut}>
-          Log out
-        </button>
-      </div>
-    </details>
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner className="account-menu-positioner" align="end" sideOffset={6}>
+          <Menu.Popup className="account-menu-content">
+            {onOpenLibrary && (
+              <>
+                <Menu.Item className="account-menu-item" onClick={onOpenLibrary}>
+                  {formatLibraryLabel(draftCount)}
+                </Menu.Item>
+                <Menu.Separator className="account-menu-separator" />
+              </>
+            )}
+            <Menu.Item className="account-menu-item" onClick={onSignOut}>
+              Log out
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   )
 }

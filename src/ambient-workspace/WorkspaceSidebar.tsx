@@ -1,11 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import type { AmbientWorkspaceView } from './agent-workflow-machine'
 import type { WorkspaceSidebarTab } from './use-workspace-sidebar'
 
 type WorkspaceSidebarProps = {
   activeTab: WorkspaceSidebarTab
   isCollapsed: boolean
-  railStatus: AmbientWorkspaceView['status']
   statusMessage: string
   versionCount: number
   versions: ReactNode
@@ -19,7 +17,6 @@ const tabs: readonly WorkspaceSidebarTab[] = ['work', 'versions']
 export function WorkspaceSidebar({
   activeTab,
   isCollapsed,
-  railStatus,
   statusMessage,
   versionCount,
   versions,
@@ -136,13 +133,6 @@ export function WorkspaceSidebar({
         onClick={expand}
       >
         <span className="workspace-rail-chevron" aria-hidden="true" />
-        <span
-          className="workspace-activity-indicator workspace-activity-indicator--rail"
-          data-status={railStatus}
-          aria-hidden="true"
-        >
-          <span className="workspace-activity-dot" />
-        </span>
       </button>
     </aside>
   )

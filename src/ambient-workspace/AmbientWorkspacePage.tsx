@@ -337,7 +337,6 @@ export function AmbientWorkspacePage({
           <WorkspaceSidebar
             activeTab={sidebar.activeTab}
             isCollapsed={sidebar.isCollapsed}
-            railStatus={workflow.workspace.status}
             statusMessage={statusMessage}
             versionCount={workspace.versions.length}
             onTabChange={sidebar.setActiveTab}
