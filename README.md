@@ -1,5 +1,7 @@
 # codeshot.dev
 
+![The codeshot.dev editor](docs/screenshot.png)
+
 Minimal code screenshot generator.
 
 ```bash
