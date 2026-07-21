@@ -22,7 +22,7 @@ The response contains `ambientId`, `name`, `revision`, `document`, and `previewU
 
 `PUT {sessionUrl}/draft`
 
-Send `Content-Type: application/json` with the complete document, not a patch:
+Send `Content-Type: application/json` with the complete document:
 
 ```json
 {
@@ -50,7 +50,7 @@ The patch is applied to the stored draft, then validated as a complete document.
 
 ## Preview
 
-Open the `previewUrl` returned by the draft and update endpoints. It uses the same client renderer, code editor, and picker thumbnail as codeshot.dev.
+Open the `previewUrl` returned by the draft and update endpoints. It renders with the same engine as codeshot.dev.
 
 ## Responses
 

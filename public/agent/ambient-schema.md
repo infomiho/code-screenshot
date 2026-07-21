@@ -32,7 +32,7 @@ type AmbientDocument = {
 
 ## Editor tokens
 
-`editor.tokens` is the syntax highlighting palette for the rendered code. Each entry colors one token group with a literal CSS color: `keyword` also covers operators and booleans, `text` covers plain identifiers, and `punctuation` covers brackets and delimiters. Give the groups clearly distinguishable colors that read against the editor background; the starting draft ships a near-grayscale ramp with a single accent that you should replace with the ambient's own palette.
+`editor.tokens` is the syntax highlighting palette for the rendered code. Each entry colors one token group with a literal CSS color: `keyword` also covers operators and booleans, `text` covers plain identifiers, and `punctuation` covers brackets and delimiters. Give the groups clearly distinguishable colors that read against the editor background, and replace the starting draft's near-grayscale ramp with the ambient's own palette.
 
 ## Template subset
 
@@ -69,7 +69,7 @@ Supported non-color variables:
 
 Use literal values; lengths must use `px`.
 
-The caret falls back to `--ambient-editor-text-color` when unset. Set `--ambient-editor-caret-color` explicitly to a color with strong contrast against `--ambient-editor-background`, especially on dark editors.
+The caret falls back to `--ambient-editor-text-color`; set `--ambient-editor-caret-color` to a color that contrasts with the editor background.
 
 ## Customizations
 
@@ -95,13 +95,15 @@ type PaletteCustomization = {
 }
 ```
 
+Prefer `palette` customizations with 3 to 6 named, designed options. Add a free `color` customization only when arbitrary colors genuinely suit the design.
+
 Color variables work in color-bearing properties such as `color`, `background`, `border`, `box-shadow`, `fill`, and `stroke`. Paint palettes work only in `background` and `background-image`.
 
 Stylesheets are scoped to the ambient. Use `:host` as the root selector and `::slotted([slot=code])` for the code editor. Remote URLs, SVG data URLs, `@import`, scriptable values, and selectors that escape the ambient are rejected.
 
 ## Thumbnail
 
-Create a dedicated miniature that represents the ambient in the picker. It is independent from the full screenshot template and cannot use slots or dynamic content.
+A dedicated miniature shown in the picker, independent from the screenshot template. No slots or dynamic content.
 
 - Use one root with only `div`, `span`, and `i` elements.
 - Use only kebab-case `class` attributes and no text.
@@ -112,4 +114,4 @@ Create a dedicated miniature that represents the ambient in the picker. It is in
 
 The complete JSON document must stay under 192 KiB. Remote URLs and SVG data URLs are rejected. Stylesheets may use base64 `data:image/png` and `data:image/jpeg` URLs when the decoded image is at most 48 KiB, each dimension is at most 2048 px, and the image is at most 4 megapixels.
 
-A rejected PUT does not advance the revision. Fix every diagnostic and resubmit from the latest accepted revision.
+A rejected update does not advance the revision. Fix every diagnostic and resubmit from the latest accepted revision.
