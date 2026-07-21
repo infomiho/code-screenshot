@@ -155,10 +155,12 @@ export function YourAmbientsPage({
         <ul className="ambient-library-list" aria-hidden="true">
           {[0, 1].map((row) => (
             <li className="ambient-library-row" key={row}>
-              <span className="skeleton ambient-library-skeleton-mark" />
-              <div className="ambient-library-row-copy">
-                <span className="skeleton ambient-library-skeleton-name" />
-                <span className="skeleton ambient-library-skeleton-meta" />
+              <div className="ambient-library-row-open">
+                <span className="skeleton ambient-library-skeleton-mark" />
+                <div className="ambient-library-row-copy">
+                  <span className="skeleton ambient-library-skeleton-name" />
+                  <span className="skeleton ambient-library-skeleton-meta" />
+                </div>
               </div>
               <div className="ambient-library-row-actions">
                 <span className="skeleton ambient-library-skeleton-edit" />
@@ -192,23 +194,25 @@ export function YourAmbientsPage({
           const definition = getRowDefinition(ambient)
           return (
             <li className="ambient-library-row" key={ambient.id}>
-              {definition
-                ? <AmbientMark definition={definition} />
-                : <span className="ambient-library-placeholder-mark" aria-hidden="true" />}
-              <div className="ambient-library-row-copy">
-                <strong>{ambient.name}</strong>
-                <span className="ambient-library-row-meta">
-                  <span>{ambient.currentVersion ? `Version ${ambient.currentVersion.version}` : 'Not saved yet'}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>Private</span>
-                  {ambient.draft && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span data-status={ambient.draft.status}>{draftStatusLabel[ambient.draft.status]}</span>
-                    </>
-                  )}
-                </span>
-              </div>
+              <button className="ambient-library-row-open" type="button" onClick={() => openWorkspace(ambient.id)}>
+                {definition
+                  ? <AmbientMark definition={definition} />
+                  : <span className="ambient-library-placeholder-mark" aria-hidden="true" />}
+                <div className="ambient-library-row-copy">
+                  <strong>{ambient.name}</strong>
+                  <span className="ambient-library-row-meta">
+                    <span>{ambient.currentVersion ? `Version ${ambient.currentVersion.version}` : 'Not saved yet'}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>Private</span>
+                    {ambient.draft && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span data-status={ambient.draft.status}>{draftStatusLabel[ambient.draft.status]}</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </button>
               <div className="ambient-library-row-actions">
                 <button className="ui-button" type="button" onClick={() => openWorkspace(ambient.id)}>
                   Edit

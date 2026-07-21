@@ -288,6 +288,10 @@ export function AmbientWorkspacePage({
     )
   }
 
+  const draftMatchesVersion = workflow.draftSafety.status === 'matches-version'
+  const discardLabel = !workspace.versionInUse
+    ? 'Discard ambient'
+    : draftMatchesVersion ? 'Close draft' : 'Discard changes'
   const isSaving = workspace.mutation === 'saving' || workflow.workspace.status === 'saving'
   const isDiscarding = workspace.mutation === 'discarding'
   const canSave = Boolean(workspace.workingDraft)
@@ -343,7 +347,7 @@ export function AmbientWorkspacePage({
                 canCompare={workspace.versionInUse !== null && workflow.draftSafety.status !== 'matches-version'}
                 canMutate={workspace.connectivity === 'online'}
                 canSave={canSave}
-                discardLabel={workspace.versionInUse ? 'Discard changes' : 'Discard ambient'}
+                discardLabel={discardLabel}
                 draftSafety={workflow.draftSafety}
                 hasWorkingDraft={workspace.workingDraft !== null}
                 isSaving={isSaving}
@@ -376,6 +380,7 @@ export function AmbientWorkspacePage({
       </div>
 
       <DiscardDraftDialog
+        draftMatchesVersion={draftMatchesVersion}
         isDiscarding={isDiscarding}
         isOpen={isDiscardDialogOpen}
         onCancel={() => setIsDiscardDialogOpen(false)}

@@ -33,7 +33,9 @@ export function AmbientFramePreview({
   editorHelpId?: string
   previewTitle?: string
 }) {
-  const referenceWidth = compact ? 560 : 860
+  // A single reference width keeps the rendered ambient's proportions
+  // identical between the solo preview and the side-by-side comparison.
+  const referenceWidth = 860
   const viewportRef = useRef<HTMLDivElement>(null)
   const [previewScale, setPreviewScale] = useState(1)
   const generatedEditorHelpId = `${useId()}-editor-help`

@@ -634,7 +634,7 @@ button.version-entry-button[aria-pressed='true'] .version-node,
 
 .draft-comparison {
   display: grid;
-  width: min(920px, 100%);
+  width: min(1400px, 100%);
   gap: var(--space-7);
   margin: 32px auto 0;
   border: 1px solid var(--workspace-border);

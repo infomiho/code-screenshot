@@ -258,9 +258,10 @@ test('starts a new draft from the version in use after discarding changes', asyn
   await page.getByRole('button', { name: 'Save version' }).click()
   await expect(page.getByRole('status')).toContainText('Version 1 saved')
 
-  await page.getByRole('button', { name: 'Discard changes' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
-  await expect(page.getByRole('button', { name: 'Discard changes' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Close draft' }).click()
+  await expect(page.getByRole('heading', { name: 'Close the working draft?' })).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Close draft' }).click()
+  await expect(page.getByRole('button', { name: 'Close draft' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'No active draft' })).toBeVisible()
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Current version')
   await expect(page.locator('.workspace-preview-frame .cm-editor')).toBeVisible()
@@ -309,6 +310,15 @@ test('account navigation opens the ambient library and logs out private state', 
   await openAmbientPicker(page)
   await expect(page.getByRole('rowgroup', { name: 'Your ambients' })).toHaveCount(0)
   await expect(page.getByLabel('Your ambients account').getByRole('button', { name: 'Create your own ambient' })).toBeVisible()
+})
+
+test('opens the workspace from a library row title', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+
+  await openAmbientLibraryPage(page)
+  await page.locator('.ambient-library-row-open').filter({ hasText: 'Signal study' }).click()
+  await expect(page.locator('.workspace-ambient-identity')).toContainText('Signal study')
 })
 
 test('manages ambients from the library page', async ({ page }) => {

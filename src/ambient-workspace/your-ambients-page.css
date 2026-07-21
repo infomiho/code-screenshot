@@ -51,13 +51,32 @@
   --ambient-mark-width: 48px;
   --ambient-mark-height: 34px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-6);
   border: 1px solid var(--library-border);
   background: var(--panel);
   box-shadow: var(--surface-shadow);
   padding: var(--space-6) var(--space-7);
+}
+
+.ambient-library-row-open {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-6);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+
+  &:hover strong {
+    color: var(--wasp-yellow);
+  }
 }
 
 .ambient-library-row-copy {
@@ -309,7 +328,7 @@
 
 @media (max-width: 560px) {
   .ambient-library-row {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .ambient-library-row-actions {
