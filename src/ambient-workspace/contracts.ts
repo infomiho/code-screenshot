@@ -104,6 +104,11 @@ export const replaceAgentDraftInputSchema = z.strictObject({
   document: z.unknown(),
 })
 
+export const patchAgentDraftInputSchema = z.strictObject({
+  baseRevision: z.number().int().nonnegative(),
+  patch: z.record(z.string(), z.unknown()),
+})
+
 export type CreateAmbientInput = z.infer<typeof createAmbientInputSchema>
 export type SaveAmbientVersionInput = z.infer<typeof saveAmbientVersionInputSchema>
 export type CreateDraftFromVersionInput = z.infer<typeof createDraftFromVersionInputSchema>
@@ -135,4 +140,9 @@ export type AgentDraftDto = WorkspaceDraftRevisionDto & {
 export type ReplaceAgentDraftInput = {
   baseRevision: number
   document: WorkspaceDocumentDto
+}
+
+export type PatchAgentDraftInput = {
+  baseRevision: number
+  patch: Record<string, unknown>
 }

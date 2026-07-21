@@ -5,9 +5,8 @@ import { AmbientWorkspacePage } from "./AmbientWorkspacePage" with { type: "ref"
 import { YourAmbientsPage } from "./YourAmbientsPage" with { type: "ref" };
 import {
   agentApiMiddleware,
-  getAgentDraft,
+  agentDraftRoute,
   getAgentSession,
-  replaceAgentDraft,
 } from "./agent-api" with { type: "ref" };
 import {
   createAgentAccess,
@@ -60,11 +59,8 @@ export const ambientWorkspaceSpec: Spec = [
     auth: false,
     middlewareConfigFn: agentApiMiddleware,
   }),
-  api("GET", "/agent/sessions/:capability/draft", getAgentDraft, {
-    auth: false,
-    middlewareConfigFn: agentApiMiddleware,
-  }),
-  api("PUT", "/agent/sessions/:capability/draft", replaceAgentDraft, {
+  // Wasp has no PATCH method, so one ALL route dispatches GET, PUT, and PATCH for the draft.
+  api("ALL", "/agent/sessions/:capability/draft", agentDraftRoute, {
     auth: false,
     middlewareConfigFn: agentApiMiddleware,
   }),

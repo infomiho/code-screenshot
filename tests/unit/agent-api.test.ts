@@ -22,7 +22,7 @@ vi.mock('wasp/server', () => ({
   },
 }))
 
-import { getAgentDraft, replaceAgentDraft } from '../../src/ambient-workspace/agent-api'
+import { agentDraftRoute, getAgentDraft, patchAgentDraft, replaceAgentDraft } from '../../src/ambient-workspace/agent-api'
 
 const document = JSON.parse(JSON.stringify(swissPosterDocument))
 const capability = 'capability-secret-32-characters-long'
@@ -60,6 +60,18 @@ const callReplaceDraft = (
   response: ReturnType<typeof createResponse>,
   body: unknown,
 ) => replaceAgentDraft({ params: { capability }, body } as never, response as never, {} as never)
+
+const callPatchDraft = (
+  response: ReturnType<typeof createResponse>,
+  body: unknown,
+  method = 'PATCH',
+) => patchAgentDraft({ params: { capability }, body, method } as never, response as never, {} as never)
+
+const callDraftRoute = (
+  response: ReturnType<typeof createResponse>,
+  method: string,
+  body?: unknown,
+) => agentDraftRoute({ params: { capability }, body, method } as never, response as never, {} as never)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -134,5 +146,171 @@ describe('agent capability API', () => {
       revision: 2,
       previewUrl: `http://localhost:3000/agent-preview/${capability}`,
     })
+  })
+})
+
+describe('agent draft patching', () => {
+  it('merges nested fields and replaces arrays wholesale', async () => {
+    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+    const updateDraft = vi.fn().mockResolvedValue({ count: 1 })
+    database.transaction.mockImplementation(async (run) => run({
+      ambientDraft: { updateMany: updateDraft },
+      ambient: { update: vi.fn().mockResolvedValue({}) },
+      ambientAgentSession: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    }))
+    const response = createResponse()
+
+    const customizations = JSON.parse(JSON.stringify(document.customizations))
+    customizations[0].label = 'Poster field'
+    const patch = {
+      name: 'Renamed',
+      editor: { exportGutter: 'hide' },
+      customizations,
+    }
+
+    await callPatchDraft(response, { baseRevision: 1, patch })
+
+    const written = updateDraft.mock.calls[0][0].data.document
+    expect(written.name).toBe('Renamed')
+    expect(written.editor.exportGutter).toBe('hide')
+    expect(written.editor.tokens).toEqual(document.editor.tokens)
+    expect(written.stylesheet).toBe(document.stylesheet)
+    expect(written.customizations).toEqual(customizations)
+    expect(response.json).toHaveBeenCalledWith({
+      revision: 2,
+      previewUrl: `http://localhost:3000/agent-preview/${capability}`,
+    })
+  })
+
+  it('rejects a patch that removes a required field', async () => {
+    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+    const response = createResponse()
+
+    await callPatchDraft(response, { baseRevision: 1, patch: { name: null } })
+
+    expect(response.status).toHaveBeenCalledWith(422)
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'ambient_invalid',
+      diagnostics: expect.any(Array),
+    }))
+    expect(database.transaction).not.toHaveBeenCalled()
+  })
+
+  it('reports the current revision when a patch loses a race', async () => {
+    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+    database.transaction.mockImplementation(async (run) => run({
+      ambientAgentSession: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      ambientDraft: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    }))
+    database.ambientDraft.findUnique.mockResolvedValue({ revision: 2 })
+    const response = createResponse()
+
+    await callPatchDraft(response, { baseRevision: 1, patch: { name: 'Renamed' } })
+
+    expect(response.status).toHaveBeenCalledWith(409)
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'draft_revision_conflict',
+      currentRevision: 2,
+    }))
+  })
+
+  it('expires the session when the commit finds it gone', async () => {
+    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+    database.transaction.mockImplementation(async (run) => run({
+      ambientAgentSession: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      ambientDraft: { updateMany: vi.fn() },
+      ambient: { update: vi.fn() },
+    }))
+    const response = createResponse()
+
+    await callPatchDraft(response, { baseRevision: 1, patch: { name: 'Renamed' } })
+
+    expect(response.status).toHaveBeenCalledWith(410)
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'agent_session_expired',
+    }))
+  })
+
+  it('rejects a patch that is not a JSON object', async () => {
+    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+    const response = createResponse()
+
+    await callPatchDraft(response, { baseRevision: 1, patch: [] })
+
+    expect(response.status).toHaveBeenCalledWith(400)
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'invalid_request',
+    }))
+    expect(database.transaction).not.toHaveBeenCalled()
+  })
+
+  it('rejects any method other than PATCH with an Allow header', async () => {
+    const response = createResponse()
+
+    await callPatchDraft(response, { baseRevision: 1, patch: { name: 'Renamed' } }, 'POST')
+
+    expect(response.set).toHaveBeenCalledWith('Allow', 'GET, HEAD, PUT, PATCH')
+    expect(response.status).toHaveBeenCalledWith(405)
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'method_not_allowed',
+    }))
+  })
+
+  it('never pollutes prototypes and drops proto keys from the stored document', async () => {
+    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+    const updateDraft = vi.fn().mockResolvedValue({ count: 1 })
+    database.transaction.mockImplementation(async (run) => run({
+      ambientDraft: { updateMany: updateDraft },
+      ambient: { update: vi.fn().mockResolvedValue({}) },
+      ambientAgentSession: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    }))
+    const response = createResponse()
+    const patch = JSON.parse('{"__proto__": {"polluted": true}, "name": "Renamed"}')
+
+    await callPatchDraft(response, { baseRevision: 1, patch })
+
+    expect(Object.prototype).not.toHaveProperty('polluted')
+    const written = updateDraft.mock.calls[0][0].data.document
+    expect(Object.getPrototypeOf(written)).toBe(Object.prototype)
+    expect(written.polluted).toBeUndefined()
+    expect(written.name).toBe('Renamed')
+  })
+})
+
+describe('agent draft route dispatch', () => {
+  it('routes GET and HEAD to the draft read', async () => {
+    for (const method of ['GET', 'HEAD']) {
+      vi.clearAllMocks()
+      database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+      database.ambientAgentSession.update.mockResolvedValue({})
+      const response = createResponse()
+
+      await callDraftRoute(response, method)
+
+      expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+        ambientId: 'ambient-1',
+        revision: 1,
+      }))
+    }
+  })
+
+  it('routes PUT to the replace handler', async () => {
+    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
+    const response = createResponse()
+
+    await callDraftRoute(response, 'PUT', { baseRevision: 1 })
+
+    expect(response.status).toHaveBeenCalledWith(400)
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'invalid_request',
+    }))
+  })
+
+  it('routes other methods to the patch handler for its 405 guard', async () => {
+    const response = createResponse()
+
+    await callDraftRoute(response, 'DELETE')
+
+    expect(response.status).toHaveBeenCalledWith(405)
   })
 })
