@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "dev": "wasp start",
-    "build": "wasp build && REACT_APP_API_URL=https://code-screenshot-server-production.up.railway.app npx vite build",
+    "build": "wasp build && REACT_APP_API_URL=https://api.codeshot.dev npx vite build",
     "check": "wasp compile",
     "test": "npm run test:unit && npm run test:browser",
     "test:unit": "vitest run --config vitest.config.ts",
