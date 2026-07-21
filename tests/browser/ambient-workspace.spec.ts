@@ -114,6 +114,8 @@ test('creates an ambient in a dedicated workspace', async ({ page }) => {
   await expect(page.locator('.agent-dock')).toHaveCount(0)
 
   await page.getByText('Show prompt', { exact: true }).click()
+  await expect(page.locator('.workspace-prompt-disclosure pre'))
+    .toContainText('Create a codeshot.dev ambient for "Launch frame"')
   const promptContainment = await page.evaluate(() => {
     const sidebar = document.querySelector('.workspace-sidebar')?.getBoundingClientRect()
     const card = document.querySelector('.workspace-prompt-card')?.getBoundingClientRect()
@@ -266,6 +268,10 @@ test('starts a new draft from the version in use after discarding changes', asyn
   await expect(page.getByRole('status')).toContainText('New draft started from Version 1')
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Working draft')
+
+  await page.getByText('Show prompt', { exact: true }).click()
+  await expect(page.locator('.workspace-prompt-disclosure pre'))
+    .toContainText('Update the codeshot.dev ambient "Signal study"')
 })
 
 test('keeps the preview visible while switching Work and Versions on mobile', async ({ page }) => {

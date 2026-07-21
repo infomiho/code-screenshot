@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { loadAmbientDefinition } from '../ambient-registry'
 import type { AmbientWorkspaceService } from './ambient-workspace-service'
@@ -8,6 +8,7 @@ import { DraftVersionComparison } from './DraftVersionComparison'
 import { VersionSpine } from './VersionSpine'
 import { WorkingDraftPreview } from './WorkingDraftPreview'
 import { WorkspaceLoadingSkeleton } from './WorkspaceLoadingSkeleton'
+import { WorkspaceSetupState } from './WorkspaceSetupState'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceWorkPanel } from './WorkspaceWorkPanel'
 import { useAgentWorkflow } from './use-agent-workflow'
@@ -38,14 +39,10 @@ export function AmbientWorkspacePage({
   const [loadState, setLoadState] = useState<LoadState>(
     requestedAmbientId === 'new' ? 'setup' : 'loading',
   )
-  const [ambientName, setAmbientName] = useState('')
-  const [formError, setFormError] = useState('')
-  const [isCreating, setIsCreating] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [isComparing, setIsComparing] = useState(false)
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false)
-  const nameInputRef = useRef<HTMLInputElement>(null)
   const previousAcceptedChangeCountRef = useRef<number | null>(null)
   const previousWorkspaceIdRef = useRef<string | null>(null)
   const sidebar = useWorkspaceSidebar()
@@ -136,36 +133,34 @@ export function AmbientWorkspacePage({
     }
   }
 
-  const createAmbient = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const name = ambientName.trim()
-    if (!name) {
-      setFormError('Enter a name for this ambient.')
-      nameInputRef.current?.focus()
+  const retryOpenWorkspace = () => {
+    if (!requestedAmbientId) {
       return
     }
+    setLoadState('loading')
+    void service.openWorkspace(requestedAmbientId)
+      .then((opened) => setLoadState(opened ? 'ready' : 'not-found'))
+      .catch(() => setLoadState('error'))
+  }
 
-    setFormError('')
-    setIsCreating(true)
+  const createAmbient = async (ambientName: string) => {
     try {
-      const id = await service.createAmbient(name)
+      const id = await service.createAmbient(ambientName)
       if (!id) {
-        setFormError('Could not create this ambient. Try again.')
-        return
+        return false
       }
       const accessCreated = await service.createAgentAccess()
       setCreatedAmbientId(id)
       setLoadState('ready')
       setStatusMessage(
         accessCreated
-          ? `${name} created. Agent prompt is ready.`
-          : `${name} created. Create agent access when you are ready.`,
+          ? `${ambientName} created. Agent prompt is ready.`
+          : `${ambientName} created. Create agent access when you are ready.`,
       )
       navigate(`/ambients/${encodeURIComponent(id)}`, { replace: true })
+      return true
     } catch {
-      setFormError('Could not create this ambient. Try again.')
-    } finally {
-      setIsCreating(false)
+      return false
     }
   }
 
@@ -243,60 +238,12 @@ export function AmbientWorkspacePage({
 
   if (loadState === 'setup' && !createdAmbientId) {
     return (
-      <main className="ambient-workspace-page">
-        <h1 className="sr-only">Create ambient</h1>
-        <AmbientWorkspaceHeader versionInUse={null} onClose={closeWorkspace} />
-        <div className="workspace-layout">
-          <section className="workspace-preview-panel workspace-setup-panel">
-            <div className="workspace-setup-card">
-              <span className="workspace-eyebrow">Ambient workspace</span>
-              <h2>Name your ambient</h2>
-              <p>Create a reusable visual frame. A temporary agent prompt will be ready in the workspace.</p>
-              {snapshot.account.kind === 'signed-in' ? (
-                <form onSubmit={createAmbient}>
-                  <label htmlFor="ambient-name">Ambient name</label>
-                  <input
-                    ref={nameInputRef}
-                    id="ambient-name"
-                    name="ambientName"
-                    maxLength={80}
-                    value={ambientName}
-                    aria-invalid={formError ? true : undefined}
-                    onChange={(event) => setAmbientName(event.target.value)}
-                    aria-describedby={formError ? 'ambient-name-error' : undefined}
-                  />
-                  {formError && <p id="ambient-name-error" className="workspace-form-error" role="alert">{formError}</p>}
-                  <div className="workspace-setup-actions">
-                    <button className="ui-button" type="button" onClick={closeWorkspace}>Cancel</button>
-                    <button className="ui-button ui-button-primary" type="submit" disabled={isCreating}>
-                      {isCreating ? 'Creating ambient...' : 'Create ambient'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <button className="ui-button ui-button-primary" type="button" onClick={service.signIn}>
-                  Sign in to create an ambient
-                </button>
-              )}
-            </div>
-          </section>
-          <div className="workspace-activity-panel">
-            <div className="workspace-sidebar">
-              <div className="workspace-sidebar-tabs" aria-hidden="true">
-                <button type="button" disabled>Work</button>
-                <button type="button" disabled>Versions</button>
-              </div>
-              <div className="workspace-sidebar-panel">
-                <div className="workspace-work-panel">
-                  <section className="workspace-card workspace-status-card" aria-label="Draft status">
-                    <h2>Your draft will appear here</h2>
-                  </section>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
+      <WorkspaceSetupState
+        isSignedIn={snapshot.account.kind === 'signed-in'}
+        onCancel={closeWorkspace}
+        onCreate={createAmbient}
+        onSignIn={service.signIn}
+      />
     )
   }
 
@@ -315,16 +262,7 @@ export function AmbientWorkspacePage({
         <button
           className="ui-button"
           type="button"
-          onClick={() => {
-            if (!isError || !requestedAmbientId) {
-              closeWorkspace()
-              return
-            }
-            setLoadState('loading')
-            void service.openWorkspace(requestedAmbientId)
-              .then((opened) => setLoadState(opened ? 'ready' : 'not-found'))
-              .catch(() => setLoadState('error'))
-          }}
+          onClick={isError && requestedAmbientId ? retryOpenWorkspace : closeWorkspace}
         >
           {isError ? 'Retry workspace' : 'Your ambients'}
         </button>

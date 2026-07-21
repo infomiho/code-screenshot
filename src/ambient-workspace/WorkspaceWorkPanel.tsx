@@ -62,6 +62,7 @@ export function WorkspaceWorkPanel({
     <AgentPromptCard
       agentAccessUrl={agentAccessUrl}
       ambientName={ambientName}
+      hasSavedVersion={versionInUse !== null}
       isPrimary={promptIsNext || view.status === 'saved'}
       onCopied={onCopyPrompt}
       onStatus={onStatus}

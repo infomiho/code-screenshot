@@ -1,14 +1,24 @@
-const buildAgentPrompt = (ambientName: string, agentAccessUrl: string) => `Create a codeshot.dev ambient for "${ambientName}".
+const buildAgentPrompt = (ambientName: string, agentAccessUrl: string, hasSavedVersion: boolean) => {
+  const intro = hasSavedVersion
+    ? `Update the codeshot.dev ambient "${ambientName}".`
+    : `Create a codeshot.dev ambient for "${ambientName}".`
+  const direction = hasSavedVersion
+    ? 'The draft holds the current design. Ask me what should change.'
+    : 'Ask me for the visual direction.'
+
+  return `${intro}
 
 Open this temporary session with an HTTP or web-fetch tool. Read both linked references and fetch the current draft:
 ${agentAccessUrl}
 
-Ask me for the visual direction. Do not update the draft until I answer.
+${direction} Do not update the draft until I answer.
 `
+}
 
 type AgentPromptCardProps = {
   agentAccessUrl: string
   ambientName: string
+  hasSavedVersion: boolean
   isPrimary?: boolean
   onCopied: () => void
   onStatus: (message: string) => void
@@ -17,11 +27,12 @@ type AgentPromptCardProps = {
 export function AgentPromptCard({
   agentAccessUrl,
   ambientName,
+  hasSavedVersion,
   isPrimary = false,
   onCopied,
   onStatus,
 }: AgentPromptCardProps) {
-  const prompt = buildAgentPrompt(ambientName, agentAccessUrl)
+  const prompt = buildAgentPrompt(ambientName, agentAccessUrl, hasSavedVersion)
 
   const copyPrompt = async () => {
     try {
