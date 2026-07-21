@@ -181,12 +181,7 @@ export function AmbientPicker({
           />
         )}
       </div>
-      <section
-        className="ambient-account"
-        data-account={yourAmbients.kind}
-        data-has-ambients={yourAmbients.kind === 'signed-in' ? yourAmbients.hasAmbients : undefined}
-        aria-label="Your ambients account"
-      >
+      <section className="ambient-account" aria-label="Your ambients account">
         {yourAmbients.kind === 'signed-out' ? (
           <>
             <h3>Your ambients</h3>
@@ -196,7 +191,7 @@ export function AmbientPicker({
             </button>
           </>
         ) : yourAmbients.hasAmbients ? (
-          <button className="ambient-account-manage" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
+          <button className="ui-button ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
             Manage your ambients
             <span aria-hidden="true"> →</span>
           </button>
