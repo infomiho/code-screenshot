@@ -1,0 +1,222 @@
+.control-panel {
+  width: min(var(--panel-width), 100%);
+  justify-self: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+
+  @media (max-width: 720px) {
+    width: 100%;
+  }
+}
+
+.editor-help {
+  width: 0;
+  min-width: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  line-height: var(--line-height-help);
+  text-align: center;
+
+  @media (max-width: 720px) {
+    text-align: left;
+  }
+}
+
+.editor-help-desktop {
+  @media (max-width: 720px) {
+    display: none;
+  }
+}
+
+.editor-help-touch {
+  display: none;
+
+  @media (max-width: 720px) {
+    display: inline;
+  }
+}
+
+.control-groups {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.control-group {
+  min-width: 0;
+  border: 0;
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+
+  &[open] > .control-summary::after {
+    transform: rotate(225deg) translateY(-2px);
+  }
+}
+
+.control-summary {
+  display: flex;
+  min-height: var(--control-height);
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-2) var(--space-7);
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &::after {
+    width: var(--chevron-size);
+    height: var(--chevron-size);
+    flex-shrink: 0;
+    margin-left: auto;
+    border-right: 1px solid var(--wasp-yellow);
+    border-bottom: 1px solid var(--wasp-yellow);
+    content: '';
+    transform: rotate(45deg) translateY(-2px);
+  }
+}
+
+.control-title {
+  color: var(--wasp-yellow);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.look-context {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5) var(--space-7);
+  padding: var(--space-2) var(--space-7) var(--space-7);
+
+  @media (max-width: 720px) {
+    align-items: stretch;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+}
+
+.look-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--look-field-min-width)), 1fr));
+  align-items: end;
+
+  .toolbar-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    min-width: 0;
+
+    select {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+}
+
+.toolbar-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+
+  span {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 720px) {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+}
+
+.compact-field select {
+  width: var(--compact-select-width);
+
+  @media (max-width: 720px) {
+    width: 100%;
+  }
+}
+
+select,
+input[type='text'] {
+  min-height: var(--control-height);
+  border: var(--border-control);
+  border-radius: 0;
+}
+
+select {
+  width: var(--select-width);
+  border-color: transparent;
+  background: var(--control);
+  box-shadow: var(--control-inset);
+  color: var(--text);
+  padding: 0 var(--space-4);
+}
+
+input[type='text'] {
+  width: var(--select-width);
+  border-color: transparent;
+  background: var(--control);
+  box-shadow: var(--control-inset);
+  color: var(--text);
+  padding: 0 var(--space-4);
+
+  &::placeholder {
+    color: var(--muted);
+  }
+}
+
+.toolbar-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  padding: 0 var(--space-2);
+
+  input {
+    width: var(--checkbox-size);
+    height: var(--checkbox-size);
+    accent-color: var(--wasp-yellow);
+  }
+}
+
+.highlight-status {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  line-height: var(--line-height-status);
+}
+
+@media (max-width: 720px) {
+  .toolbar-field,
+  .toolbar-field select,
+  .toolbar-field input[type='text'],
+  .toolbar-toggle,
+  .control-content > .ui-button {
+    width: 100%;
+  }
+}

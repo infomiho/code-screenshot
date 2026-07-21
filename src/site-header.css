@@ -11,6 +11,10 @@
   border: 0;
   background: var(--chrome-bg);
   padding: var(--space-1) var(--space-2) var(--space-1) var(--space-5);
+
+  @media (max-width: 420px) {
+    padding-inline-start: var(--space-4);
+  }
 }
 
 .site-brand {
@@ -23,54 +27,87 @@
 
 .site-account {
   position: relative;
+
+  > :where(.ui-button, .account-menu) {
+    animation: skeleton-reveal var(--skeleton-reveal-duration) var(--skeleton-reveal-ease);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
 }
 
-.account-menu summary {
-  min-height: 40px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--font-size-label);
-  font-weight: var(--font-weight-heavy);
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast),
-    scale var(--transition-fast);
-}
-
-.account-menu summary:hover {
-  background: var(--ambient-hover-bg);
-}
-
-.account-menu summary:active {
-  scale: 0.96;
-}
-
-.account-menu summary {
+.account-skeleton {
   display: grid;
-  grid-template-columns: 32px minmax(0, auto) 12px;
+  grid-template-columns: var(--account-avatar-size) 96px;
   align-items: center;
   gap: var(--space-3);
-  list-style: none;
+  min-height: 40px;
   padding: 3px var(--space-4) 3px 3px;
-  user-select: none;
 }
 
-.account-menu summary::-webkit-details-marker {
-  display: none;
+.account-skeleton-avatar {
+  width: var(--account-avatar-size);
+  height: var(--account-avatar-size);
 }
 
-.account-menu summary:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-offset);
+.account-skeleton-name {
+  height: 12px;
+}
+
+.account-menu {
+  summary {
+    display: grid;
+    grid-template-columns: var(--account-avatar-size) minmax(0, auto) 12px;
+    min-height: 40px;
+    align-items: center;
+    gap: var(--space-3);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: var(--font-size-label);
+    font-weight: var(--font-weight-heavy);
+    list-style: none;
+    padding: 3px var(--space-4) 3px 3px;
+    user-select: none;
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast),
+      scale var(--transition-fast);
+
+    &:hover {
+      background: var(--ambient-hover-bg);
+    }
+
+    &:active {
+      scale: 0.96;
+    }
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &:focus-visible {
+      outline: var(--focus-ring);
+      outline-offset: var(--focus-offset);
+    }
+
+    @media (max-width: 420px) {
+      min-height: 44px;
+    }
+  }
+
+  &[open] .account-disclosure {
+    transform: rotate(225deg) translate(-1px, -1px);
+  }
 }
 
 .account-avatar {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: var(--account-avatar-size);
+  height: var(--account-avatar-size);
   place-items: center;
   border-radius: 50%;
   background: oklch(0.7 0.075 240);
@@ -85,6 +122,10 @@
   max-width: 180px;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  @media (max-width: 420px) {
+    max-width: 128px;
+  }
 }
 
 .account-disclosure {
@@ -94,10 +135,6 @@
   border-bottom: 1px solid var(--muted);
   transform: rotate(45deg) translate(-1px, -1px);
   transition: transform var(--transition-fast);
-}
-
-.account-menu[open] .account-disclosure {
-  transform: rotate(225deg) translate(-1px, -1px);
 }
 
 .account-menu-content {
@@ -112,20 +149,20 @@
   background: var(--panel);
   box-shadow: 0 16px 40px rgb(0 0 0 / 42%);
   padding: var(--space-5);
-}
 
-.account-menu-content > span {
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: var(--font-size-label);
-}
+  > span {
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: var(--font-size-label);
+  }
 
-.account-menu-content > strong {
-  overflow: hidden;
-  font-family: var(--mono);
-  font-size: var(--font-size-control);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  > strong {
+    overflow: hidden;
+    font-family: var(--mono);
+    font-size: var(--font-size-control);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .account-menu-action {
@@ -134,16 +171,29 @@
   text-align: start;
 }
 
-@media (max-width: 420px) {
-  .site-header {
-    padding-inline-start: var(--space-4);
-  }
+.account-menu-link {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  align-content: center;
+  gap: 4px;
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  padding: 10px 0;
+  text-align: left;
 
-  .account-menu summary {
-    min-height: 44px;
+  &:hover {
+    color: var(--wasp-yellow);
   }
+}
 
-  .account-username {
-    max-width: 128px;
-  }
+.account-menu-workspace small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
 }

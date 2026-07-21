@@ -23,6 +23,7 @@ CREATE TABLE "Ambient" (
     "name" TEXT NOT NULL,
     "status" "AmbientStatus" NOT NULL DEFAULT 'DRAFT',
     "currentVersion" INTEGER,
+    "agentSessionGeneration" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -33,9 +34,10 @@ CREATE TABLE "Ambient" (
 CREATE TABLE "AmbientDraft" (
     "ambientId" TEXT NOT NULL,
     "revision" INTEGER NOT NULL DEFAULT 0,
+    "baseRevision" INTEGER NOT NULL DEFAULT 0,
+    "sourceVersion" INTEGER,
     "schemaVersion" INTEGER NOT NULL DEFAULT 1,
     "document" JSONB NOT NULL,
-    "designDirection" TEXT NOT NULL DEFAULT '',
     "updatedBy" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -63,6 +65,7 @@ CREATE TABLE "AmbientAgentSession" (
     "id" TEXT NOT NULL,
     "ambientId" TEXT NOT NULL,
     "capabilityHash" TEXT NOT NULL,
+    "generation" INTEGER NOT NULL,
     "createdBy" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "lastUsedAt" TIMESTAMP(3),

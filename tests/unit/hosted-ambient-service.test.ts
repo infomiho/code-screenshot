@@ -2,17 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { swissPosterDocument } from '../../src/swiss-poster'
 
 const operations = vi.hoisted(() => ({
+  createAgentAccess: vi.fn(),
   createAmbient: vi.fn(),
-  createAmbientAgentSession: vi.fn(),
+  createDraftFromVersion: vi.fn(),
+  discardAgentAccess: vi.fn(),
   discardAmbientDraft: vi.fn(),
-  getAmbientDraft: vi.fn(),
   getAmbientDraftRevision: vi.fn(),
   getAmbientWorkspace: vi.fn(),
-  publishAmbient: vi.fn(),
+  listOwnedAmbients: vi.fn(),
+  saveAmbientVersion: vi.fn(),
 }))
-const auth = vi.hoisted(() => ({
-  logout: vi.fn(),
-}))
+const auth = vi.hoisted(() => ({ logout: vi.fn() }))
 
 vi.mock('wasp/client/operations', () => operations)
 vi.mock('wasp/client/auth', () => ({
@@ -23,6 +23,31 @@ vi.mock('wasp/client/auth', () => ({
 import { HostedAmbientService } from '../../src/ambient-workspace/hosted-ambient-service'
 
 const document = JSON.parse(JSON.stringify(swissPosterDocument))
+const createdAt = new Date().toISOString()
+const library = {
+  account: { kind: 'signed-in', username: 'octocat' },
+  ownedAmbients: [{
+    id: 'ambient-1',
+    name: 'Signal study',
+    visibility: 'private',
+    currentVersion: { id: 'version-1', version: 1, draftRevision: 1, document, createdAt },
+    draft: { status: 'matches-version', revision: 1, document, updatedAt: createdAt },
+  }],
+}
+const workspace = {
+  ambient: { id: 'ambient-1', name: 'Signal study' },
+  workingDraft: {
+    revision: 1,
+    baseRevision: 1,
+    sourceVersion: 1,
+    document,
+    updatedAt: createdAt,
+    acceptedChangeCount: 0,
+  },
+  versionInUse: library.ownedAmbients[0].currentVersion,
+  versions: [{ ...library.ownedAmbients[0].currentVersion, isInUse: true }],
+  agentAccess: { status: 'not-created' },
+}
 
 const createStorage = (): Storage => {
   const values = new Map<string, string>()
@@ -38,230 +63,149 @@ const createStorage = (): Storage => {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  Object.defineProperty(globalThis, 'sessionStorage', {
-    configurable: true,
-    value: createStorage(),
-  })
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: createStorage() })
   auth.logout.mockResolvedValue(undefined)
+  operations.listOwnedAmbients.mockResolvedValue(library)
+  operations.getAmbientWorkspace.mockResolvedValue(workspace)
 })
 
 describe('HostedAmbientService', () => {
-  it('maps persisted workspace state without exposing an unavailable capability', async () => {
-    operations.getAmbientWorkspace.mockResolvedValue({
-      account: { kind: 'signed-in', username: 'octocat' },
-      draft: {
-        id: 'ambient-1',
-        phase: 'review',
-        ambientName: 'Signal study',
-        promptExpiresAt: new Date(Date.now() + 60_000).toISOString(),
-        agentSessionGeneration: 0,
-        revision: 1,
-        document,
-      },
-      savedAmbients: [],
-    })
-
+  it('loads library summaries separately from a route-scoped workspace', async () => {
     const service = new HostedAmbientService()
     const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().ownedAmbients).toHaveLength(1))
+    expect(service.getSnapshot().workspace).toBeNull()
 
-    await vi.waitFor(() => expect(service.getSnapshot().account).toEqual({
-      kind: 'signed-in',
-      username: 'octocat',
-    }))
-    expect(service.getSnapshot().draft).toMatchObject({
-      notice: 'unavailable',
-      agentSessionUrl: null,
-      promptCopied: false,
-      saveState: 'idle',
-    })
+    await expect(service.openWorkspace('ambient-1')).resolves.toBe(true)
+
+    expect(operations.getAmbientWorkspace).toHaveBeenCalledWith({ ambientId: 'ambient-1' })
+    expect(service.getSnapshot().workspace?.ambient.id).toBe('ambient-1')
     unsubscribe()
   })
 
-  it('creates, polls, and publishes an ambient through Wasp operations', async () => {
-    operations.getAmbientWorkspace.mockResolvedValue({
-      account: { kind: 'signed-in', username: 'octocat' },
-      draft: null,
-      savedAmbients: [],
-    })
+  it('keeps raw access URLs in browser session storage only', async () => {
     const session = {
-      ambientId: 'ambient-1',
-      generation: 0,
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      url: 'http://localhost:3001/agent/sessions/secret',
-    }
-    operations.createAmbient.mockResolvedValue({ ambientId: 'ambient-1', session })
-    operations.createAmbientAgentSession.mockResolvedValue(session)
-    operations.getAmbientDraftRevision.mockResolvedValue({
-      revision: 1,
-      agentSessionGeneration: 0,
-    })
-    operations.getAmbientDraft.mockResolvedValue({
-      ambientId: 'ambient-1',
-      name: 'Signal study',
-      revision: 1,
-      document,
-    })
-    operations.publishAmbient.mockResolvedValue({
-      id: 'ambient-1',
-      version: 1,
-      draftRevision: 1,
-      document,
-      createdAt: new Date().toISOString(),
-    })
-
-    const service = new HostedAmbientService()
-    const unsubscribe = service.subscribe(() => {})
-    await vi.waitFor(() => expect(service.getSnapshot().account.kind).toBe('signed-in'))
-
-    service.beginAmbient()
-    await service.createAmbient('Signal study')
-    expect(service.getSnapshot().draft).toMatchObject({
-      id: 'ambient-1',
-      phase: 'handoff',
-      agentSessionUrl: 'http://localhost:3001/agent/sessions/secret',
-    })
-
-    service.copyPrompt()
-    await vi.waitFor(() => expect(service.getSnapshot().draft).toMatchObject({
-      phase: 'review',
-      revision: 1,
-      document,
-    }))
-
-    await expect(service.savePrivateVersion()).resolves.toMatchObject({
-      id: 'ambient-1',
-      version: 1,
-    })
-    expect(operations.publishAmbient).toHaveBeenCalledWith({
-      ambientId: 'ambient-1',
-      draftRevision: 1,
-    })
-    expect(service.getSnapshot().draft?.phase).toBe('saved')
-    service.signOut()
-    unsubscribe()
-  })
-
-  it('discards a workspace response that finishes after logout', async () => {
-    let resolveWorkspace!: (workspace: unknown) => void
-    operations.getAmbientWorkspace.mockReturnValue(new Promise((resolve) => {
-      resolveWorkspace = resolve
-    }))
-    const service = new HostedAmbientService()
-    const unsubscribe = service.subscribe(() => {})
-
-    service.signOut()
-    resolveWorkspace({
-      account: { kind: 'signed-in', username: 'octocat' },
-      draft: null,
-      savedAmbients: [],
-    })
-    await Promise.resolve()
-
-    expect(service.getSnapshot().account.kind).toBe('signed-out')
-    unsubscribe()
-  })
-
-  it('allows only one agent access renewal at a time', async () => {
-    operations.getAmbientWorkspace.mockResolvedValue({
-      account: { kind: 'signed-in', username: 'octocat' },
-      draft: {
-        id: 'ambient-1',
-        phase: 'handoff',
-        ambientName: 'Signal study',
-        promptExpiresAt: null,
-        agentSessionGeneration: 0,
-        revision: 0,
-        document,
-      },
-      savedAmbients: [],
-    })
-    let resolveSession!: (session: unknown) => void
-    operations.createAmbientAgentSession.mockReturnValue(new Promise((resolve) => {
-      resolveSession = resolve
-    }))
-    operations.getAmbientDraftRevision.mockResolvedValue({
-      revision: 0,
-      agentSessionGeneration: 1,
-    })
-    const service = new HostedAmbientService()
-    const unsubscribe = service.subscribe(() => {})
-    await vi.waitFor(() => expect(service.getSnapshot().account.kind).toBe('signed-in'))
-
-    const firstRenewal = service.renewAgentAccess()
-    const secondRenewal = service.renewAgentAccess()
-    expect(operations.createAmbientAgentSession).toHaveBeenCalledTimes(1)
-    resolveSession({
-      ambientId: 'ambient-1',
-      generation: 1,
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      url: 'http://localhost:3001/agent/sessions/new-secret',
-    })
-    await Promise.all([firstRenewal, secondRenewal])
-
-    expect(service.getSnapshot().draft).toMatchObject({
-      agentSessionGeneration: 1,
-      agentSessionUrl: 'http://localhost:3001/agent/sessions/new-secret',
-    })
-    unsubscribe()
-  })
-
-  it('discards the active draft and clears its cached session', async () => {
-    operations.getAmbientWorkspace.mockResolvedValue({
-      account: { kind: 'signed-in', username: 'octocat' },
-      draft: {
-        id: 'ambient-1',
-        phase: 'review',
-        ambientName: 'Signal study',
-        promptExpiresAt: new Date(Date.now() + 60_000).toISOString(),
-        agentSessionGeneration: 0,
-        revision: 1,
-        document,
-      },
-      savedAmbients: [],
-    })
-    operations.discardAmbientDraft.mockResolvedValue({ ambientDeleted: true })
-    const service = new HostedAmbientService()
-    const unsubscribe = service.subscribe(() => {})
-    await vi.waitFor(() => expect(service.getSnapshot().draft?.id).toBe('ambient-1'))
-
-    await expect(service.discardAmbientDraft()).resolves.toBe(true)
-
-    expect(operations.discardAmbientDraft).toHaveBeenCalledWith({ ambientId: 'ambient-1' })
-    expect(service.getSnapshot().draft).toBeNull()
-    expect(sessionStorage.getItem('codeshot.agent-session')).toBeNull()
-    unsubscribe()
-  })
-
-  it('opens a fresh agent session for a saved ambient without a draft', async () => {
-    operations.getAmbientWorkspace.mockResolvedValue({
-      account: { kind: 'signed-in', username: 'octocat' },
-      draft: null,
-      savedAmbients: [{ id: 'ambient-1', version: 1, document }],
-    })
-    operations.createAmbientAgentSession.mockResolvedValue({
       ambientId: 'ambient-1',
       generation: 2,
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      url: 'http://localhost:3001/agent/sessions/fresh-secret',
+      url: 'http://localhost:3001/agent/sessions/secret',
+    }
+    operations.createAgentAccess.mockResolvedValue(session)
+    operations.getAmbientWorkspace.mockResolvedValue({
+      ...workspace,
+      agentAccess: {
+        status: 'available',
+        generation: 2,
+        expiresAt: session.expiresAt,
+        lastUsedAt: null,
+      },
     })
-    operations.getAmbientDraft.mockResolvedValue({
-      ambientId: 'ambient-1',
-      name: 'Signal study',
-      revision: 1,
-      document,
-    })
+    operations.getAmbientDraftRevision.mockResolvedValue({ revision: 1, agentSessionGeneration: 2 })
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().account.kind).toBe('signed-in'))
+    await service.openWorkspace('ambient-1')
+
+    await expect(service.createAgentAccess()).resolves.toBe(true)
+
+    expect(service.getSnapshot().workspace?.agentAccessUrl).toBe(session.url)
+    expect(sessionStorage.getItem('codeshot.agent-session.ambient-1')).toContain(session.url)
+    unsubscribe()
+  })
+
+  it('saves the current revision and reloads both views', async () => {
+    operations.saveAmbientVersion.mockResolvedValue(workspace.versionInUse)
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().account.kind).toBe('signed-in'))
+    await service.openWorkspace('ambient-1')
+
+    await expect(service.saveAmbientVersion()).resolves.toMatchObject({ version: 1 })
+
+    expect(operations.saveAmbientVersion).toHaveBeenCalledWith({ ambientId: 'ambient-1', draftRevision: 1 })
+    expect(operations.listOwnedAmbients).toHaveBeenCalledTimes(2)
+    unsubscribe()
+  })
+
+  it('ignores a save response after its workspace closes', async () => {
+    let resolveSave: (value: typeof workspace.versionInUse) => void = () => undefined
+    operations.saveAmbientVersion.mockReturnValue(new Promise((resolve) => {
+      resolveSave = resolve
+    }))
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().account.kind).toBe('signed-in'))
+    await service.openWorkspace('ambient-1')
+
+    const saving = service.saveAmbientVersion()
+    service.closeWorkspace()
+    resolveSave(workspace.versionInUse)
+
+    await expect(saving).resolves.toBeNull()
+    expect(service.getSnapshot().workspace).toBeNull()
+    expect(operations.getAmbientWorkspace).toHaveBeenCalledTimes(1)
+    unsubscribe()
+  })
+
+  it('ignores ambient creation after the create flow closes', async () => {
+    let resolveCreation: (value: { ambientId: string }) => void = () => undefined
+    operations.createAmbient.mockReturnValue(new Promise((resolve) => {
+      resolveCreation = resolve
+    }))
     const service = new HostedAmbientService()
     const unsubscribe = service.subscribe(() => {})
     await vi.waitFor(() => expect(service.getSnapshot().account.kind).toBe('signed-in'))
 
-    await expect(service.editAmbient('ambient-1')).resolves.toBe(true)
+    const creating = service.createAmbient('Signal study')
+    service.closeWorkspace()
+    resolveCreation({ ambientId: 'ambient-new' })
 
-    expect(service.getSnapshot().draft).toMatchObject({
-      id: 'ambient-1',
-      phase: 'handoff',
-      agentSessionUrl: 'http://localhost:3001/agent/sessions/fresh-secret',
-      revision: 1,
-    })
+    await expect(creating).resolves.toBeNull()
+    expect(service.getSnapshot().workspace).toBeNull()
+    expect(operations.listOwnedAmbients).toHaveBeenCalledTimes(1)
+    unsubscribe()
+  })
+
+  it('settles hydration into an offline library state', async () => {
+    operations.listOwnedAmbients.mockRejectedValue(new Error('offline'))
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+
+    await vi.waitFor(() => expect(service.getSnapshot().isHydrated).toBe(true))
+
+    expect(service.getSnapshot().libraryStatus).toBe('offline')
+    unsubscribe()
+  })
+
+  it('distinguishes missing workspaces from request failures', async () => {
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().libraryStatus).toBe('ready'))
+
+    operations.getAmbientWorkspace.mockRejectedValueOnce({ statusCode: 404 })
+    await expect(service.openWorkspace('missing')).resolves.toBe(false)
+
+    operations.getAmbientWorkspace.mockRejectedValueOnce(new Error('offline'))
+    await expect(service.openWorkspace('ambient-1')).rejects.toThrow('offline')
+    unsubscribe()
+  })
+
+  it('clears cached agent access when restoring a version', async () => {
+    sessionStorage.setItem('codeshot.agent-session.ambient-1', JSON.stringify({
+      ambientId: 'ambient-1',
+      generation: 2,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      url: 'http://localhost:3001/agent/sessions/secret',
+    }))
+    operations.createDraftFromVersion.mockResolvedValue({})
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().libraryStatus).toBe('ready'))
+    await service.openWorkspace('ambient-1')
+
+    await expect(service.createDraftFromVersion('version-1')).resolves.toBe(true)
+
+    expect(sessionStorage.getItem('codeshot.agent-session.ambient-1')).toBeNull()
     unsubscribe()
   })
 })

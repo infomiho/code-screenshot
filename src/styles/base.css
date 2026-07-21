@@ -1,0 +1,33 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: var(--page-min-width);
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--bg);
+}
+
+:where(button, select, textarea, input) {
+  font: inherit;
+}
+
+button:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+.width-handle:focus-visible,
+.cm-editor.cm-focused {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

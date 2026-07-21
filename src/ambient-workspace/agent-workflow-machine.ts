@@ -1,114 +1,138 @@
-import { assign, setup } from 'xstate'
+import { setup } from 'xstate'
 
-export type AgentDraftLifecycle = 'none' | 'setup' | 'handoff' | 'review' | 'saved'
-export type AgentAccessState = 'notApplicable' | 'available' | 'unavailable' | 'expired'
+export type AgentDraftLifecycle = 'none' | 'setup' | 'promptReady' | 'waiting' | 'reviewReady' | 'saved'
+export type AgentAccessState = 'notCreated' | 'creating' | 'available' | 'unavailable' | 'expired'
 export type AgentConnectivityState = 'online' | 'offline' | 'requestError'
-export type AgentMutationState = 'idle' | 'creating' | 'openingSavedAmbient' | 'saving' | 'discarding'
+export type AgentMutationState = 'idle' | 'saving' | 'discarding' | 'restoring'
 
-type AgentWorkflowContext = {
-  draftKey: string | null
-  hasHydrated: boolean
-}
+export type AmbientWorkspaceView =
+  | { status: 'setup' }
+  | { status: 'prompt-ready' }
+  | { status: 'waiting' }
+  | { status: 'review-ready' }
+  | { status: 'saving' }
+  | { status: 'saved' }
+  | { status: 'offline' }
+  | { status: 'request-error' }
+
+export type AgentAccessView =
+  | { status: 'not-created' }
+  | { status: 'creating' }
+  | { status: 'available'; expiresAt: string }
+  | { status: 'expired' }
+  | { status: 'unavailable' }
+
+export type DraftSafetyView =
+  | { status: 'never-saved' }
+  | { status: 'matches-version'; version: number }
+  | { status: 'ahead-of-version'; version: number; changeCount: number }
+  | { status: 'different-from-version'; version: number }
+  | { status: 'based-on-version'; sourceVersion: number; versionInUse: number; changeCount: number }
 
 export type AgentWorkflowEvent =
   | {
       type: 'SYNC'
       access: AgentAccessState
       connectivity: AgentConnectivityState
-      draftKey: string | null
-      isHydrated: boolean
       lifecycle: AgentDraftLifecycle
     }
-  | { type: 'BEGIN' }
-  | { type: 'OPEN' }
-  | { type: 'MINIMIZE' }
-  | { type: 'EXIT' }
-  | { type: 'RESET' }
-  | { type: 'CREATE_STARTED' }
-  | { type: 'EDIT_STARTED' }
+  | { type: 'ACCESS_STARTED' }
   | { type: 'SAVE_STARTED' }
   | { type: 'DISCARD_STARTED' }
-  | { type: 'RENEW_STARTED' }
-  | { type: 'CREATE_FINISHED' }
-  | { type: 'EDIT_FINISHED' }
-  | { type: 'SAVE_FINISHED' }
-  | { type: 'DISCARD_FINISHED' }
+  | { type: 'RESTORE_STARTED' }
+  | { type: 'MUTATION_FINISHED' }
 
-const isSync = (
-  event: AgentWorkflowEvent,
-): event is Extract<AgentWorkflowEvent, { type: 'SYNC' }> => event.type === 'SYNC'
+export const deriveAmbientWorkspaceView = (input: {
+  lifecycle: AgentDraftLifecycle
+  connectivity: AgentConnectivityState
+  mutation: AgentMutationState
+}): AmbientWorkspaceView => {
+  if (input.connectivity === 'offline') return { status: 'offline' }
+  if (input.connectivity === 'requestError') return { status: 'request-error' }
+  if (input.mutation === 'saving') return { status: 'saving' }
+  switch (input.lifecycle) {
+    case 'none':
+    case 'setup': return { status: 'setup' }
+    case 'promptReady': return { status: 'prompt-ready' }
+    case 'waiting': return { status: 'waiting' }
+    case 'reviewReady': return { status: 'review-ready' }
+    case 'saved': return { status: 'saved' }
+  }
+}
+
+export const deriveAgentAccessView = (input: {
+  state: AgentAccessState
+  expiresAt: string | null
+}): AgentAccessView => {
+  if (input.state === 'creating') return { status: 'creating' }
+  if (input.state === 'available' && input.expiresAt) {
+    return { status: 'available', expiresAt: input.expiresAt }
+  }
+  if (input.state === 'expired') return { status: 'expired' }
+  if (input.state === 'unavailable') return { status: 'unavailable' }
+  return { status: 'not-created' }
+}
+
+export const deriveDraftSafetyView = (input: {
+  currentVersion: number | null
+  acceptedChangeCount: number
+  matchesCurrentVersion?: boolean
+  sourceVersion?: number | null
+}): DraftSafetyView => {
+  if (input.currentVersion === null) return { status: 'never-saved' }
+  if (input.matchesCurrentVersion ?? input.acceptedChangeCount === 0) {
+    return { status: 'matches-version', version: input.currentVersion }
+  }
+  if (input.sourceVersion != null && input.sourceVersion !== input.currentVersion) {
+    return {
+      status: 'based-on-version',
+      sourceVersion: input.sourceVersion,
+      versionInUse: input.currentVersion,
+      changeCount: input.acceptedChangeCount,
+    }
+  }
+  if (input.acceptedChangeCount === 0) {
+    return { status: 'different-from-version', version: input.currentVersion }
+  }
+  return {
+    status: 'ahead-of-version',
+    version: input.currentVersion,
+    changeCount: input.acceptedChangeCount,
+  }
+}
 
 export const agentWorkflowMachine = setup({
-  types: {
-    context: {} as AgentWorkflowContext,
-    events: {} as AgentWorkflowEvent,
-  },
-  actions: {
-    syncContext: assign({
-      draftKey: ({ context, event }) => isSync(event) ? event.draftKey : context.draftKey,
-      hasHydrated: ({ context, event }) => (
-        isSync(event) ? context.hasHydrated || event.isHydrated : context.hasHydrated
-      ),
-    }),
-  },
+  types: { events: {} as AgentWorkflowEvent },
 }).createMachine({
   id: 'agentWorkflow',
   type: 'parallel',
-  context: {
-    draftKey: null,
-    hasHydrated: false,
-  },
   states: {
-    hydration: {
-      initial: 'loading',
-      on: {
-        SYNC: [
-          { guard: ({ event }) => event.isHydrated, target: '.ready' },
-          { target: '.loading' },
-        ],
-      },
-      states: {
-        loading: {},
-        ready: {},
-      },
-    },
     lifecycle: {
       initial: 'none',
       on: {
         SYNC: [
           { guard: ({ event }) => event.lifecycle === 'setup', target: '.setup' },
-          { guard: ({ event }) => event.lifecycle === 'handoff', target: '.handoff' },
-          { guard: ({ event }) => event.lifecycle === 'review', target: '.review' },
+          { guard: ({ event }) => event.lifecycle === 'promptReady', target: '.promptReady' },
+          { guard: ({ event }) => event.lifecycle === 'waiting', target: '.waiting' },
+          { guard: ({ event }) => event.lifecycle === 'reviewReady', target: '.reviewReady' },
           { guard: ({ event }) => event.lifecycle === 'saved', target: '.saved' },
           { target: '.none' },
         ],
       },
-      states: {
-        none: {},
-        setup: {},
-        handoff: {},
-        review: {},
-        saved: {},
-      },
+      states: { none: {}, setup: {}, promptReady: {}, waiting: {}, reviewReady: {}, saved: {} },
     },
     access: {
-      initial: 'notApplicable',
+      initial: 'notCreated',
       on: {
+        ACCESS_STARTED: '.creating',
         SYNC: [
           { guard: ({ event }) => event.access === 'available', target: '.available' },
-          { guard: ({ event }) => event.access === 'unavailable', target: '.unavailable' },
           { guard: ({ event }) => event.access === 'expired', target: '.expired' },
-          { target: '.notApplicable' },
+          { guard: ({ event }) => event.access === 'unavailable', target: '.unavailable' },
+          { target: '.notCreated' },
         ],
-        RENEW_STARTED: '.renewing',
       },
-      states: {
-        notApplicable: {},
-        available: {},
-        unavailable: {},
-        expired: {},
-        renewing: {},
-      },
+      states: { notCreated: {}, creating: {}, available: {}, unavailable: {}, expired: {} },
     },
     connectivity: {
       initial: 'online',
@@ -119,83 +143,15 @@ export const agentWorkflowMachine = setup({
           { target: '.online' },
         ],
       },
-      states: {
-        online: {},
-        offline: {},
-        requestError: {},
-      },
+      states: { online: {}, offline: {}, requestError: {} },
     },
     mutation: {
       initial: 'idle',
       states: {
-        idle: {
-          on: {
-            CREATE_STARTED: 'creating',
-            EDIT_STARTED: 'openingSavedAmbient',
-            SAVE_STARTED: 'saving',
-            DISCARD_STARTED: 'discarding',
-          },
-        },
-        creating: { on: { CREATE_FINISHED: 'idle' } },
-        openingSavedAmbient: { on: { EDIT_FINISHED: 'idle' } },
-        saving: { on: { SAVE_FINISHED: 'idle' } },
-        discarding: { on: { DISCARD_FINISHED: 'idle' } },
-      },
-    },
-    presentation: {
-      initial: 'hidden',
-      on: {
-        BEGIN: '.open',
-        OPEN: '.open',
-        MINIMIZE: '.minimized',
-        EXIT: '.hidden',
-        RESET: '.hidden',
-      },
-      states: {
-        hidden: {
-          on: {
-            SYNC: [
-              {
-                guard: ({ event }) => event.draftKey === null,
-                actions: 'syncContext',
-              },
-              {
-                guard: ({ context, event }) => (
-                  context.hasHydrated
-                  && context.draftKey !== null
-                  && context.draftKey !== event.draftKey
-                ),
-                target: 'minimized',
-                actions: 'syncContext',
-              },
-              { actions: 'syncContext' },
-            ],
-          },
-        },
-        minimized: {
-          on: {
-            SYNC: [
-              {
-                guard: ({ event }) => event.draftKey === null,
-                target: 'hidden',
-                actions: 'syncContext',
-              },
-              { actions: 'syncContext' },
-            ],
-          },
-        },
-        open: {
-          on: {
-            SYNC: [
-              {
-                guard: ({ event }) => event.draftKey === null,
-                target: 'hidden',
-                actions: 'syncContext',
-              },
-              { actions: 'syncContext' },
-            ],
-          },
-        },
+        idle: { on: { SAVE_STARTED: 'saving', DISCARD_STARTED: 'discarding', RESTORE_STARTED: 'restoring' } },
+        saving: { on: { MUTATION_FINISHED: 'idle' } },
+        discarding: { on: { MUTATION_FINISHED: 'idle' } },
+        restoring: { on: { MUTATION_FINISHED: 'idle' } },
       },
     },
   },

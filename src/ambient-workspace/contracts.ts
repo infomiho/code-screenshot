@@ -9,26 +9,62 @@ type DeepMutable<T> = T extends readonly (infer Item)[]
 
 export type WorkspaceDocumentDto = DeepMutable<AmbientDocument>
 
-export type WorkspaceDraftDto = {
-  id: string
-  phase: 'handoff' | 'review' | 'saved'
-  ambientName: string
-  promptExpiresAt: string | null
-  agentSessionGeneration: number
-  revision: number
-  document: WorkspaceDocumentDto | null
-}
+export type AmbientAccountDto =
+  | { kind: 'signed-out' }
+  | { kind: 'signed-in'; username: string }
 
-export type WorkspaceSavedAmbientDto = {
+export type SavedAmbientVersionDto = {
   id: string
   version: number
   document: WorkspaceDocumentDto
+  draftRevision: number
+  createdAt: string
 }
 
-export type WorkspaceSnapshotDto = {
-  account: { kind: 'signed-out' } | { kind: 'signed-in'; username: string }
-  draft: WorkspaceDraftDto | null
-  savedAmbients: WorkspaceSavedAmbientDto[]
+export type OwnedAmbientDraftSummaryDto = {
+  status: 'waiting' | 'review-ready' | 'matches-version'
+  revision: number
+  document: WorkspaceDocumentDto
+  updatedAt: string
+}
+
+export type OwnedAmbientSummaryDto = {
+  id: string
+  name: string
+  visibility: 'private'
+  currentVersion: SavedAmbientVersionDto | null
+  draft: OwnedAmbientDraftSummaryDto | null
+}
+
+export type AmbientLibraryDto = {
+  account: AmbientAccountDto
+  ownedAmbients: OwnedAmbientSummaryDto[]
+}
+
+export type WorkingDraftDto = {
+  revision: number
+  baseRevision: number
+  sourceVersion: number | null
+  document: WorkspaceDocumentDto
+  updatedAt: string
+  acceptedChangeCount: number
+}
+
+export type AmbientVersionSummaryDto = SavedAmbientVersionDto & {
+  isInUse: boolean
+}
+
+export type AgentAccessSummaryDto =
+  | { status: 'not-created' }
+  | { status: 'available'; generation: number; expiresAt: string; lastUsedAt: string | null }
+  | { status: 'expired'; generation: number; expiresAt: string }
+
+export type AmbientWorkspaceDto = {
+  ambient: { id: string; name: string }
+  workingDraft: WorkingDraftDto | null
+  versionInUse: SavedAmbientVersionDto | null
+  versions: AmbientVersionSummaryDto[]
+  agentAccess: AgentAccessSummaryDto
 }
 
 export type WorkspaceDraftRevisionDto = {
@@ -55,8 +91,12 @@ export const createAmbientInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(80),
 })
 
-export const publishAmbientInputSchema = ambientIdInputSchema.extend({
-  draftRevision: z.number().int().positive(),
+export const saveAmbientVersionInputSchema = ambientIdInputSchema.extend({
+  draftRevision: z.number().int().nonnegative(),
+})
+
+export const createDraftFromVersionInputSchema = ambientIdInputSchema.extend({
+  versionId: z.string().min(1).max(128),
 })
 
 export const replaceAgentDraftInputSchema = z.strictObject({
@@ -65,15 +105,16 @@ export const replaceAgentDraftInputSchema = z.strictObject({
 })
 
 export type CreateAmbientInput = z.infer<typeof createAmbientInputSchema>
+export type SaveAmbientVersionInput = z.infer<typeof saveAmbientVersionInputSchema>
+export type CreateDraftFromVersionInput = z.infer<typeof createDraftFromVersionInputSchema>
+export type AmbientIdInput = z.infer<typeof ambientIdInputSchema>
+export type CreateAgentAccessInput = AmbientIdInput
+export type DiscardAgentAccessInput = AmbientIdInput
+export type DiscardAmbientDraftInput = AmbientIdInput
 
 export type CreateAmbientResult = {
   ambientId: string
-  session: AgentSessionDto
 }
-
-export type CreateAgentSessionInput = z.infer<typeof ambientIdInputSchema>
-
-export type DiscardAmbientDraftInput = z.infer<typeof ambientIdInputSchema>
 
 export type DiscardAmbientDraftResult = {
   ambientDeleted: boolean
@@ -93,14 +134,4 @@ export type AgentDraftDto = WorkspaceDraftRevisionDto & {
 export type ReplaceAgentDraftInput = {
   baseRevision: number
   document: WorkspaceDocumentDto
-}
-
-export type PublishAmbientInput = z.infer<typeof publishAmbientInputSchema>
-
-export type PublishedAmbientDto = {
-  id: string
-  version: number
-  document: WorkspaceDocumentDto
-  draftRevision: number
-  createdAt: string
 }

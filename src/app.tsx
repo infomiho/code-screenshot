@@ -1,12 +1,8 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from 'react'
+import { useEffect, useId, useState } from 'react'
 import './index.css'
 import type { YourAmbientsState } from './ambient-picker'
 import {
+  ambientDefinitions,
   defaultAmbientKey,
   getAmbientDefinition,
   getAmbientKey,
@@ -14,15 +10,8 @@ import {
   type AmbientCustomizationState,
   type ScreenshotContent,
 } from './ambient-themes'
-import { AgentDraftHud } from './ambient-workspace/agent-draft/AgentDraftHud'
-import { getHudStatus } from './ambient-workspace/agent-draft/model'
-import type {
-  AmbientWorkspaceService,
-  AmbientWorkspaceSnapshot,
-  SavedAmbientRecord,
-} from './ambient-workspace/ambient-workspace-service'
+import type { AmbientWorkspaceService } from './ambient-workspace/ambient-workspace-service'
 import { useAmbientWorkspace } from './ambient-workspace/use-ambient-workspace'
-import { useAgentWorkflow } from './ambient-workspace/use-agent-workflow'
 import { ScreenshotControls } from './screenshot-controls'
 import { ScreenshotPreview } from './screenshot-preview'
 import { SiteHeader } from './site-header'
@@ -30,63 +19,55 @@ import { useCodeEditor } from './use-code-editor'
 
 type AppProps = {
   ambientWorkspaceService?: AmbientWorkspaceService
+  onOpenWorkspace?: (ambientId: string) => void
 }
 
 const getAmbientIdFromKey = (key: string) => key.slice(0, key.lastIndexOf('@'))
+const compositionStorageKey = 'codeshot.editor-composition'
+const postAuthRouteStorageKey = 'codeshot.post-auth-route'
+const postAuthIntentLifetime = 15 * 60 * 1000
 
-function createYourAmbientsState(
-  workspace: AmbientWorkspaceSnapshot,
-  actions: {
-    beginAmbient: () => void
-    editAmbient: (ambientId: string) => void
-    openDraft: () => void
-    signIn: () => void
-  },
-): YourAmbientsState {
-  if (workspace.account.kind === 'signed-out') {
-    return { kind: 'signed-out', onSignIn: actions.signIn }
-  }
+type StoredComposition = {
+  ambientCustomizations: AmbientCustomizationState
+  ambientKey: string
+  languageId: string
+  title: string
+}
 
-  return {
-    kind: 'signed-in',
-    username: workspace.account.username,
-    draft: workspace.draft
-      ? {
-          actionLabel: workspace.draft.phase === 'saved' ? 'Open agent session' : 'Open draft',
-          name: workspace.draft.ambientName ?? 'New ambient',
-          status: getHudStatus(workspace.draft),
-        }
-      : null,
-    canCreate: !workspace.draft || workspace.draft.phase === 'saved',
-    onCreateAmbient: actions.beginAmbient,
-    onEditAmbient: actions.editAmbient,
-    onOpenDraft: actions.openDraft,
+const readStoredComposition = (): StoredComposition | null => {
+  try {
+    const value = globalThis.localStorage?.getItem(compositionStorageKey)
+    return value ? JSON.parse(value) as StoredComposition : null
+  } catch {
+    return null
   }
 }
 
-export function App({ ambientWorkspaceService }: AppProps = {}) {
+const draftPriority = {
+  'review-ready': 0,
+  waiting: 1,
+  'matches-version': 2,
+} as const
+
+export function App({ ambientWorkspaceService, onOpenWorkspace }: AppProps = {}) {
   const editorHelpId = `${useId()}-editor-help`
   const highlightStatusId = `${useId()}-highlight-status`
-  const [languageId, setLanguageId] = useState('typescript')
-  const [ambientKey, setAmbientKey] = useState(defaultAmbientKey)
-  const [title, setTitle] = useState('top secret code')
-  const initiatedDraftIdRef = useRef<string | null>(null)
-  const {
-    definitions,
-    draftDefinition,
-    service: workspaceService,
-    snapshot: workspace,
-  } = useAmbientWorkspace(ambientWorkspaceService)
-  const agentWorkflow = useAgentWorkflow(workspace)
-  const [ambientCustomizations, setAmbientCustomizations] =
-    useState<AmbientCustomizationState>({})
+  const [storedComposition] = useState(readStoredComposition)
+  const [languageId, setLanguageId] = useState(storedComposition?.languageId ?? 'typescript')
+  const [ambientKey, setAmbientKey] = useState(storedComposition?.ambientKey ?? defaultAmbientKey)
+  const [title, setTitle] = useState(storedComposition?.title ?? 'top secret code')
+  const [ambientLibraryRequest, setAmbientLibraryRequest] = useState(0)
+  const [ambientCustomizations, setAmbientCustomizations] = useState<AmbientCustomizationState>(
+    storedComposition?.ambientCustomizations ?? {},
+  )
+  const [hasMounted, setHasMounted] = useState(false)
+  const { definitions, draftDefinitions, service, snapshot } = useAmbientWorkspace(ambientWorkspaceService)
   const selectedAmbient = definitions.find(
     (definition) => getAmbientKey(definition) === ambientKey,
   ) ?? definitions.find(
     (definition) => definition.id === getAmbientIdFromKey(ambientKey),
   ) ?? getAmbientDefinition(defaultAmbientKey, definitions)
   const selectedAmbientKey = getAmbientKey(selectedAmbient)
-  const selectedCustomizationSlots = selectedAmbient.manifest.customizations
   const selectedCustomizationValues = ambientCustomizations[selectedAmbientKey]
   const ariaDescribedBy = `${editorHelpId} ${highlightStatusId}`
   const {
@@ -104,38 +85,95 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
     ambientEditorExtension: selectedAmbient.editorExtension,
     ariaDescribedBy,
   })
-  const selectedFileType: ScreenshotContent['fileType'] = {
-    id: selectedLanguage.id,
-    label: selectedLanguage.label,
-    syntax: selectedLanguage.lang,
-  }
   const screenshotContent: ScreenshotContent = {
     title,
-    fileType: selectedFileType,
+    fileType: {
+      id: selectedLanguage.id,
+      label: selectedLanguage.label,
+      syntax: selectedLanguage.lang,
+    },
     lineCount: code.split('\n').length,
   }
-  const ambientVariables = resolveAmbientVariables(
-    selectedAmbient,
-    ambientCustomizations,
+  const ambientVariables = resolveAmbientVariables(selectedAmbient, ambientCustomizations)
+  const isBuiltInAmbientKey = ambientDefinitions.some(
+    (definition) =>
+      getAmbientKey(definition) === ambientKey
+      || definition.id === getAmbientIdFromKey(ambientKey),
   )
+  const isFrameReady = hasMounted && (isBuiltInAmbientKey || snapshot.isHydrated)
+  const draftAmbients = snapshot.ownedAmbients
+    .filter((ambient) => ambient.draft !== null)
+    .sort((a, b) => draftPriority[a.draft!.status] - draftPriority[b.draft!.status])
 
   useEffect(() => {
-    const draft = workspace.draft
-    if (!draft) {
-      initiatedDraftIdRef.current = null
+    document.title = 'codeshot.dev | Beautiful code screenshots'
+  }, [])
+
+  useEffect(() => setHasMounted(true), [])
+
+  useEffect(() => {
+    if (!snapshot.isHydrated || snapshot.account.kind !== 'signed-in') return
+    try {
+      const value = globalThis.sessionStorage?.getItem(postAuthRouteStorageKey)
+      if (!value) return
+      globalThis.sessionStorage.removeItem(postAuthRouteStorageKey)
+      const intent = JSON.parse(value) as { path: string; createdAt: number }
+      if (intent.path !== '/ambients/new' || Date.now() - intent.createdAt > postAuthIntentLifetime) return
+      openWorkspace('new')
+    } catch {
+      // The create flow remains available from the ambient library.
+    }
+  }, [snapshot.account.kind, snapshot.isHydrated])
+
+  useEffect(() => {
+    try {
+      globalThis.localStorage?.setItem(compositionStorageKey, JSON.stringify({
+        ambientCustomizations,
+        ambientKey,
+        languageId,
+        title,
+      } satisfies StoredComposition))
+    } catch {
+      // Local persistence is optional; the editor remains fully usable without it.
+    }
+  }, [ambientCustomizations, ambientKey, languageId, title])
+
+  const openWorkspace = (ambientId: string) => {
+    if (onOpenWorkspace) onOpenWorkspace(ambientId)
+    else if (typeof window !== 'undefined') window.location.assign(`/ambients/${encodeURIComponent(ambientId)}`)
+  }
+
+  const createAmbient = () => {
+    if (snapshot.account.kind === 'signed-out') {
+      try {
+        globalThis.sessionStorage?.setItem(postAuthRouteStorageKey, JSON.stringify({
+          path: '/ambients/new',
+          createdAt: Date.now(),
+        }))
+      } catch {
+        // Authentication can continue without a persisted destination.
+      }
+      service.signIn()
       return
     }
+    openWorkspace('new')
+  }
 
-    const isNewClientDraft = draft.id === 'ambient-pending'
-      || initiatedDraftIdRef.current === 'ambient-pending'
-    initiatedDraftIdRef.current = draft.id === 'ambient-pending' ? draft.id : null
-    if (!draftDefinition) return
-
-    const isViewingThisAmbient = getAmbientIdFromKey(ambientKey) === draft.id
-    if (isNewClientDraft || agentWorkflow.isOpen || isViewingThisAmbient) {
-      setAmbientKey(getAmbientKey(draftDefinition))
-    }
-  }, [agentWorkflow.isOpen, ambientKey, draftDefinition, workspace.draft])
+  const yourAmbients: YourAmbientsState = snapshot.account.kind === 'signed-out'
+    ? { kind: 'signed-out', onCreateAmbient: createAmbient, onSignIn: service.signIn }
+    : {
+        kind: 'signed-in',
+        username: snapshot.account.username,
+        ambients: snapshot.ownedAmbients.map((ambient) => ({
+          id: ambient.id,
+          name: ambient.name,
+          version: ambient.currentVersion?.version ?? null,
+          draftStatus: ambient.draft?.status ?? null,
+          draftDefinition: draftDefinitions.get(ambient.id) ?? null,
+        })),
+        onCreateAmbient: createAmbient,
+        onOpenAmbient: openWorkspace,
+      }
 
   const updateAmbientCustomization = (slotId: string, value: string) => {
     setAmbientCustomizations((current) => ({
@@ -147,129 +185,50 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
     }))
   }
 
-  const selectAmbient = (nextAmbientKey: string) => setAmbientKey(nextAmbientKey)
-  const selectLanguage = (nextLanguageId: string) => setLanguageId(nextLanguageId)
-  const updateTitle = (nextTitle: string) => setTitle(nextTitle)
-
-  const beginAmbient = () => {
-    agentWorkflow.send({ type: 'BEGIN' })
-    workspaceService.beginAmbient()
-  }
-
-  const editAmbient = async (ambientId: string) => {
-    if (!agentWorkflow.startMutation('EDIT_STARTED')) return
-    agentWorkflow.send({ type: 'OPEN' })
-    let opened = false
-    try {
-      opened = await workspaceService.editAmbient(ambientId)
-    } catch {
-      opened = false
-    } finally {
-      agentWorkflow.send({ type: 'EDIT_FINISHED' })
-    }
-    if (!opened) agentWorkflow.send({ type: 'RESET' })
-  }
-
-  const savePrivateVersion = async () => {
-    if (!agentWorkflow.startMutation('SAVE_STARTED')) return
-    let record: SavedAmbientRecord | null = null
-    try {
-      record = await workspaceService.savePrivateVersion()
-    } catch {
-      record = null
-    } finally {
-      agentWorkflow.send({ type: 'SAVE_FINISHED' })
-    }
-    if (record && workspaceService.getSnapshot().account.kind === 'signed-in') {
-      setAmbientKey(`${record.id}@${record.version}`)
-    }
-  }
-
   const signOut = () => {
-    workspaceService.signOut()
-    agentWorkflow.send({ type: 'RESET' })
+    service.signOut()
     setAmbientKey(defaultAmbientKey)
   }
 
-  const updateAgentDockOpen = (isOpen: boolean) => {
-    agentWorkflow.send({ type: isOpen ? 'OPEN' : 'MINIMIZE' })
-  }
-
-  const openAgentDraft = () => {
-    const agentAmbient = draftDefinition
-      ?? definitions.find((definition) => definition.id === workspace.draft?.id)
-    if (agentAmbient) setAmbientKey(getAmbientKey(agentAmbient))
-    agentWorkflow.send({ type: 'OPEN' })
-    if (workspace.draft?.notice === 'unavailable' || workspace.draft?.notice === 'expired') {
-      agentWorkflow.send({ type: 'RENEW_STARTED' })
-      void workspaceService.renewAgentAccess()
-    }
-  }
-
-  const exitAgentDraft = () => {
-    agentWorkflow.send({ type: 'EXIT' })
-  }
-
-  const discardAgentDraft = async () => {
-    const draftId = workspace.draft?.id
-    if (!draftId) return false
-    const savedVersion = workspace.savedAmbients.find((ambient) => ambient.id === draftId)
-    if (!agentWorkflow.startMutation('DISCARD_STARTED')) return false
-    let discarded = false
-    try {
-      discarded = await workspaceService.discardAmbientDraft()
-    } catch {
-      discarded = false
-    } finally {
-      agentWorkflow.send({ type: 'DISCARD_FINISHED' })
-    }
-    if (!discarded) return false
-
-    agentWorkflow.send({ type: 'RESET' })
-    setAmbientKey(savedVersion ? `${savedVersion.id}@${savedVersion.version}` : defaultAmbientKey)
-    return true
-  }
-
-  const yourAmbients = createYourAmbientsState(workspace, {
-    beginAmbient,
-    editAmbient: (ambientId) => void editAmbient(ambientId),
-    openDraft: openAgentDraft,
-    signIn: workspaceService.signIn,
-  })
   return (
     <main className="app-shell">
       <h1 className="sr-only">codeshot.dev code screenshot tool</h1>
       <SiteHeader
-        account={workspace.account}
-        onSignIn={workspaceService.signIn}
+        account={snapshot.account}
+        isHydrated={snapshot.isHydrated}
+        draftCount={draftAmbients.length}
+        priorityDraft={draftAmbients[0] ?? null}
+        onOpenAmbients={() => setAmbientLibraryRequest((request) => request + 1)}
+        onOpenWorkspace={openWorkspace}
+        onSignIn={service.signIn}
         onSignOut={signOut}
       />
       <section className="workspace" aria-label="Editable screenshot">
         <ScreenshotPreview
           ambientKey={selectedAmbientKey}
+          ambientLibraryRequest={ambientLibraryRequest}
           definitions={definitions}
           yourAmbients={yourAmbients}
-          onAmbientPickerOpenChange={(isOpen) => {
-            if (isOpen && agentWorkflow.isOpen) updateAgentDockOpen(false)
-          }}
-          onAmbientChange={selectAmbient}
+          onAmbientPickerOpenChange={() => undefined}
+          onAmbientChange={setAmbientKey}
           selectedAmbient={selectedAmbient}
           screenshotContent={screenshotContent}
           ambientVariables={ambientVariables}
           editorHostRef={editorHostRef}
           editorHelpId={editorHelpId}
           isEditorReady={isEditorReady}
+          isFrameReady={isFrameReady}
         />
         <ScreenshotControls
           ambientName={selectedAmbient.manifest.name}
-          customizationSlots={selectedCustomizationSlots}
+          customizationSlots={selectedAmbient.manifest.customizations}
           customizationValues={selectedCustomizationValues}
           onCustomizationChange={updateAmbientCustomization}
           languageId={languageId}
           languageOptions={languageOptions}
-          onLanguageChange={selectLanguage}
+          onLanguageChange={setLanguageId}
           title={title}
-          onTitleChange={updateTitle}
+          onTitleChange={setTitle}
           highlightStatusId={highlightStatusId}
           highlightedLineCount={highlightedLineCount}
           highlightedLineStatus={highlightedLineStatus}
@@ -277,30 +236,6 @@ export function App({ ambientWorkspaceService }: AppProps = {}) {
           onClearHighlights={clearHighlights}
         />
       </section>
-      {workspace.draft && agentWorkflow.isVisible && (
-        <AgentDraftHud
-          access={agentWorkflow.access}
-          isOpen={agentWorkflow.isOpen}
-          mutation={agentWorkflow.mutation}
-          model={workspace.draft}
-          onOpenChange={updateAgentDockOpen}
-          onExit={exitAgentDraft}
-          onCreateAmbient={(ambientName) => {
-            if (!agentWorkflow.startMutation('CREATE_STARTED')) return
-            void Promise.resolve(workspaceService.createAmbient(ambientName))
-              .catch(() => undefined)
-              .finally(() => agentWorkflow.send({ type: 'CREATE_FINISHED' }))
-          }}
-          onCopyPrompt={workspaceService.copyPrompt}
-          onRenewAgentAccess={() => {
-            agentWorkflow.send({ type: 'RENEW_STARTED' })
-            void workspaceService.renewAgentAccess()
-          }}
-          onRetryConnection={workspaceService.retryConnection}
-          onSavePrivateVersion={savePrivateVersion}
-          onDiscardDraft={discardAgentDraft}
-        />
-      )}
       <footer className="site-footer">
         <a href="https://wasp.sh">Built with Wasp</a>
         <span aria-hidden="true">/</span>

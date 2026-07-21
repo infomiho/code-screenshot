@@ -1,16 +1,11 @@
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import { loadAmbientDefinition } from '../ambient-registry'
 import { ambientDefinitions } from '../ambient-themes'
-import type {
-  AmbientWorkspaceService,
-  SavedAmbientRecord,
-} from './ambient-workspace-service'
+import type { AmbientWorkspaceService, SavedAmbientRecord } from './ambient-workspace-service'
 import { HostedAmbientService } from './hosted-ambient-service'
 
 export function useAmbientWorkspace(providedService?: AmbientWorkspaceService) {
-  const [service] = useState(
-    () => providedService ?? new HostedAmbientService(),
-  )
+  const [service] = useState(() => providedService ?? new HostedAmbientService())
   const storedSnapshot = useSyncExternalStore(
     service.subscribe,
     service.getSnapshot,
@@ -19,45 +14,50 @@ export function useAmbientWorkspace(providedService?: AmbientWorkspaceService) {
   const snapshot = useMemo(
     () => storedSnapshot.account.kind === 'signed-in'
       ? storedSnapshot
-      : {
-          isHydrated: storedSnapshot.isHydrated,
-          account: storedSnapshot.account,
-          draft: null,
-          savedAmbients: [],
-        },
+      : { ...storedSnapshot, ownedAmbients: [], workspace: null },
     [storedSnapshot],
   )
   const savedDefinitions = useMemo(
-    () => snapshot.savedAmbients.flatMap((record) => {
-      const result = loadAmbientDefinition(record, 'saved')
+    () => snapshot.ownedAmbients.flatMap((ambient) => {
+      if (!ambient.currentVersion) return []
+      const result = loadAmbientDefinition({
+        ...ambient.currentVersion,
+        id: ambient.id,
+      }, 'saved')
       return result.definition ? [result.definition] : []
     }),
-    [snapshot.savedAmbients],
+    [snapshot.ownedAmbients],
   )
-  const draftDefinition = useMemo(() => {
-    const draft = snapshot.draft
-    if (!draft?.document || draft.phase === 'saved') return null
-
+  const draftDefinitions = useMemo(
+    () => new Map(snapshot.ownedAmbients.flatMap((ambient) => {
+      if (!ambient.draft) return []
+      const result = loadAmbientDefinition({
+        id: ambient.id,
+        version: ambient.draft.revision,
+        draftRevision: ambient.draft.revision,
+        createdAt: ambient.draft.updatedAt,
+        document: ambient.draft.document,
+      }, 'draft')
+      return result.definition ? [[ambient.id, result.definition] as const] : []
+    })),
+    [snapshot.ownedAmbients],
+  )
+  const workspaceDefinition = useMemo(() => {
+    const workspace = snapshot.workspace
+    if (!workspace?.workingDraft) return null
     const record: SavedAmbientRecord = {
-      id: draft.id,
-      version: draft.revision,
-      document: draft.document,
+      id: workspace.ambient.id,
+      version: workspace.workingDraft.revision,
+      draftRevision: workspace.workingDraft.revision,
+      createdAt: workspace.workingDraft.updatedAt,
+      document: workspace.workingDraft.document,
     }
     return loadAmbientDefinition(record, 'draft').definition
-  }, [
-    snapshot.draft?.document,
-    snapshot.draft?.id,
-    snapshot.draft?.phase,
-    snapshot.draft?.revision,
-  ])
+  }, [snapshot.workspace])
   const definitions = useMemo(
-    () => [
-      ...ambientDefinitions,
-      ...(draftDefinition ? [draftDefinition] : []),
-      ...savedDefinitions.filter((definition) => definition.id !== draftDefinition?.id),
-    ],
-    [draftDefinition, savedDefinitions],
+    () => [...ambientDefinitions, ...savedDefinitions],
+    [savedDefinitions],
   )
 
-  return { definitions, draftDefinition, service, snapshot }
+  return { definitions, draftDefinitions, workspaceDefinition, service, snapshot }
 }

@@ -1,37 +1,66 @@
 import type { AmbientDocument } from '../ambient-schema'
+import type {
+  AgentAccessSummaryDto,
+  AmbientAccountDto,
+  OwnedAmbientDraftSummaryDto,
+} from './contracts'
 
-export type AgentPhase = 'setup' | 'handoff' | 'review' | 'saved'
-export type AgentNotice = 'rejected' | 'request-error' | 'expired' | 'unavailable' | 'offline' | null
-
-export type AgentDraftModel = {
-  id: string
-  phase: AgentPhase
-  notice: AgentNotice
-  ambientName: string | null
-  agentSessionUrl: string | null
-  agentSessionGeneration: number | null
-  promptCopied: boolean
-  promptExpiresAt: string | null
-  saveState: 'idle' | 'saving'
-  revision: number
-  document: AmbientDocument | null
+type OwnedAmbientDraftSummary = Omit<OwnedAmbientDraftSummaryDto, 'document'> & {
+  document: AmbientDocument
 }
 
 export type SavedAmbientRecord = {
   id: string
   version: number
   document: AmbientDocument
+  draftRevision?: number
+  createdAt?: string
 }
 
-export type AmbientAccount =
-  | { kind: 'signed-out' }
-  | { kind: 'signed-in'; username: string }
+export type CurrentAmbientVersion = SavedAmbientRecord & {
+  draftRevision: number
+  createdAt: string
+}
+
+export type OwnedAmbientSummary = {
+  id: string
+  name: string
+  visibility: 'private'
+  currentVersion: CurrentAmbientVersion | null
+  draft: OwnedAmbientDraftSummary | null
+}
+
+export type WorkingDraft = {
+  revision: number
+  baseRevision: number
+  sourceVersion: number | null
+  document: AmbientDocument
+  updatedAt: string
+  acceptedChangeCount: number
+}
+
+export type AmbientVersion = CurrentAmbientVersion & {
+  isInUse: boolean
+}
+
+export type OpenAmbientWorkspace = {
+  ambient: { id: string; name: string }
+  workingDraft: WorkingDraft | null
+  versionInUse: CurrentAmbientVersion | null
+  versions: readonly AmbientVersion[]
+  agentAccess: AgentAccessSummaryDto
+  agentAccessUrl: string | null
+  promptCopied: boolean
+  connectivity: 'online' | 'offline' | 'request-error'
+  mutation: 'idle' | 'creating-access' | 'saving' | 'discarding' | 'restoring'
+}
 
 export type AmbientWorkspaceSnapshot = {
   isHydrated: boolean
-  account: AmbientAccount
-  draft: AgentDraftModel | null
-  savedAmbients: readonly SavedAmbientRecord[]
+  libraryStatus: 'loading' | 'ready' | 'offline' | 'request-error'
+  account: AmbientAccountDto
+  ownedAmbients: readonly OwnedAmbientSummary[]
+  workspace: OpenAmbientWorkspace | null
 }
 
 export interface AmbientWorkspaceService {
@@ -40,12 +69,14 @@ export interface AmbientWorkspaceService {
   subscribe: (listener: () => void) => () => void
   signIn: () => void
   signOut: () => void
-  beginAmbient: () => void
-  editAmbient: (ambientId: string) => Promise<boolean>
-  createAmbient: (ambientName: string) => void
+  refreshLibrary: () => Promise<void>
+  openWorkspace: (ambientId: string) => Promise<boolean>
+  closeWorkspace: () => void
+  createAmbient: (ambientName: string) => Promise<string | null>
+  createAgentAccess: () => Promise<boolean>
+  discardAgentAccess: () => Promise<boolean>
   copyPrompt: () => void
-  renewAgentAccess: () => void
-  retryConnection: () => void
-  savePrivateVersion: () => Promise<SavedAmbientRecord | null>
+  saveAmbientVersion: () => Promise<SavedAmbientRecord | null>
   discardAmbientDraft: () => Promise<boolean>
+  createDraftFromVersion: (versionId: string) => Promise<boolean>
 }

@@ -1,0 +1,141 @@
+.ambient-mark {
+  position: relative;
+  display: block;
+  width: var(--ambient-mark-width);
+  height: var(--ambient-mark-height);
+  flex-shrink: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgb(247 245 240 / 34%);
+  background: var(--bg);
+
+  &::before,
+  &::after {
+    position: absolute;
+    content: '';
+  }
+}
+
+.ambient-mark--declarative {
+  background: transparent;
+}
+
+.ambient-mark--macos {
+  background: var(--wasp-yellow);
+
+  &::before {
+    inset: 5px 4px 3px;
+    border-radius: 2px;
+    background: var(--wasp-code-bg);
+  }
+
+  &::after {
+    top: 7px;
+    left: 7px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--window-red);
+    box-shadow: 5px 0 var(--wasp-yellow), 10px 0 var(--window-green);
+  }
+}
+
+.ambient-mark--technical-plate {
+  background: oklch(0.205 0.038 262);
+
+  &::before {
+    inset: 5px 5px 5px 4px;
+    border: 1px solid oklch(0.94 0.015 255);
+  }
+
+  &::after {
+    right: 2px;
+    bottom: 2px;
+    width: 28px;
+    height: 16px;
+    background-image: radial-gradient(circle, oklch(0.94 0.015 255) 0 1px, transparent 1px);
+    background-size: 3px 3px;
+  }
+}
+
+.ambient-mark--specimen-card {
+  background: oklch(0.84 0.018 75);
+
+  &::before {
+    inset: 3px 4px;
+    border: 1px solid oklch(0.27 0.025 65);
+    background: oklch(0.95 0.025 88);
+  }
+
+  &::after {
+    right: 7px;
+    bottom: 5px;
+    width: 7px;
+    height: 7px;
+    border: 1px solid oklch(0.5 0.16 28);
+    border-radius: 50%;
+  }
+}
+
+.ambient-mark--swiss-poster {
+  background: oklch(0.58 0.22 28);
+
+  &::before {
+    inset: 4px;
+    border: 1px solid oklch(0.205 0.012 65);
+    background:
+      linear-gradient(to bottom, transparent 0 7px, oklch(0.205 0.012 65) 7px 8px, transparent 8px),
+      oklch(0.965 0.012 88);
+  }
+}
+
+.ambient-mark--field-notebook {
+  background: oklch(0.3 0.055 135);
+
+  &::before {
+    inset: 4px;
+    background:
+      linear-gradient(90deg, transparent 0 7px, oklch(0.61 0.13 25 / 0.72) 7px 8px, transparent 8px),
+      repeating-linear-gradient(to bottom, transparent 0 4px, oklch(0.63 0.07 245 / 0.45) 4px 5px),
+      oklch(0.96 0.026 92);
+  }
+}
+
+.ambient-mark--bare-terminal {
+  background: repeating-linear-gradient(90deg, oklch(0.42 0.012 245) 0 1px, oklch(0.34 0.012 245) 1px 3px);
+
+  &::before {
+    inset: 4px;
+    border: 1px solid oklch(0.63 0.01 245);
+    background: oklch(0.09 0.018 170);
+  }
+
+  &::after {
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 1px;
+    background: oklch(0.8 0.15 145);
+    box-shadow: 0 4px oklch(0.54 0.075 145), 0 8px oklch(0.54 0.075 145);
+  }
+}
+
+.ambient-mark--user {
+  background: oklch(0.24 0.012 245);
+
+  &::before {
+    inset: 4px;
+    border: 1px solid oklch(0.72 0.04 240);
+    background:
+      linear-gradient(135deg, transparent 0 42%, oklch(0.72 0.04 240) 42% 48%, transparent 48%),
+      oklch(0.17 0.006 250);
+  }
+
+  &::after {
+    right: 7px;
+    bottom: 6px;
+    width: 12px;
+    height: 2px;
+    background: oklch(0.72 0.04 240);
+  }
+}

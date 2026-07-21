@@ -1,0 +1,122 @@
+.shot-toolbar {
+  position: relative;
+  display: grid;
+  grid-template-areas: 'export ambient draw';
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-5);
+  width: 100%;
+
+  @media (max-width: 720px) {
+    grid-template-areas:
+      'export draw'
+      'ambient ambient'
+      'mode mode';
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  @media (max-width: 420px) {
+    gap: var(--space-2);
+
+    .toolbar-group {
+      gap: var(--space-1);
+    }
+
+    .toolbar-button {
+      padding-inline: var(--space-3);
+    }
+  }
+}
+
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.toolbar-export {
+  grid-area: export;
+  justify-self: start;
+}
+
+.toolbar-draw {
+  grid-area: draw;
+  justify-self: end;
+}
+
+.preview-mode-switch {
+  display: none;
+  grid-area: mode;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-self: center;
+
+  .ui-button {
+    min-width: 72px;
+  }
+
+  @media (max-width: 720px) {
+    display: grid;
+    width: 100%;
+  }
+}
+
+.export-status {
+  position: fixed;
+  z-index: 40;
+  top: max(var(--space-7), env(safe-area-inset-top));
+  left: 50%;
+  display: flex;
+  max-width: calc(100vw - var(--space-10));
+  min-height: 32px;
+  align-items: center;
+  border: 1px solid var(--button-border);
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  padding-inline: var(--space-4);
+  pointer-events: none;
+  text-align: center;
+  translate: -50% 0;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.draw-layer {
+  position: absolute;
+  /* Above ambient decor layers, which use z-index up to 3 in ambient-themes.css */
+  z-index: 5;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+
+  path {
+    fill: var(--annotation-ink, var(--pen-color));
+  }
+}
+
+.draw-layer-active {
+  cursor: crosshair;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.toolbar-button {
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+}
+
+.pen-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}

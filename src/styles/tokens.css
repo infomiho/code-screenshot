@@ -1,0 +1,149 @@
+:root {
+  /* Brand */
+  --wasp-yellow: #f5c842;
+  --wasp-gold: #b8941f;
+  --wasp-code-bg: #f0ede6;
+
+  /* Surfaces & chrome */
+  --bg: #111111;
+  --chrome-bg: var(--bg);
+  --panel: #171511;
+  --panel-border: #2d281c;
+  --control: #0f0e0b;
+  --control-border: #3b3423;
+
+  /* Text */
+  --text: #f7f5f0;
+  --muted: #a59b82;
+  --code-text: #393a34;
+  --code-label: #777777;
+  --code-gutter: #bbb5a8;
+
+  /* Window chrome */
+  --window-red: #f25f57;
+  --window-green: #44c566;
+  --pen-color: var(--window-red);
+  --window-bar-bg: rgb(250 250 250 / 42%);
+  --window-border: rgb(17 17 17 / 10%);
+  --code-window-border: rgb(17 17 17 / 18%);
+  --code-window-shadow: 0 24px 52px rgb(17 17 17 / 24%);
+
+  /* State accents */
+  --highlight-bg: rgb(245 200 66 / 20%);
+  --selection-bg: rgb(245 200 66 / 35%);
+
+  /* Fonts */
+  --mono: 'JetBrains Mono', 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Type scale */
+  --font-size-label: 11px;
+  --font-size-control: 12px;
+  --font-size-code: 14px;
+  --line-height-code: 1.6;
+  --line-height-status: 1.4;
+  --line-height-help: 1.5;
+  --font-weight-heavy: 800;
+  --font-weight-code-accent: 700;
+  --letter-spacing-label: 0.08em;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 28px;
+  --space-10: 32px;
+  --code-padding-x: 32px;
+  --code-padding-bottom: 32px;
+  --code-body-padding: var(--space-9) var(--code-padding-x) var(--code-padding-bottom);
+
+  /* Sizing */
+  --page-min-width: 320px;
+  --editor-min-height: 120px;
+  --control-height: 36px;
+  --checkbox-size: 14px;
+  --icon-size: 14px;
+  --window-bar-height: 40px;
+  --select-width: 168px;
+  --compact-select-width: 104px;
+  --field-min-width: 164px;
+  --look-field-min-width: 176px;
+  --panel-width: 860px;
+  --gutter-number-width: 24px;
+  --highlight-strip-width: 3px;
+  --dot-size: 10px;
+  --chevron-size: 8px;
+
+  /* Borders, radii & focus */
+  --border-panel: 1px solid var(--panel-border);
+  --border-control: 1px solid var(--control-border);
+  --border-window: 1px solid var(--code-window-border);
+  --border-window-bar: 1px solid var(--window-border);
+  --radius-pill: 999px;
+  --focus-ring: 2px solid var(--wasp-yellow);
+  --focus-offset: 2px;
+
+  /* Shadows & insets */
+  --surface-shadow:
+    0 1px 0 rgb(247 245 240 / 7%) inset,
+    0 14px 36px rgb(0 0 0 / 18%);
+  --control-inset: 0 0 0 1px rgb(247 245 240 / 9%) inset;
+
+  /* Motion */
+  --transition-fast: 120ms ease;
+  --ambient-motion-duration: 140ms;
+  --ambient-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --disabled-opacity: 0.55;
+
+  /* Buttons */
+  --button-border: rgb(247 245 240 / 12%);
+  --button-border-hover: rgb(247 245 240 / 20%);
+  --button-hover-bg: color-mix(in oklch, var(--control), var(--text) 7%);
+  --button-pressed-bg: color-mix(in oklch, var(--control), var(--text) 11%);
+  --button-primary-hover: color-mix(in oklch, var(--wasp-yellow), white 9%);
+  --button-primary-pressed: color-mix(in oklch, var(--wasp-yellow), black 8%);
+
+  /* Ambient selector & picker */
+  --ambient-control-size: 44px;
+  --ambient-mark-width: 40px;
+  --ambient-mark-height: 28px;
+  --ambient-picker-width: 540px;
+  --ambient-selected-bg: rgb(245 200 66 / 10%);
+  --ambient-hover-bg: rgb(247 245 240 / 6%);
+
+  /* Preview frame */
+  --width-handle-size: 6px;
+  --width-handle-bg: rgb(17 17 17 / 35%);
+
+  /* Account */
+  --account-avatar-size: 32px;
+
+  /* Skeletons */
+  --skeleton-surface: color-mix(in oklch, var(--bg), var(--text) 7%);
+  --skeleton-raised: color-mix(in oklch, var(--bg), var(--text) 12%);
+  --skeleton-highlight: color-mix(in oklch, var(--bg), var(--text) 20%);
+  --skeleton-line: color-mix(in oklch, var(--bg), var(--text) 15%);
+  --skeleton-radius: 3px;
+  --skeleton-window-radius: 12px;
+  --skeleton-pulse-duration: 1.6s;
+  --skeleton-pulse-ease: ease-in-out;
+  --skeleton-pulse-floor: 0.5;
+  --skeleton-pulse-delay: 240ms;
+  --skeleton-reveal-duration: 240ms;
+  --skeleton-reveal-ease: var(--ambient-motion-ease);
+
+  /* Root element */
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: dark;
+  font-family: var(--sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

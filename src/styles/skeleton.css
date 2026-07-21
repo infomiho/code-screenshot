@@ -1,0 +1,113 @@
+.editor-skeleton {
+  --skeleton-font-size: var(--ambient-editor-font-size, var(--font-size-code));
+  --skeleton-row-height: calc(
+    var(--skeleton-font-size) * var(--ambient-editor-line-height, var(--line-height-code))
+  );
+  display: grid;
+  /* Fixed at the 15 lines of the default snippet so the loaded editor lands at the same height */
+  height: calc(15 * var(--skeleton-row-height));
+  grid-auto-rows: var(--skeleton-row-height);
+  align-items: center;
+  overflow: hidden;
+  padding: 0 var(--ambient-editor-content-padding-inline, var(--space-3));
+
+  span {
+    height: calc(var(--skeleton-font-size) * 0.55);
+    border-radius: var(--skeleton-radius);
+    background: color-mix(
+      in oklch,
+      var(--ambient-editor-text-color, var(--code-text)),
+      transparent 85%
+    );
+    animation: skeleton-pulse var(--skeleton-pulse-duration) var(--skeleton-pulse-ease) infinite;
+  }
+}
+
+.skeleton,
+.skeleton-circle {
+  border-radius: var(--skeleton-radius);
+  background: var(--skeleton-surface);
+  animation: skeleton-pulse var(--skeleton-pulse-duration) var(--skeleton-pulse-ease)
+    var(--skeleton-pulse-delay) infinite;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: var(--skeleton-pulse-floor);
+  }
+}
+
+@keyframes skeleton-reveal {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+.ambient-skeleton {
+  --shot-padding: 48px;
+  --ambient-editor-text-color: var(--text);
+  display: grid;
+  padding: var(--shot-padding);
+  background: color-mix(in oklch, var(--bg), var(--text) 3%);
+}
+
+.ambient-skeleton-window {
+  overflow: hidden;
+  border: 1px solid var(--skeleton-line);
+  border-radius: var(--skeleton-window-radius);
+  background: var(--skeleton-surface);
+}
+
+.ambient-skeleton-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--window-bar-height);
+  border-bottom: 1px solid color-mix(in oklch, var(--bg), var(--text) 8%);
+  background: var(--skeleton-raised);
+  padding: 0 var(--space-7);
+}
+
+.ambient-skeleton-dot {
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: var(--radius-pill);
+  background: var(--skeleton-highlight);
+  animation: skeleton-pulse var(--skeleton-pulse-duration) var(--skeleton-pulse-ease)
+    var(--skeleton-pulse-delay) infinite;
+}
+
+.ambient-skeleton-title {
+  width: 128px;
+  height: 10px;
+  margin-inline-start: var(--space-4);
+}
+
+.ambient-skeleton-body {
+  padding: var(--code-body-padding);
+}
+
+/* Fades the real ambient in once when it replaces the skeleton, never during export. */
+.shot-frame[data-frame-status='revealing']:not(.shot-frame--exporting) > :first-child {
+  animation: skeleton-reveal var(--skeleton-reveal-duration) var(--skeleton-reveal-ease);
+}
+
+/* Covers the window between CodeMirror attaching and React dropping the skeleton */
+.code-editor-host:has(.cm-editor) .editor-skeleton {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-skeleton span,
+  .skeleton,
+  .skeleton-circle,
+  .ambient-skeleton-dot,
+  .shot-frame[data-frame-status='revealing'] > :first-child {
+    animation: none;
+  }
+}

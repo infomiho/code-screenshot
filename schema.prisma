@@ -23,7 +23,6 @@ model User {
   id              String    @id @default(cuid())
   githubLogin     String
   githubAvatarUrl String?
-  activeAmbientId String?
   ambients        Ambient[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -52,6 +51,8 @@ model AmbientDraft {
   ambientId       String   @id
   ambient         Ambient  @relation(fields: [ambientId], references: [id], onDelete: Cascade)
   revision        Int      @default(0)
+  baseRevision    Int      @default(0)
+  sourceVersion   Int?
   schemaVersion   Int      @default(1)
   document        Json
   updatedBy       String
@@ -72,7 +73,6 @@ model AmbientVersion {
   createdAt           DateTime            @default(now())
 
   @@unique([ambientId, version])
-  @@unique([ambientId, draftRevision])
   @@index([ambientId, createdAt])
 }
 

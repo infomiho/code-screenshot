@@ -75,11 +75,11 @@ test('renders the Swiss Poster thumbnail consistently in both picker contexts', 
 
 test('contains user thumbnail dimensions inside the ambient mark', async ({ page }) => {
   await openAppFixture(page)
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     window.ambientWorkspaceService.signIn()
-    window.ambientWorkspaceService.beginAmbient()
-    const draft = window.ambientWorkspaceService.getSnapshot().draft
-    if (!draft) throw new Error('Missing draft')
+    await window.ambientWorkspaceService.createAmbient('Oversized thumbnail')
+    const draft = window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft
+    if (!draft) throw new Error('Missing working draft')
     draft.document.thumbnail.stylesheet = `
       :host {
         display: block;
@@ -88,9 +88,12 @@ test('contains user thumbnail dimensions inside the ambient mark', async ({ page
         background: green;
       }
     `
-    window.ambientWorkspaceService.createAmbient('Oversized thumbnail')
+    await window.ambientWorkspaceService.saveAmbientVersion()
+    window.ambientWorkspaceService.closeWorkspace()
   })
 
+  await page.locator('.ambient-current').click()
+  await page.getByRole('gridcell', { name: /Oversized thumbnail/ }).click()
   const mark = page.locator('.ambient-current .ambient-mark')
   await expect(mark).toBeVisible()
   await expect(mark).toHaveCSS('width', '40px')

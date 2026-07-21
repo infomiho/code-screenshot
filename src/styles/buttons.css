@@ -1,0 +1,90 @@
+.ui-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--button-border);
+  border-radius: 0;
+  background: var(--control);
+  box-shadow: 0 1px 0 rgb(247 245 240 / 5%) inset;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1;
+  padding-inline: var(--space-5);
+  touch-action: manipulation;
+  transition-property: background-color, border-color, box-shadow, color, opacity, scale;
+  transition-duration: var(--ambient-motion-duration);
+  transition-timing-function: var(--ambient-motion-ease);
+  user-select: none;
+
+  &:hover:not(:disabled) {
+    border-color: var(--button-border-hover);
+    background: var(--button-hover-bg);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--button-pressed-bg);
+    scale: 0.96;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: var(--disabled-opacity);
+  }
+
+  &[aria-pressed='true'] {
+    border-color: color-mix(in oklch, var(--wasp-yellow), transparent 42%);
+    background: var(--ambient-selected-bg);
+    box-shadow: none;
+    color: var(--wasp-yellow);
+
+    &:hover {
+      border-color: color-mix(in oklch, var(--wasp-yellow), transparent 32%);
+      background: color-mix(in oklch, var(--wasp-yellow), transparent 84%);
+    }
+
+    &:active {
+      border-color: color-mix(in oklch, var(--wasp-yellow), transparent 22%);
+      background: color-mix(in oklch, var(--wasp-yellow), transparent 78%);
+    }
+  }
+
+  @media (max-width: 420px) {
+    min-height: 44px;
+  }
+}
+
+.ui-button-primary {
+  border-color: var(--wasp-yellow);
+  background: var(--wasp-yellow);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 22%) inset;
+  color: var(--bg);
+
+  &:hover:not(:disabled) {
+    border-color: var(--button-primary-hover);
+    background: var(--button-primary-hover);
+  }
+
+  &:active:not(:disabled) {
+    border-color: var(--button-primary-pressed);
+    background: var(--button-primary-pressed);
+  }
+}
+
+.ui-button-ghost {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ui-button-icon {
+  width: 40px;
+  padding: 0;
+
+  @media (max-width: 420px) {
+    width: 44px;
+  }
+}

@@ -3,60 +3,104 @@ import { MockAmbientService } from '../../src/ambient-workspace/mock-ambient-ser
 
 const createService = () => new MockAmbientService({ agentUpdate: 0, save: 0 })
 
-afterEach(() => {
-  vi.useRealTimers()
-})
+afterEach(() => vi.useRealTimers())
 
 describe('MockAmbientService', () => {
-  it('continues a saved agent session with another version', async () => {
+  it('retains multiple drafts and complete immutable version histories', async () => {
     vi.useFakeTimers()
     const service = createService()
-
     service.signIn()
-    service.beginAmbient()
-    service.createAmbient('Signal study')
+
+    const firstId = await service.createAmbient('Signal study')
+    await service.createAgentAccess()
     service.copyPrompt()
     await vi.runAllTimersAsync()
-
-    expect(service.getSnapshot().draft).toMatchObject({ phase: 'review', revision: 1 })
-
-    const firstSave = service.savePrivateVersion()
+    const firstSave = service.saveAmbientVersion()
     await vi.runAllTimersAsync()
-    await expect(firstSave).resolves.toMatchObject({ version: 1 })
-    expect(service.getSnapshot().draft).toMatchObject({ phase: 'saved', revision: 1 })
+    const versionOne = await firstSave
+    expect(versionOne).toMatchObject({ version: 1 })
 
     service.copyPrompt()
     await vi.runAllTimersAsync()
-    expect(service.getSnapshot().draft).toMatchObject({ phase: 'review', revision: 2 })
-
-    const secondSave = service.savePrivateVersion()
+    const secondSave = service.saveAmbientVersion()
     await vi.runAllTimersAsync()
     await expect(secondSave).resolves.toMatchObject({ version: 2 })
-    expect(service.getSnapshot().savedAmbients).toHaveLength(1)
+
+    const secondId = await service.createAmbient('Launch frame')
+    expect(service.getSnapshot().ownedAmbients).toHaveLength(2)
+    expect(service.getSnapshot().ownedAmbients.every((ambient) => ambient.draft)).toBe(true)
+
+    await service.openWorkspace(firstId!)
+    expect(service.getSnapshot().workspace?.versions.map(({ version }) => version)).toEqual([2, 1])
+    expect(service.getSnapshot().workspace?.versions[1].document).toEqual(versionOne?.document)
+    expect(secondId).not.toBe(firstId)
   })
 
-  it('retains private state and pending updates while signed out', async () => {
+  it('restores an old version with a fresh revision and can save it', async () => {
     vi.useFakeTimers()
-    const service = new MockAmbientService({ agentUpdate: 10, save: 0 })
-
+    const service = createService()
     service.signIn()
-    service.beginAmbient()
-    service.createAmbient('Signal study')
+    await service.createAmbient('Signal study')
+    await service.createAgentAccess()
     service.copyPrompt()
-    service.signOut()
+    await vi.runAllTimersAsync()
+    const firstSave = service.saveAmbientVersion()
+    await vi.runAllTimersAsync()
+    await firstSave
+    service.copyPrompt()
+    await vi.runAllTimersAsync()
+    const secondSave = service.saveAmbientVersion()
+    await vi.runAllTimersAsync()
+    await secondSave
 
-    expect(service.getSnapshot()).toMatchObject({
-      account: { kind: 'signed-out' },
-      draft: { phase: 'handoff' },
+    const firstVersionId = service.getSnapshot().workspace?.versions[1].id
+    await expect(service.createDraftFromVersion(firstVersionId!)).resolves.toBe(true)
+    expect(service.getSnapshot().workspace?.workingDraft).toMatchObject({
+      revision: 3,
+      baseRevision: 3,
+      acceptedChangeCount: 0,
     })
+    const restoredSave = service.saveAmbientVersion()
+    await vi.runAllTimersAsync()
+    await expect(restoredSave).resolves.toMatchObject({ version: 3, draftRevision: 3 })
+  })
 
-    await vi.advanceTimersByTimeAsync(10)
-    expect(service.getSnapshot().draft).toMatchObject({ phase: 'review', revision: 1 })
-
+  it('expires access without discarding the draft', async () => {
+    const service = createService()
     service.signIn()
-    expect(service.getSnapshot()).toMatchObject({
-      account: { kind: 'signed-in' },
-      draft: { phase: 'review', revision: 1 },
+    await service.createAmbient('Signal study')
+    await service.createAgentAccess()
+    const draft = service.getSnapshot().workspace?.workingDraft
+
+    await service.discardAgentAccess()
+
+    expect(service.getSnapshot().workspace?.agentAccess.status).toBe('expired')
+    expect(service.getSnapshot().workspace?.workingDraft).toEqual(draft)
+  })
+
+  it('recreates a saved draft when new agent access is created', async () => {
+    vi.useFakeTimers()
+    const service = createService()
+    service.signIn()
+    await service.createAmbient('Signal study')
+    await service.createAgentAccess()
+    service.copyPrompt()
+    await vi.runAllTimersAsync()
+    const saving = service.saveAmbientVersion()
+    await vi.runAllTimersAsync()
+    await saving
+    await service.discardAmbientDraft()
+
+    expect(service.getSnapshot().workspace?.workingDraft).toBeNull()
+    await service.createAgentAccess()
+
+    expect(service.getSnapshot().workspace?.workingDraft).toMatchObject({
+      sourceVersion: 1,
+      acceptedChangeCount: 0,
+    })
+    expect(service.getSnapshot().workspace?.agentAccess).toMatchObject({
+      status: 'available',
+      generation: 2,
     })
   })
 })

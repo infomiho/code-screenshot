@@ -5,30 +5,29 @@ const openApp = async (page: Page) => {
   await expect(page.locator('.cm-editor')).toBeVisible()
 }
 
-const acceptFirstAgentUpdate = async (page: Page) => {
-  await page.evaluate(async () => {
-    window.ambientWorkspaceService.signIn()
-    window.ambientWorkspaceService.beginAmbient()
-    await new Promise(window.requestAnimationFrame)
-    window.ambientWorkspaceService.createAmbient('Signal study')
-    window.ambientWorkspaceService.copyPrompt()
-  })
-  await expect.poll(() => page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().draft?.phase,
-  )).toBe('review')
-  await expect(page.locator('.ambient-current')).toContainText('Signal study')
-}
+const createAmbient = async (page: Page, name = 'Signal study') => page.evaluate(async (ambientName) => {
+  window.ambientWorkspaceService.signIn()
+  const id = await window.ambientWorkspaceService.createAmbient(ambientName)
+  if (!id) throw new Error('Ambient was not created')
+  window.ambientWorkspaceService.closeWorkspace()
+  return id
+}, name)
 
-const saveCurrentVersion = async (page: Page) => {
-  await page.evaluate(() => window.ambientWorkspaceService.savePrivateVersion())
-  await expect.poll(() => page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().draft?.phase,
-  )).toBe('saved')
-}
-
-test('keeps built-in ambients in a two-column grid', async ({ page }) => {
-  await openApp(page)
+const openAmbientLibrary = async (page: Page) => {
   await page.locator('.ambient-current').click()
+  await expect(page.getByRole('grid', { name: 'Choose ambient' })).toBeVisible()
+}
+
+const openWorkspaceFromLibrary = async (page: Page, ambientName: string) => {
+  await openAmbientLibrary(page)
+  const row = page.locator('.ambient-owned-row').filter({ hasText: ambientName })
+  await row.getByRole('button', { name: /Open|Edit/ }).click()
+  await expect(page.locator('.workspace-ambient-identity')).toContainText(ambientName)
+}
+
+test('keeps included ambients in a two-column grid', async ({ page }) => {
+  await openApp(page)
+  await openAmbientLibrary(page)
 
   const first = await page.getByRole('gridcell', { name: 'macOS window' }).boundingBox()
   const second = await page.getByRole('gridcell', { name: 'Technical plate' }).boundingBox()
@@ -36,184 +35,250 @@ test('keeps built-in ambients in a two-column grid', async ({ page }) => {
 
   expect(Math.abs((first?.y ?? 0) - (second?.y ?? 0))).toBeLessThan(2)
   expect(third?.y).toBeGreaterThan(first?.y ?? 0)
-  expect(first?.width).toBeLessThan(page.viewportSize()?.width ?? 0)
 })
 
-test('moves vertically between built-in grid rows', async ({ page }) => {
+test('moves vertically between included grid rows', async ({ page }) => {
   await openApp(page)
-  await page.locator('.ambient-current').click()
+  await openAmbientLibrary(page)
   await page.getByRole('grid', { name: 'Choose ambient' }).press('ArrowDown')
   await page.getByRole('grid', { name: 'Choose ambient' }).press('Enter')
 
   await expect(page.locator('.ambient-current')).toContainText('Specimen card')
 })
 
-test('reopens a saved session and saves another accepted revision', async ({ page }) => {
+test('keeps an unsaved working draft out of the screenshot editor', async ({ page }) => {
   await openApp(page)
-  await acceptFirstAgentUpdate(page)
-  await saveCurrentVersion(page)
+  await createAmbient(page)
 
-  await page.locator('.ambient-current').click()
-  await page.getByRole('button', { name: 'Open agent session' }).click()
-  await expect(page.getByRole('heading', { name: 'Ready-to-paste prompt' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Minimize' })).toBeFocused()
-  const copyPrompt = page.getByRole('button', { name: 'Copy prompt' })
-  await expect(copyPrompt).toBeVisible()
-  await copyPrompt.focus()
-
-  await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
-  await expect(page.getByRole('button', { name: 'Save private version' })).toBeVisible()
-  await expect(copyPrompt).toBeFocused()
-  await expect(page.locator('.ambient-current')).toContainText('Signal study')
-
-  await page.getByRole('button', { name: 'Save private version' }).click()
-  await expect(page.getByRole('heading', { name: 'Private version saved' })).toBeVisible()
-  await expect.poll(() => page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().savedAmbients[0]?.version,
-  )).toBe(2)
-})
-
-test('selects the draft when reopening its agent session', async ({ page }) => {
-  await openApp(page)
-  await acceptFirstAgentUpdate(page)
-  await saveCurrentVersion(page)
-
-  await page.locator('.ambient-current').click()
-  await page.getByRole('gridcell', { name: 'Technical plate' }).click()
-  await expect(page.locator('.ambient-current')).toContainText('Technical plate')
-
-  await page.locator('.ambient-current').click()
-  await page.getByRole('button', { name: 'Open agent session' }).click()
-
-  await expect(page.locator('.ambient-current')).toContainText('Signal study')
-  await expect(page.getByRole('heading', { name: 'Ready-to-paste prompt' })).toBeVisible()
-})
-
-test('exits an unsaved agent review without deleting the draft', async ({ page }) => {
-  await openApp(page)
-  await acceptFirstAgentUpdate(page)
-
-  await page.locator('.agent-dock-trigger').click()
-  await page.getByRole('button', { name: 'Exit edit mode' }).click()
-
-  await expect(page.locator('.agent-dock')).toHaveCount(0)
-  await expect(page.locator('.agent-dock-trigger')).toHaveCount(0)
-  expect(await page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().draft?.phase,
-  )).toBe('review')
-  await expect(page.locator('.cm-editor')).toBeVisible()
-})
-
-test('keeps a hydrated existing draft hidden until explicitly opened', async ({ page }) => {
-  await page.goto('/tests/browser/app.fixture.html?existing-draft')
-  await expect(page.locator('.cm-editor')).toBeVisible()
-
-  await expect(page.locator('.agent-dock-trigger')).toHaveCount(0)
-  await expect(page.locator('.agent-dock')).toHaveCount(0)
-  await page.locator('.ambient-current').click()
-  await page.getByRole('button', { name: 'Open draft' }).click()
-
-  await expect(page.getByRole('heading', { name: 'Ready-to-paste prompt' })).toBeVisible()
-  await expect(page.getByText('Agent link unavailable')).toHaveCount(0)
-  await expect(page.locator('.agent-prompt pre')).not.toContainText('Generate a new temporary agent link')
-})
-
-test('discards an unsaved agent review after confirmation', async ({ page }) => {
-  await openApp(page)
-  await acceptFirstAgentUpdate(page)
-
-  await page.locator('.agent-dock-trigger').click()
-  await page.getByRole('button', { name: 'Discard draft' }).click()
-  await expect(page.getByText('Discard unsaved changes and end agent access?')).toBeVisible()
-  await page.getByRole('button', { name: 'Discard', exact: true }).click()
-
-  await expect(page.locator('.agent-dock')).toHaveCount(0)
-  await expect(page.locator('.agent-dock-trigger')).toHaveCount(0)
-  expect(await page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().draft,
-  )).toBeNull()
   await expect(page.locator('.ambient-current')).toContainText('macOS window')
+  await openAmbientLibrary(page)
+  const row = page.locator('.ambient-owned-row').filter({ hasText: 'Signal study' })
+  await expect(row).toContainText('Not saved')
+  await expect(row).toContainText('Working draft')
+  await expect(row.getByRole('button', { name: 'Open' })).toBeVisible()
+
+  const [rowBox, markBox, metaBox] = await Promise.all([
+    row.boundingBox(),
+    row.locator('.ambient-owned-placeholder .ambient-mark').boundingBox(),
+    row.locator('.ambient-owned-meta').boundingBox(),
+  ])
+  expect(markBox?.width).toBeGreaterThanOrEqual(48)
+  expect(markBox?.height).toBeGreaterThanOrEqual(33.9)
+  expect((metaBox?.y ?? 0) + (metaBox?.height ?? 0)).toBeLessThanOrEqual(
+    (rowBox?.y ?? 0) + (rowBox?.height ?? 0),
+  )
 })
 
-test('edits a saved ambient again after its draft is discarded', async ({ page }) => {
+test('restores the screenshot composition after a full-page authentication redirect', async ({ page }) => {
   await openApp(page)
-  await acceptFirstAgentUpdate(page)
-  await saveCurrentVersion(page)
-  await page.evaluate(() => window.ambientWorkspaceService.discardAmbientDraft())
-  await expect.poll(() => page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().draft,
-  )).toBeNull()
+  await openAmbientLibrary(page)
+  await page.getByRole('gridcell', { name: 'Technical plate' }).click()
+  await page.getByLabel('File type').selectOption('python')
+  await page.getByLabel('Title').fill('Preserved composition')
+  await page.getByRole('separator', { name: 'Frame width' }).press('ArrowLeft')
+  await page.getByText('Highlights', { exact: true }).click()
+  await page.getByRole('button', { name: 'Highlight current line' }).click()
+  await expect(page.locator('.cm-highlighted-line')).toHaveCount(1)
 
-  await page.locator('.ambient-current').click()
-  await page.getByRole('button', { name: 'Edit Signal study' }).focus()
-  await page.keyboard.press('Enter')
+  const editor = await page.locator('.cm-content').boundingBox()
+  if (!editor) throw new Error('Missing code editor')
+  await page.getByRole('button', { name: 'Draw' }).click()
+  await page.mouse.move(editor.x + editor.width / 2, editor.y + editor.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(editor.x + editor.width / 2 + 70, editor.y + editor.height / 2 + 30, { steps: 8 })
+  await page.mouse.up()
+  await expect(page.locator('.draw-layer path')).toHaveCount(1)
 
-  await expect(page.getByRole('heading', { name: 'Send to your agent' })).toBeVisible()
-  expect(await page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().draft?.id,
-  )).toBe('ambient-mock-1')
-})
-
-test('minimizes or exits a saved edit session', async ({ page }) => {
-  await openApp(page)
-  await acceptFirstAgentUpdate(page)
-  await saveCurrentVersion(page)
-
-  await page.locator('.agent-dock-trigger').click()
-  await page.getByRole('button', { name: 'Minimize' }).click()
-  await expect(page.locator('.agent-dock-trigger')).toBeVisible()
-  await page.locator('.agent-dock-trigger').click()
-  await page.getByRole('button', { name: 'Exit edit mode' }).click()
-
-  await expect(page.locator('.agent-dock')).toHaveCount(0)
-  await expect(page.locator('.agent-dock-trigger')).toHaveCount(0)
+  await page.reload()
   await expect(page.locator('.cm-editor')).toBeVisible()
+  await expect(page.locator('.ambient-current')).toContainText('Technical plate')
+  await expect(page.getByLabel('File type')).toHaveValue('python')
+  await expect(page.getByLabel('Title')).toHaveValue('Preserved composition')
+  await expect(page.getByRole('separator', { name: 'Frame width' })).toHaveAttribute('aria-valuenow', '840')
+  await expect(page.locator('.cm-highlighted-line')).toHaveCount(1)
+  await expect(page.locator('.draw-layer path')).toHaveCount(1)
 })
 
-test('selects the minimal draft as soon as custom design starts', async ({ page }) => {
+test('creates an ambient in a dedicated workspace', async ({ page }) => {
   await openApp(page)
-  await page.evaluate(() => {
-    window.ambientWorkspaceService.signIn()
-    window.ambientWorkspaceService.beginAmbient()
+  await openAmbientLibrary(page)
+  await page.getByLabel('Your ambients account').getByRole('button', { name: 'Create ambient' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Name your ambient' })).toBeVisible()
+  await page.getByLabel('Ambient name').fill('Launch frame')
+  await page.getByRole('button', { name: 'Create ambient' }).click()
+
+  await expect(page.locator('.workspace-ambient-identity')).toContainText('Launch frame')
+  await expect(page).toHaveTitle('Launch frame workspace | codeshot.dev')
+  await expect(page.locator('.workspace-preview-frame .cm-editor')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
+  await expect(page.locator('.agent-dock')).toHaveCount(0)
+
+  await page.getByText('Show prompt', { exact: true }).click()
+  const promptContainment = await page.evaluate(() => {
+    const sidebar = document.querySelector('.workspace-sidebar')?.getBoundingClientRect()
+    const card = document.querySelector('.workspace-prompt-card')?.getBoundingClientRect()
+    const prompt = document.querySelector('.workspace-prompt-disclosure pre')?.getBoundingClientRect()
+    return {
+      cardRight: card?.right ?? 0,
+      pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      promptRight: prompt?.right ?? 0,
+      sidebarRight: sidebar?.right ?? 0,
+    }
+  })
+  expect(promptContainment.cardRight).toBeLessThanOrEqual(promptContainment.sidebarRight + 1)
+  expect(promptContainment.promptRight).toBeLessThanOrEqual(promptContainment.sidebarRight + 1)
+  expect(promptContainment.pageOverflow).toBe(0)
+})
+
+test('reviews an agent change and saves an immutable version', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  await page.getByRole('button', { name: 'Create agent access' }).click()
+  await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
+  await page.getByRole('button', { name: 'Copy prompt' }).click()
+  await expect(page.getByRole('status')).toContainText(/Agent prompt copied|Ready to review/)
+  await expect.poll(() => page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(1)
+  await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Save version' }).click()
+  await expect(page.getByRole('status')).toContainText('Version 1 saved and now in use')
+  await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
+  await page.getByRole('tab', { name: /Versions/ }).click()
+  await expect(page.getByText('Version 1', { exact: true })).toBeVisible()
+  await expect(page.getByText('In use', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Return to screenshot editor' }).click()
+  await expect(page.locator('.cm-editor')).toBeVisible()
+  await openAmbientLibrary(page)
+  const row = page.locator('.ambient-owned-row').filter({ hasText: 'Signal study' })
+  await expect(row).toContainText('Version 1')
+  const [metaBox, actionBox] = await Promise.all([
+    row.locator('.ambient-owned-meta').boundingBox(),
+    row.locator('.ambient-picker-action-cell').boundingBox(),
+  ])
+  expect(metaBox?.x).toBeLessThan(actionBox?.x ?? 0)
+  expect((metaBox?.x ?? 0) + (metaBox?.width ?? 0)).toBeLessThanOrEqual(actionBox?.x ?? 0)
+  await row.getByRole('gridcell', { name: /Signal study/ }).click()
+  await expect(page.locator('.ambient-current')).toContainText('Signal study')
+})
+
+test('retains multiple unfinished ambient drafts', async ({ page }) => {
+  await openApp(page)
+  const firstId = await createAmbient(page, 'First frame')
+  const secondId = await page.evaluate(async () => {
+    const id = await window.ambientWorkspaceService.createAmbient('Second frame')
+    window.ambientWorkspaceService.closeWorkspace()
+    return id
   })
 
-  await expect(page.locator('.ambient-current')).toContainText('New ambient')
-  await expect(page.locator('.declarative-ambient')).toBeVisible()
+  expect(firstId).not.toBe(secondId)
+  await openAmbientLibrary(page)
+  await expect(page.locator('.ambient-owned-row').filter({ hasText: 'First frame' })).toContainText('Working draft')
+  await expect(page.locator('.ambient-owned-row').filter({ hasText: 'Second frame' })).toContainText('Working draft')
 })
 
-test('later revisions do not steal a built-in selection', async ({ page }) => {
+test('ends agent access without discarding the draft', async ({ page }) => {
   await openApp(page)
-  await acceptFirstAgentUpdate(page)
-  await saveCurrentVersion(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+  await page.getByRole('button', { name: 'Create agent access' }).click()
+  await page.getByRole('button', { name: 'End agent access' }).click()
 
-  await page.locator('.ambient-current').click()
-  await page.getByRole('gridcell', { name: 'Technical plate' }).click()
-  await expect(page.locator('.ambient-current')).toContainText('Technical plate')
+  await expect(page.getByText('Access ended', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('Your draft is safe')
+  expect(await page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft !== null,
+  )).toBe(true)
+})
+
+test('uses context-specific discard copy for a never-saved ambient', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+  await page.getByRole('button', { name: 'Discard ambient' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Discard this ambient?' })).toBeVisible()
+  await expect(page.getByRole('dialog')).toContainText('This ambient has never been saved')
+  await page.getByRole('dialog').getByRole('button', { name: 'Discard ambient' }).click()
+  await expect(page.locator('.cm-editor')).toBeVisible()
+  expect(await page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().ownedAmbients.length,
+  )).toBe(0)
+})
+
+test('restores an older version into a new working draft', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+  await page.getByRole('button', { name: 'Create agent access' }).click()
+  await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
+  await expect.poll(() => page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(1)
+  await page.getByRole('button', { name: 'Save version' }).click()
+  await expect(page.getByRole('status')).toContainText('Version 1 saved')
 
   await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
   await expect.poll(() => page.evaluate(
-    () => window.ambientWorkspaceService.getSnapshot().draft?.revision,
-  )).toBe(2)
-  await expect(page.locator('.ambient-current')).toContainText('Technical plate')
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(1)
+  await page.getByRole('button', { name: 'Save version' }).click()
+  await expect(page.getByRole('status')).toContainText('Version 2 saved')
+
+  await page.getByRole('tab', { name: /Versions/ }).click()
+  await page.getByRole('button', { name: /Version 1/ }).click()
+  await expect(page.getByRole('heading', { name: 'Draft and Version 1' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start draft from Version 1' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Start from Version 1' }).click()
+  await expect(page.getByRole('status')).toContainText('Working draft started from Version 1')
+  await expect(page.getByText('Version 2', { exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Work' }).click()
+  await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
+  await expect(page.getByText(/From Version 1/)).toBeVisible()
+  await expect(page.getByText('Access ended', { exact: true })).toBeVisible()
 })
 
-test('logout hides private state and login restores it', async ({ page }) => {
+test('keeps the preview visible while switching Work and Versions on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   await openApp(page)
-  await acceptFirstAgentUpdate(page)
-  await saveCurrentVersion(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  const workTab = page.getByRole('tab', { name: 'Work' })
+  const versionsTab = page.getByRole('tab', { name: /Versions/ })
+  await expect(workTab).toHaveAttribute('aria-selected', 'true')
+  await versionsTab.click()
+  await expect(versionsTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('heading', { name: 'Saved checkpoints' })).toBeVisible()
+  await expect(page.locator('.workspace-preview-frame')).toBeVisible()
+  await versionsTab.press('ArrowLeft')
+  await expect(workTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByText('No agent access', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+})
+
+test('account navigation opens owned ambients and logs out private state', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
 
   await page.locator('.account-menu summary').click()
-  await page.getByRole('button', { name: 'Log out' }).click()
-  await expect(page.locator('.agent-dock-trigger')).toHaveCount(0)
-
-  await page.locator('.ambient-current').click()
-  await expect(page.getByRole('gridcell', { name: 'Signal study' })).toHaveCount(0)
+  await page.getByRole('button', { name: /Your ambients/ }).click()
+  const ownedRow = page.locator('.ambient-owned-row').filter({ hasText: 'Signal study' })
+  await expect(ownedRow).toBeVisible()
+  await expect(ownedRow.getByRole('button', { name: 'Open' })).toBeFocused()
   await page.keyboard.press('Escape')
+  await page.locator('.account-menu summary').click()
+  await page.getByRole('button', { name: 'Log out' }).click()
 
-  await page.getByRole('button', { name: 'Sign in with GitHub' }).click()
-  await page.locator('.ambient-current').click()
-  await expect(page.getByRole('gridcell', { name: 'Signal study' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Open agent session' })).toBeVisible()
+  await openAmbientLibrary(page)
+  await expect(page.locator('.ambient-owned-row')).toHaveCount(0)
+  await expect(page.getByLabel('Your ambients account').getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible()
 })
 
 test('ambient picker closes from account controls', async ({ page }) => {
@@ -232,12 +297,6 @@ test('ambient picker closes from account controls', async ({ page }) => {
   await signIn.focus()
   await page.keyboard.press('Tab')
   await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
-
-  await page.setViewportSize({ width: 390, height: 844 })
-  await trigger.click()
-  await page.getByRole('button', { name: 'Close ambient picker' }).click()
-  await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
-  await expect(trigger).toBeFocused()
 })
 
 test('mobile export feedback stays visible without resizing the toolbar', async ({ page, context }) => {
@@ -248,13 +307,9 @@ test('mobile export feedback stays visible without resizing the toolbar', async 
   const toolbar = page.locator('.shot-toolbar')
   const toolbarBefore = await toolbar.boundingBox()
   await page.getByRole('button', { name: 'Copy PNG' }).click()
-
   const status = page.locator('#export-status')
   await expect(status).toHaveText(/Copied PNG to clipboard|Copy failed/)
-  const [statusBox, toolbarAfter] = await Promise.all([
-    status.boundingBox(),
-    toolbar.boundingBox(),
-  ])
+  const [statusBox, toolbarAfter] = await Promise.all([status.boundingBox(), toolbar.boundingBox()])
 
   expect(statusBox).not.toBeNull()
   expect(statusBox!.y).toBeGreaterThanOrEqual(0)

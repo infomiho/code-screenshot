@@ -1,0 +1,66 @@
+.code-editor-host {
+  .cm-editor {
+    min-height: var(--editor-min-height);
+    background: var(--ambient-editor-background, transparent);
+    color: var(--ambient-editor-text-color, var(--code-text));
+    font-family: var(--ambient-editor-font-family, var(--mono));
+    font-size: var(--ambient-editor-font-size, var(--font-size-code));
+    font-weight: var(--ambient-editor-font-weight, 400);
+    line-height: var(--ambient-editor-line-height, var(--line-height-code));
+  }
+
+  .cm-scroller {
+    overflow: visible;
+    font-family: inherit;
+    line-height: var(--ambient-editor-line-height, var(--line-height-code));
+  }
+
+  .cm-content {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    caret-color: var(--ambient-editor-caret-color, var(--bg));
+  }
+
+  .cm-line {
+    overflow-wrap: anywhere;
+    padding: 0 var(--ambient-editor-content-padding-inline, var(--space-3));
+    word-break: break-word;
+  }
+
+  .cm-gutters {
+    border-right: 0;
+    background: var(--ambient-editor-background, transparent);
+    color: var(--ambient-editor-gutter-color, var(--code-gutter));
+    font-family: var(--ambient-editor-font-family, var(--mono));
+    font-variant-numeric: tabular-nums;
+    margin-right: var(--ambient-editor-gutter-gap, var(--space-5));
+  }
+
+  .cm-lineNumbers .cm-gutterElement {
+    min-width: var(--gutter-number-width);
+    padding: 0 var(--ambient-editor-gutter-padding-inline-end, var(--space-2)) 0 0;
+    cursor: pointer;
+  }
+
+  .cm-lineNumbers .cm-gutterElement:hover,
+  .cm-selected-line-number {
+    color: var(--ambient-editor-selected-line-number-color, var(--wasp-gold));
+    font-weight: var(--font-weight-code-accent);
+  }
+
+  .cm-highlighted-line {
+    background: var(--ambient-editor-highlight-background, var(--highlight-bg));
+    box-shadow: inset var(--highlight-strip-width) 0 0 var(--ambient-editor-highlight-accent, var(--wasp-yellow));
+  }
+
+  .cm-activeLine,
+  .cm-activeLineGutter {
+    background: transparent;
+  }
+}
+
+.shot-frame .code-editor-host .cm-editor .cm-selectionLayer .cm-selectionBackground,
+.shot-frame .code-editor-host .cm-content::selection {
+  background: var(--ambient-editor-selection-background, var(--selection-bg));
+}

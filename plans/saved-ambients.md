@@ -450,18 +450,22 @@ Invalid documents return `422 ambient_invalid` with stable diagnostics and do no
 
 ## Browser Operations
 
-Signed-in browser flows create ambients, generate sessions, publish, inspect versions, and poll previews through Wasp Operations backed by the same services:
+Signed-in browser flows create ambients, manage temporary access, save versions, inspect history, restore drafts, and poll previews through Wasp Operations backed by the same services:
 
 ```text
 createAmbient
-createAmbientAgentSession
+listOwnedAmbients
+getAmbientWorkspace
+createAgentAccess
+discardAgentAccess
 getAmbientDraftRevision
 getAmbientDraft
-publishAmbient
-getAmbientVersions
+saveAmbientVersion
+createDraftFromVersion
+discardAmbientDraft
 ```
 
-The agent capability cannot call `publishAmbient`.
+The agent capability cannot save versions, restore history, discard drafts, or manage agent access.
 
 ## Live Preview
 
@@ -486,15 +490,15 @@ An owner can publish and use a deterministically valid private version. Gallery 
 ## Agent-First Workflow
 
 1. Use the screenshot editor anonymously or sign in with GitHub to create an ambient.
-2. Seed a valid draft from the starter or latest published version.
+2. Seed a valid working draft from the starter or version in use.
 3. Generate a ready-to-paste prompt containing a 24-hour capability URL.
 4. Have the coding agent read the bootstrap Markdown and public schema documentation.
 5. Have the agent fetch the current draft and revision.
 6. Have the agent submit complete replacements until deterministic validation passes.
-7. Poll the accepted revision and review it in the live browser preview.
+7. Poll the accepted revision and review it in the dedicated Ambient Workspace.
 8. Give visual feedback to the agent and repeat without losing the draft across renewed sessions.
-9. Publish an immutable private version as the signed-in owner.
-10. Select the single latest entry under **Your ambients** in the main editor.
+9. Save an immutable private version as the signed-in owner.
+10. Select the saved version under **Your ambients** in the screenshot editor.
 
 The future visual builder and agent API operate on the same `AmbientDocument` representation.
 
@@ -503,10 +507,10 @@ The future visual builder and agent API operate on the same `AmbientDocument` re
 The customer directs and reviews while the coding agent authors the document. Product UI uses:
 
 - **Ambient** with the first-use explanation “a reusable visual frame around your code”
-- **Draft** instead of document or manifest
-- **Temporary agent link** instead of capability or token
+- **Working draft** instead of document or manifest
+- **Agent access** instead of capability or token
 - **Latest accepted change** instead of accepted revision
-- **Save private version** instead of publish
+- **Save version** instead of publish
 - **Picker appearance** instead of thumbnail
 - **Your ambients** instead of saved registry
 
@@ -514,15 +518,15 @@ Schema, revision, diagnostic paths, and HTTP details remain in agent documentati
 
 The capability preview uses a fixed non-sensitive sample fixture. It never receives the customer’s anonymous screenshot code or restored editor state.
 
-## UX Prototype Gate
+## Ambient Workspace UX
 
-The agent workflow stays inside the screenshot editor. The ambient picker contains **Your ambients**, including GitHub sign-in, saved entries, active draft status, and **Create ambient**. Anonymous editing and built-in ambients remain available without signing in.
+The screenshot editor remains anonymous and only renders included ambients or saved versions. The Ambient Library contains **Included** and **Your ambients**, with saved-version and working-draft status shown independently. Creating or opening an ambient navigates to `/ambients/:ambientId`; unfinished work never opens automatically.
 
-Creating or opening a draft closes the picker and opens a fixed **Agent draft** dock at the bottom. The dock is either closed or open. Closed, it shows the ambient name, status, and **Open**. Open, it shows the complete current step and **Close**. It has no backdrop, modal behavior, focus trap, or page scroll lock.
+The dedicated Ambient Workspace owns setup, temporary agent access, prompt handoff, draft review, saving, version history, restoration, and discard flows. Desktop uses a dominant real preview with a stable activity rail. Mobile uses accessible **Preview** and **Activity** tabs, so workspace controls never cover the screenshot editor.
 
-The four phases are setup, handoff, review, and saved. Handoff and review keep the exact prompt visible. Rejected updates, expired access, offline state, and saving are inline notices or button states. Deterministic URL fixtures cover each state without Wasp, OAuth, PostgreSQL, or real capability security.
+Agent access and draft persistence are independent. Expired or revoked access leaves the working draft intact. Saving creates the next immutable version and marks it in use without deleting the draft. Restoring an older version creates a fresh working draft and never rewrites history.
 
-The actual client runs the complete workflow against a replaceable in-memory service. Draft and saved mock records enter through the real compiler, registry, declarative runtime, and picker. Implement GitHub auth, persistence, capability routes, polling, and publishing only by replacing that service boundary after the client workflow is accepted.
+The client retains a replaceable in-memory service for deterministic browser journeys. Mock and hosted records pass through the same compiler, registry, declarative runtime, editor, picker, and workspace presentation models.
 
 ## Assets
 
@@ -572,9 +576,9 @@ Stage 2A accepts only bundled, trusted documents. No user or agent string reache
 ### Stage 2B: Hosted Agent Workflow
 
 1. Research the customer journey and inventory the existing frontend constraints.
-2. Integrate **Your ambients**, sign-in entry, creation, and the fixed bottom Agent draft dock into the actual client.
+2. Integrate **Your ambients**, sign-in entry, creation, and the dedicated Ambient Workspace into the actual client.
 3. Run the complete frontend against a replaceable in-memory service and real declarative runtime.
-4. Validate setup, prompt handoff, review, rejection, expiry, saving, reuse, mobile, and accessibility before backend work.
+4. Validate setup, prompt handoff, review, rejection, expiry, saving, history, restoration, mobile, and accessibility before backend work.
 5. Add the thumbnail contract, strict thumbnail validation, and a valid minimal starter document.
 6. Select and configure GitHub authentication and full-stack Wasp deployment.
 7. Add ambient, mutable draft, immutable version, and 24-hour agent-session records.

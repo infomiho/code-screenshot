@@ -1,111 +1,91 @@
 import { githubSignInUrl, logout } from 'wasp/client/auth'
 import {
+  createAgentAccess as createAgentAccessOperation,
   createAmbient as createAmbientOperation,
-  createAmbientAgentSession,
+  createDraftFromVersion as createDraftFromVersionOperation,
+  discardAgentAccess as discardAgentAccessOperation,
   discardAmbientDraft as discardAmbientDraftOperation,
-  getAmbientDraft,
   getAmbientDraftRevision,
   getAmbientWorkspace,
-  publishAmbient,
+  listOwnedAmbients,
+  saveAmbientVersion as saveAmbientVersionOperation,
 } from 'wasp/client/operations'
 import type {
-  AgentDraftModel,
-  AgentNotice,
   AmbientWorkspaceService,
   AmbientWorkspaceSnapshot,
+  OpenAmbientWorkspace,
   SavedAmbientRecord,
 } from './ambient-workspace-service'
-import type { AgentSessionDto, WorkspaceSnapshotDto } from './contracts'
-import { createMinimalDraftDocument } from './minimal-draft'
+import type { AgentSessionDto, AmbientWorkspaceDto } from './contracts'
 
 const signedOutSnapshot: AmbientWorkspaceSnapshot = {
   isHydrated: true,
+  libraryStatus: 'ready',
   account: { kind: 'signed-out' },
-  draft: null,
-  savedAmbients: [],
+  ownedAmbients: [],
+  workspace: null,
 }
-
 const loadingSnapshot: AmbientWorkspaceSnapshot = {
   ...signedOutSnapshot,
   isHydrated: false,
+  libraryStatus: 'loading',
 }
+const sessionStoragePrefix = 'codeshot.agent-session.'
 
-const sessionStorageKey = 'codeshot.agent-session'
+const sessionKey = (ambientId: string) => `${sessionStoragePrefix}${ambientId}`
 
-const createSetupDraft = (): AgentDraftModel => ({
-  id: 'ambient-pending',
-  phase: 'setup',
-  notice: null,
-  ambientName: null,
-  agentSessionUrl: null,
-  agentSessionGeneration: null,
-  promptCopied: false,
-  promptExpiresAt: null,
-  saveState: 'idle',
-  revision: 0,
-  document: createMinimalDraftDocument(),
-})
-
-const readCachedSession = () => {
+const readCachedSession = (ambientId: string) => {
   try {
-    const value = globalThis.sessionStorage?.getItem(sessionStorageKey)
+    const value = globalThis.sessionStorage?.getItem(sessionKey(ambientId))
     if (!value) return null
     const session = JSON.parse(value) as AgentSessionDto
-    return new Date(session.expiresAt) > new Date() ? session : null
+    if (new Date(session.expiresAt) <= new Date()) return null
+    return session
   } catch {
     return null
   }
 }
 
-const cacheSession = (session: AgentSessionDto | null) => {
+const cacheSession = (session: AgentSessionDto | null, ambientId: string) => {
   try {
     if (!globalThis.sessionStorage) return false
-    if (session) globalThis.sessionStorage.setItem(sessionStorageKey, JSON.stringify(session))
-    else globalThis.sessionStorage.removeItem(sessionStorageKey)
+    if (session) globalThis.sessionStorage.setItem(sessionKey(ambientId), JSON.stringify(session))
+    else globalThis.sessionStorage.removeItem(sessionKey(ambientId))
     return true
   } catch {
     return false
   }
 }
 
-const storeAgentSession = (session: AgentSessionDto) => {
-  const isAvailable = cacheSession(session)
-  return {
-    notice: isAvailable ? null : 'unavailable' as const,
-    agentSessionUrl: isAvailable ? session.url : null,
-    agentSessionGeneration: session.generation,
-    promptExpiresAt: session.expiresAt,
+const clearCachedSessions = () => {
+  try {
+    if (!globalThis.sessionStorage) return
+    const keys = Array.from(
+      { length: globalThis.sessionStorage.length },
+      (_, index) => globalThis.sessionStorage.key(index),
+    )
+    keys.forEach((key) => {
+      if (key?.startsWith(sessionStoragePrefix)) globalThis.sessionStorage.removeItem(key)
+    })
+  } catch {
+    // Session storage is optional; server-side revocation remains authoritative.
   }
 }
 
-const getCachedSessionForDraft = (
-  session: AgentSessionDto | null,
-  draft: WorkspaceSnapshotDto['draft'],
-) => {
-  if (!session || !draft) return null
-  return session.ambientId === draft.id && session.generation === draft.agentSessionGeneration
-    ? session
-    : null
-}
-
-const toSnapshot = (workspace: WorkspaceSnapshotDto): AmbientWorkspaceSnapshot => {
-  const cachedSession = readCachedSession()
-  const activeSession = getCachedSessionForDraft(cachedSession, workspace.draft)
+const toOpenWorkspace = (
+  workspace: AmbientWorkspaceDto,
+  previous: OpenAmbientWorkspace | null,
+): OpenAmbientWorkspace => {
+  const cached = readCachedSession(workspace.ambient.id)
+  const sessionMatches = cached
+    && workspace.agentAccess.status === 'available'
+    && cached.generation === workspace.agentAccess.generation
   return {
-    isHydrated: true,
     ...workspace,
-    draft: workspace.draft
-      ? {
-          ...workspace.draft,
-          notice: activeSession ? null : 'unavailable',
-          agentSessionUrl: activeSession?.url ?? null,
-          promptExpiresAt: activeSession
-            ? activeSession.expiresAt
-            : workspace.draft.promptExpiresAt,
-          promptCopied: false,
-          saveState: 'idle',
-        }
-      : null,
+    agentAccessUrl: sessionMatches ? cached.url : null,
+    promptCopied: previous?.ambient.id === workspace.ambient.id ? previous.promptCopied : false,
+    connectivity: 'online',
+    mutation: 'idle',
   }
 }
 
@@ -113,266 +93,227 @@ export class HostedAmbientService implements AmbientWorkspaceService {
   private snapshot: AmbientWorkspaceSnapshot = loadingSnapshot
   private listeners = new Set<() => void>()
   private pollingTimer: ReturnType<typeof setInterval> | null = null
-  private isPolling = false
-  private isCreating = false
-  private isRenewingAgentAccess = false
-  private isDiscarding = false
   private requestGeneration = 0
+  private isPolling = false
 
   getSnapshot = () => this.snapshot
   getServerSnapshot = () => loadingSnapshot
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
-    if (this.listeners.size === 1) void this.refresh()
+    if (this.listeners.size === 1) void this.refreshLibrary()
     return () => {
       this.listeners.delete(listener)
-      if (this.listeners.size === 0) {
-        this.requestGeneration += 1
-        this.stopPolling()
-      }
+      if (this.listeners.size === 0) this.stopPolling()
     }
   }
 
-  private update = (snapshot: AmbientWorkspaceSnapshot) => {
-    this.snapshot = snapshot
+  private update = (next: AmbientWorkspaceSnapshot) => {
+    this.snapshot = next
     this.listeners.forEach((listener) => listener())
   }
 
-  private updateDraft = (update: (draft: AgentDraftModel) => AgentDraftModel) => {
-    if (!this.snapshot.draft) return
-    this.update({
-      ...this.snapshot,
-      draft: update(this.snapshot.draft),
-    })
+  private updateWorkspace = (update: (workspace: OpenAmbientWorkspace) => OpenAmbientWorkspace) => {
+    if (!this.snapshot.workspace) return
+    this.update({ ...this.snapshot, workspace: update(this.snapshot.workspace) })
   }
 
-  private refresh = async () => {
-    const generation = ++this.requestGeneration
-    try {
-      const workspace = await getAmbientWorkspace()
-      if (generation !== this.requestGeneration) return
-      const snapshot = toSnapshot(workspace)
-      this.update(snapshot)
-      if (snapshot.draft?.agentSessionUrl && snapshot.draft.phase !== 'setup') {
-        this.startPolling()
-      }
-    } catch (error) {
-      if (generation !== this.requestGeneration) return
-      this.stopPolling()
-      if (this.getStatusCode(error) === 401) {
-        this.update(signedOutSnapshot)
-      } else {
-        this.updateDraft((draft) => ({ ...draft, notice: 'offline' }))
-      }
-    }
-  }
+  private isCurrentWorkspaceRequest = (generation: number, ambientId: string) => (
+    generation === this.requestGeneration
+    && this.snapshot.workspace?.ambient.id === ambientId
+  )
 
   private getStatusCode = (error: unknown) => {
     if (!error || typeof error !== 'object' || !('statusCode' in error)) return null
     return typeof error.statusCode === 'number' ? error.statusCode : null
   }
 
-  private getOperationNotice = (error: unknown): AgentNotice => {
-    const statusCode = this.getStatusCode(error)
-    return statusCode !== null && statusCode < 500 ? 'request-error' : 'offline'
-  }
-
-  private isCurrentDraft = (generation: number, ambientId: string) =>
-    generation === this.requestGeneration && this.snapshot.draft?.id === ambientId
-
-  private handleOperationError = (error: unknown, generation: number, ambientId: string) => {
-    if (!this.isCurrentDraft(generation, ambientId)) return
-    const statusCode = this.getStatusCode(error)
-    if (statusCode === 401) {
-      this.requestGeneration += 1
+  private handleError = (error: unknown) => {
+    if (this.getStatusCode(error) === 401) {
       this.stopPolling()
-      cacheSession(null)
       this.update(signedOutSnapshot)
       return
     }
-    const notice = this.getOperationNotice(error)
-    this.updateDraft((draft) => ({ ...draft, notice, saveState: 'idle' }))
+    this.updateWorkspace((workspace) => ({
+      ...workspace,
+      connectivity: this.getStatusCode(error) !== null ? 'request-error' : 'offline',
+      mutation: 'idle',
+    }))
   }
 
-  signIn = () => {
-    globalThis.location.assign(githubSignInUrl)
-  }
+  signIn = () => globalThis.location.assign(githubSignInUrl)
 
   signOut = () => {
     this.requestGeneration += 1
     this.stopPolling()
-    cacheSession(null)
+    clearCachedSessions()
     this.update(signedOutSnapshot)
     void logout()
   }
 
-  beginAmbient = () => {
-    if (this.snapshot.account.kind !== 'signed-in') return
-    this.requestGeneration += 1
-    this.stopPolling()
-    this.update({ ...this.snapshot, draft: createSetupDraft() })
-  }
-
-  editAmbient = async (ambientId: string) => {
-    if (this.snapshot.account.kind !== 'signed-in' || this.snapshot.draft || this.isRenewingAgentAccess) {
-      return false
-    }
-    this.isRenewingAgentAccess = true
+  refreshLibrary = async () => {
     const generation = ++this.requestGeneration
-
     try {
-      const session = await createAmbientAgentSession({ ambientId })
-      const latest = await getAmbientDraft({ ambientId })
-      if (generation !== this.requestGeneration) return false
-      const agentAccess = storeAgentSession(session)
+      const library = await listOwnedAmbients()
+      if (generation !== this.requestGeneration) return
       this.update({
         ...this.snapshot,
-        draft: {
-          id: latest.ambientId,
-          phase: 'handoff',
-          notice: agentAccess.notice,
-          ambientName: latest.name,
-          agentSessionUrl: agentAccess.agentSessionUrl,
-          agentSessionGeneration: agentAccess.agentSessionGeneration,
-          promptCopied: false,
-          promptExpiresAt: agentAccess.promptExpiresAt,
-          saveState: 'idle',
-          revision: latest.revision,
-          document: latest.document,
-        },
+        ...library,
+        isHydrated: true,
+        libraryStatus: 'ready',
+        workspace: library.account.kind === 'signed-in' ? this.snapshot.workspace : null,
       })
-      return true
-    } catch {
-      return false
-    } finally {
-      this.isRenewingAgentAccess = false
+    } catch (error) {
+      if (generation !== this.requestGeneration) return
+      if (this.getStatusCode(error) === 401) this.handleError(error)
+      else this.update({
+        ...this.snapshot,
+        isHydrated: true,
+        libraryStatus: this.getStatusCode(error) !== null ? 'request-error' : 'offline',
+      })
     }
+  }
+
+  openWorkspace = async (ambientId: string) => {
+    const generation = ++this.requestGeneration
+    this.stopPolling()
+    try {
+      const workspace = await getAmbientWorkspace({ ambientId })
+      if (generation !== this.requestGeneration) return false
+      const openWorkspace = toOpenWorkspace(workspace, this.snapshot.workspace)
+      this.update({ ...this.snapshot, workspace: openWorkspace })
+      if (openWorkspace.agentAccess.status === 'available') this.startPolling()
+      return true
+    } catch (error) {
+      if (generation !== this.requestGeneration) return false
+      if (this.getStatusCode(error) === 404) return false
+      this.handleError(error)
+      throw error
+    }
+  }
+
+  closeWorkspace = () => {
+    this.requestGeneration += 1
+    this.stopPolling()
+    this.update({ ...this.snapshot, workspace: null })
   }
 
   createAmbient = async (ambientName: string) => {
-    if (this.isCreating || this.snapshot.account.kind !== 'signed-in') return
-    this.isCreating = true
+    if (this.snapshot.account.kind !== 'signed-in') return null
     const generation = this.requestGeneration
-    const setupDocument = this.snapshot.draft?.document ?? createMinimalDraftDocument(ambientName)
     try {
-      const { ambientId, session } = await createAmbientOperation({ name: ambientName })
-      if (!this.isCurrentDraft(generation, 'ambient-pending')) return
-      const agentAccess = storeAgentSession(session)
-      this.update({
-        ...this.snapshot,
-        draft: {
-          id: ambientId,
-          phase: 'handoff',
-          notice: agentAccess.notice,
-          ambientName,
-          agentSessionUrl: agentAccess.agentSessionUrl,
-          agentSessionGeneration: agentAccess.agentSessionGeneration,
-          promptCopied: false,
-          promptExpiresAt: agentAccess.promptExpiresAt,
-          saveState: 'idle',
-          revision: 0,
-          document: { ...setupDocument, name: ambientName },
-        },
-      })
+      const { ambientId } = await createAmbientOperation({ name: ambientName })
+      if (generation !== this.requestGeneration) return null
+      await this.refreshLibrary()
+      if (this.requestGeneration !== generation + 1) return null
+      await this.openWorkspace(ambientId)
+      return ambientId
     } catch (error) {
-      this.handleOperationError(error, generation, 'ambient-pending')
-    } finally {
-      this.isCreating = false
+      if (generation === this.requestGeneration) this.handleError(error)
+      return null
+    }
+  }
+
+  createAgentAccess = async () => {
+    const workspace = this.snapshot.workspace
+    if (!workspace || workspace.mutation !== 'idle') return false
+    const generation = this.requestGeneration
+    this.updateWorkspace((current) => ({ ...current, mutation: 'creating-access' }))
+    try {
+      const session = await createAgentAccessOperation({ ambientId: workspace.ambient.id })
+      if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return false
+      const available = cacheSession(session, workspace.ambient.id)
+      await this.openWorkspace(workspace.ambient.id)
+      if (!available) {
+        this.updateWorkspace((current) => ({ ...current, agentAccessUrl: null }))
+      }
+      return available
+    } catch (error) {
+      if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
+      return false
+    }
+  }
+
+  discardAgentAccess = async () => {
+    const workspace = this.snapshot.workspace
+    if (!workspace) return false
+    const generation = this.requestGeneration
+    try {
+      await discardAgentAccessOperation({ ambientId: workspace.ambient.id })
+      if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return false
+      cacheSession(null, workspace.ambient.id)
+      await this.openWorkspace(workspace.ambient.id)
+      return true
+    } catch (error) {
+      if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
+      return false
     }
   }
 
   copyPrompt = () => {
-    const draft = this.snapshot.draft
-    if (!draft?.agentSessionUrl || draft.notice === 'expired') return
-    this.updateDraft((current) => ({ ...current, promptCopied: true }))
+    const workspace = this.snapshot.workspace
+    if (!workspace?.agentAccessUrl) return
+    this.updateWorkspace((current) => ({ ...current, promptCopied: true }))
     this.startPolling()
   }
 
-  renewAgentAccess = async () => {
-    const draft = this.snapshot.draft
-    if (!draft || draft.id === 'ambient-pending' || this.isRenewingAgentAccess) return
-    this.isRenewingAgentAccess = true
+  saveAmbientVersion = async () => {
+    const workspace = this.snapshot.workspace
+    if (!workspace?.workingDraft || workspace.mutation !== 'idle') return null
     const generation = this.requestGeneration
+    this.updateWorkspace((current) => ({ ...current, mutation: 'saving' }))
     try {
-      const session = await createAmbientAgentSession({ ambientId: draft.id })
-      if (!this.isCurrentDraft(generation, draft.id)) return
-      const currentGeneration = this.snapshot.draft?.agentSessionGeneration ?? -1
-      if (session.generation <= currentGeneration) return
-      const agentAccess = storeAgentSession(session)
-      this.updateDraft((current) => ({
-        ...current,
-        notice: agentAccess.notice,
-        agentSessionUrl: agentAccess.agentSessionUrl,
-        agentSessionGeneration: agentAccess.agentSessionGeneration,
-        promptCopied: false,
-        promptExpiresAt: agentAccess.promptExpiresAt,
-      }))
-      this.startPolling()
-    } catch (error) {
-      this.handleOperationError(error, generation, draft.id)
-    } finally {
-      this.isRenewingAgentAccess = false
-    }
-  }
-
-  retryConnection = () => {
-    void this.refresh()
-  }
-
-  savePrivateVersion = async () => {
-    const draft = this.snapshot.draft
-    if (!draft?.document || draft.saveState === 'saving') return null
-    const generation = this.requestGeneration
-    this.updateDraft((current) => ({ ...current, saveState: 'saving' }))
-
-    try {
-      const version = await publishAmbient({
-        ambientId: draft.id,
-        draftRevision: draft.revision,
+      const version = await saveAmbientVersionOperation({
+        ambientId: workspace.ambient.id,
+        draftRevision: workspace.workingDraft.revision,
       })
-      if (!this.isCurrentDraft(generation, draft.id)) return null
-      const record: SavedAmbientRecord = {
-        id: version.id,
-        version: version.version,
-        document: version.document,
-      }
-      const currentDraft = this.snapshot.draft
-      this.update({
-        ...this.snapshot,
-        savedAmbients: [
-          record,
-          ...this.snapshot.savedAmbients.filter((candidate) => candidate.id !== record.id),
-        ],
-        draft: currentDraft?.revision === draft.revision
-          ? { ...currentDraft, phase: 'saved', saveState: 'idle' }
-          : currentDraft,
-      })
-      return record
+      if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return null
+      await this.refreshLibrary()
+      if (this.snapshot.workspace?.ambient.id !== workspace.ambient.id) return null
+      await this.openWorkspace(workspace.ambient.id)
+      return version as SavedAmbientRecord
     } catch (error) {
-      this.handleOperationError(error, generation, draft.id)
+      if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
       return null
     }
   }
 
   discardAmbientDraft = async () => {
-    const draft = this.snapshot.draft
-    if (!draft || draft.id === 'ambient-pending' || this.isDiscarding) return false
-    this.isDiscarding = true
-    const generation = ++this.requestGeneration
-    this.stopPolling()
-
+    const workspace = this.snapshot.workspace
+    if (!workspace || workspace.mutation !== 'idle') return false
+    const generation = this.requestGeneration
+    this.updateWorkspace((current) => ({ ...current, mutation: 'discarding' }))
     try {
-      await discardAmbientDraftOperation({ ambientId: draft.id })
-      if (generation !== this.requestGeneration) return false
-      cacheSession(null)
-      this.update({ ...this.snapshot, draft: null })
+      const result = await discardAmbientDraftOperation({ ambientId: workspace.ambient.id })
+      if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return false
+      cacheSession(null, workspace.ambient.id)
+      await this.refreshLibrary()
+      if (this.snapshot.workspace?.ambient.id !== workspace.ambient.id) return false
+      if (result.ambientDeleted) this.closeWorkspace()
+      else await this.openWorkspace(workspace.ambient.id)
       return true
     } catch (error) {
-      this.handleOperationError(error, generation, draft.id)
+      if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
       return false
-    } finally {
-      this.isDiscarding = false
+    }
+  }
+
+  createDraftFromVersion = async (versionId: string) => {
+    const workspace = this.snapshot.workspace
+    if (!workspace || workspace.mutation !== 'idle') return false
+    const generation = this.requestGeneration
+    this.updateWorkspace((current) => ({ ...current, mutation: 'restoring' }))
+    try {
+      await createDraftFromVersionOperation({ ambientId: workspace.ambient.id, versionId })
+      if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return false
+      cacheSession(null, workspace.ambient.id)
+      await this.refreshLibrary()
+      if (this.snapshot.workspace?.ambient.id !== workspace.ambient.id) return false
+      await this.openWorkspace(workspace.ambient.id)
+      return true
+    } catch (error) {
+      if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
+      return false
     }
   }
 
@@ -389,49 +330,30 @@ export class HostedAmbientService implements AmbientWorkspaceService {
   }
 
   private pollDraft = async () => {
-    const draft = this.snapshot.draft
-    if (!draft || draft.phase === 'setup' || this.isPolling) return
-    if (draft.promptExpiresAt && new Date(draft.promptExpiresAt) <= new Date()) {
+    const workspace = this.snapshot.workspace
+    if (!workspace?.workingDraft || this.isPolling) return
+    const generation = this.requestGeneration
+    if (workspace.agentAccess.status !== 'available') {
       this.stopPolling()
-      this.updateDraft((current) => ({ ...current, notice: 'expired' }))
       return
     }
-
+    if (new Date(workspace.agentAccess.expiresAt) <= new Date()) {
+      this.stopPolling()
+      await this.openWorkspace(workspace.ambient.id)
+      return
+    }
     this.isPolling = true
-    const generation = this.requestGeneration
     try {
-      const status = await getAmbientDraftRevision({ ambientId: draft.id })
-      if (!this.isCurrentDraft(generation, draft.id)) return
-      if (status.agentSessionGeneration !== draft.agentSessionGeneration) {
-        cacheSession(null)
-        this.stopPolling()
-        this.updateDraft((current) => ({
-          ...current,
-          notice: 'unavailable',
-          agentSessionUrl: null,
-          promptCopied: false,
-        }))
-        return
+      const status = await getAmbientDraftRevision({ ambientId: workspace.ambient.id })
+      if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return
+      if (
+        status.revision > workspace.workingDraft.revision
+        || status.agentSessionGeneration !== workspace.agentAccess.generation
+      ) {
+        await this.openWorkspace(workspace.ambient.id)
       }
-      if (status.revision <= draft.revision) {
-        if (draft.notice === 'offline') {
-          this.updateDraft((current) => ({ ...current, notice: null }))
-        }
-        return
-      }
-      const latest = await getAmbientDraft({ ambientId: draft.id })
-      if (!this.isCurrentDraft(generation, draft.id)) return
-      this.updateDraft((current) => ({
-        ...current,
-        phase: 'review',
-        notice: null,
-        ambientName: latest.name,
-        revision: latest.revision,
-        document: latest.document,
-        saveState: 'idle',
-      }))
     } catch (error) {
-      this.handleOperationError(error, generation, draft.id)
+      if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
     } finally {
       this.isPolling = false
     }

@@ -72,6 +72,22 @@ const languageOptions: readonly LanguageOption[] = [
 ]
 
 const codeStorageKey = 'wasp-shot:last-code'
+const highlightedLinesStorageKey = 'codeshot.highlighted-lines'
+
+const readPersistedHighlightedLines = () => {
+  try {
+    const value = globalThis.localStorage?.getItem(highlightedLinesStorageKey)
+    if (!value) return new Set<number>()
+    const lines = JSON.parse(value)
+    return new Set(
+      Array.isArray(lines)
+        ? lines.filter((line): line is number => Number.isInteger(line) && line > 0)
+        : [],
+    )
+  } catch {
+    return new Set<number>()
+  }
+}
 
 export const defaultCode = `import { HttpError } from 'wasp/server'
 
@@ -233,11 +249,14 @@ export function useCodeEditor({
   initialCode = defaultCode,
   persistCode = true,
 }: UseCodeEditorOptions) {
+  const [highlightedLines, setHighlightedLines] = useState<Set<number>>(
+    () => persistCode ? readPersistedHighlightedLines() : new Set(),
+  )
   const editorViewRef = useRef<EditorView | null>(null)
   const editorHostElementRef = useRef<HTMLDivElement | null>(null)
   const languageCompartmentRef = useRef(new Compartment())
   const ambientCompartmentRef = useRef(new Compartment())
-  const highlightedLinesRef = useRef(new Set<number>())
+  const highlightedLinesRef = useRef(new Set(highlightedLines))
   const lineSelectionAnchorRef = useRef<number | null>(null)
   const lineDragAnchorRef = useRef<number | null>(null)
   const lineDragBaseRef = useRef<Set<number> | null>(null)
@@ -245,7 +264,6 @@ export function useCodeEditor({
   const isDraggingLineRef = useRef(false)
   const [editorHostElement, setEditorHostElement] = useState<HTMLDivElement | null>(null)
   const [code, setCode] = useState(initialCode)
-  const [highlightedLines, setHighlightedLines] = useState<Set<number>>(() => new Set())
   const [isEditorReady, setIsEditorReady] = useState(false)
 
   const selectedLanguage =
@@ -269,6 +287,7 @@ export function useCodeEditor({
     if (!editorHostElement) return
 
     let restoredCode = initialCode
+    let restoredHighlightedLines = new Set(highlightedLinesRef.current)
 
     if (persistCode) {
       try {
@@ -284,6 +303,12 @@ export function useCodeEditor({
     }
 
     setCode(restoredCode)
+    const restoredLineCount = restoredCode.split('\n').length
+    restoredHighlightedLines = new Set(
+      [...restoredHighlightedLines].filter((line) => line <= restoredLineCount),
+    )
+    highlightedLinesRef.current = restoredHighlightedLines
+    setHighlightedLines(restoredHighlightedLines)
 
     const applyLineRange = (
       firstLine: number,
@@ -450,7 +475,14 @@ export function useCodeEditor({
     if (editorView) {
       editorView.dispatch({ effects: lineHighlightEffect.of(highlightedLines) })
     }
-  }, [highlightedLines])
+    if (persistCode) {
+      try {
+        window.localStorage.setItem(highlightedLinesStorageKey, JSON.stringify([...highlightedLines]))
+      } catch {
+        // Highlighting does not depend on local persistence.
+      }
+    }
+  }, [highlightedLines, persistCode])
 
   const highlightCurrentLine = () => {
     const editorView = editorViewRef.current

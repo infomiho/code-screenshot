@@ -5,7 +5,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
-import { AmbientMark } from './ambient-mark'
+import { AmbientIdentity } from './ambient-identity'
 import {
   AmbientPicker,
   type YourAmbientsState,
@@ -16,6 +16,7 @@ export type { YourAmbientsState } from './ambient-picker'
 
 type AmbientSelectorProps = {
   definitions: readonly AmbientDefinition[]
+  openRequest?: number
   selectedKey: string
   yourAmbients: YourAmbientsState
   onOpenChange?: (isOpen: boolean) => void
@@ -53,6 +54,7 @@ export const getVerticalAmbientIndex = (
 
 export function AmbientSelector({
   definitions,
+  openRequest,
   selectedKey,
   yourAmbients,
   onOpenChange,
@@ -72,11 +74,13 @@ export function AmbientSelector({
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
+  const focusOwnedOnOpenRef = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(selectedIndex)
   const [status, setStatus] = useState('')
 
   const updateOpen = (nextOpen: boolean) => {
+    if (nextOpen) focusOwnedOnOpenRef.current = false
     setIsOpen(nextOpen)
     onOpenChange?.(nextOpen)
   }
@@ -100,8 +104,24 @@ export function AmbientSelector({
   useEffect(() => {
     if (!isOpen) return
     setActiveIndex(selectedIndex)
-    pickerRef.current?.focus({ preventScroll: true })
-  }, [isOpen, selectedIndex])
+    if (!focusOwnedOnOpenRef.current) {
+      pickerRef.current?.focus({ preventScroll: true })
+      return
+    }
+    window.requestAnimationFrame(() => {
+      const ownedSection = document.getElementById(`${pickerId}-owned`)?.closest('section')
+      ownedSection?.scrollIntoView({ block: 'nearest' })
+      ownedSection?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
+      focusOwnedOnOpenRef.current = false
+    })
+  }, [isOpen, pickerId, selectedIndex])
+
+  useEffect(() => {
+    if (!openRequest) return
+    focusOwnedOnOpenRef.current = true
+    setIsOpen(true)
+    onOpenChange?.(true)
+  }, [openRequest])
 
   useEffect(() => {
     if (!isOpen) return
@@ -190,14 +210,11 @@ export function AmbientSelector({
           updateOpen(true)
         }}
       >
-        <AmbientMark definition={selected} />
-        <span className="ambient-current-copy">
-          <span className="ambient-current-name">{selected.manifest.name}</span>
-          <span className="ambient-current-position">
-            {padIndex(selectedIndex + 1)} / {padIndex(definitions.length)}
-          </span>
-        </span>
-        <span className="ambient-disclosure" aria-hidden="true" />
+        <AmbientIdentity
+          definition={selected}
+          meta={`${padIndex(selectedIndex + 1)} / ${padIndex(definitions.length)}`}
+          showDisclosure
+        />
       </button>
       <button
         className="ambient-step ambient-step-next"

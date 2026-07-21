@@ -1,69 +1,83 @@
 import { useLayoutEffect } from 'react'
 import { useActorRef, useSelector } from '@xstate/react'
-import type { AmbientWorkspaceSnapshot } from './ambient-workspace-service'
+import type {
+  AmbientWorkspaceSnapshot,
+  OpenAmbientWorkspace,
+} from './ambient-workspace-service'
 import {
   agentWorkflowMachine,
+  deriveAgentAccessView,
+  deriveAmbientWorkspaceView,
+  deriveDraftSafetyView,
   type AgentAccessState,
   type AgentConnectivityState,
   type AgentDraftLifecycle,
-  type AgentWorkflowEvent,
 } from './agent-workflow-machine'
 
-const getDraftKey = (workspace: AmbientWorkspaceSnapshot) => {
-  const draft = workspace.draft
-  return draft ? `${draft.id}@${draft.revision}` : null
+const getAccess = (workspace: OpenAmbientWorkspace | null): AgentAccessState => {
+  if (!workspace) return 'notCreated'
+  if (workspace.mutation === 'creating-access') return 'creating'
+  if (workspace.agentAccess.status === 'available') {
+    return new Date(workspace.agentAccess.expiresAt) > new Date() ? 'available' : 'expired'
+  }
+  if (workspace.agentAccess.status === 'expired') return 'expired'
+  return workspace.agentAccessUrl ? 'available' : 'notCreated'
 }
 
-const getLifecycle = (workspace: AmbientWorkspaceSnapshot): AgentDraftLifecycle =>
-  workspace.draft?.phase ?? 'none'
-
-export const getAgentAccessState = (workspace: AmbientWorkspaceSnapshot): AgentAccessState => {
-  const draft = workspace.draft
-  if (!draft || draft.phase === 'setup') return 'notApplicable'
-  const expiry = draft.promptExpiresAt ? new Date(draft.promptExpiresAt).getTime() : null
-  if (draft.notice === 'expired' || (expiry !== null && expiry <= Date.now())) return 'expired'
-  return draft.agentSessionUrl ? 'available' : 'unavailable'
+const getLifecycle = (workspace: OpenAmbientWorkspace | null): AgentDraftLifecycle => {
+  if (!workspace?.workingDraft) return 'setup'
+  if (workspace.mutation === 'saving') return 'reviewReady'
+  const matchesVersionInUse = Boolean(
+    workspace.versionInUse
+    && JSON.stringify(workspace.workingDraft.document) === JSON.stringify(workspace.versionInUse.document)
+  )
+  if (workspace.workingDraft.acceptedChangeCount > 0 || (workspace.versionInUse && !matchesVersionInUse)) {
+    return 'reviewReady'
+  }
+  if (matchesVersionInUse) return 'saved'
+  if (workspace.promptCopied) return 'waiting'
+  return workspace.agentAccess.status === 'available' ? 'promptReady' : 'setup'
 }
 
-const getConnectivity = (workspace: AmbientWorkspaceSnapshot): AgentConnectivityState => {
-  if (workspace.draft?.notice === 'offline') return 'offline'
-  if (workspace.draft?.notice === 'request-error') return 'requestError'
+const getConnectivity = (workspace: OpenAmbientWorkspace | null): AgentConnectivityState => {
+  if (workspace?.connectivity === 'offline') return 'offline'
+  if (workspace?.connectivity === 'request-error') return 'requestError'
   return 'online'
 }
 
-export function useAgentWorkflow(workspace: AmbientWorkspaceSnapshot) {
+export function useAgentWorkflow(snapshot: AmbientWorkspaceSnapshot) {
+  const workspace = snapshot.workspace
   const actor = useActorRef(agentWorkflowMachine)
-  const snapshot = useSelector(actor, (state) => state)
+  const machineSnapshot = useSelector(actor, (state) => state)
+  const access = getAccess(workspace)
+  const connectivity = getConnectivity(workspace)
+  const lifecycle = getLifecycle(workspace)
 
   useLayoutEffect(() => {
-    actor.send({
-      type: 'SYNC',
-      access: getAgentAccessState(workspace),
-      connectivity: getConnectivity(workspace),
-      draftKey: getDraftKey(workspace),
-      isHydrated: workspace.isHydrated,
-      lifecycle: getLifecycle(workspace),
-    })
-  }, [actor, workspace])
+    actor.send({ type: 'SYNC', access, connectivity, lifecycle })
+  }, [access, actor, connectivity, lifecycle])
 
-  const send = (event: AgentWorkflowEvent) => actor.send(event)
-  const startMutation = (
-    type: 'CREATE_STARTED' | 'EDIT_STARTED' | 'SAVE_STARTED' | 'DISCARD_STARTED',
-  ) => {
-    if (!actor.getSnapshot().matches({ mutation: 'idle' })) return false
-    actor.send({ type })
-    return true
-  }
-
+  const mutation = machineSnapshot.value.mutation
   return {
-    access: snapshot.value.access,
-    connectivity: snapshot.value.connectivity,
-    lifecycle: snapshot.value.lifecycle,
-    mutation: snapshot.value.mutation,
-    presentation: snapshot.value.presentation,
-    isOpen: snapshot.matches({ presentation: 'open' }),
-    isVisible: !snapshot.matches({ presentation: 'hidden' }),
-    send,
-    startMutation,
+    access: deriveAgentAccessView({
+      state: machineSnapshot.value.access as AgentAccessState,
+      expiresAt: workspace?.agentAccess.status === 'available' ? workspace.agentAccess.expiresAt : null,
+    }),
+    draftSafety: deriveDraftSafetyView({
+      currentVersion: workspace?.versionInUse?.version ?? null,
+      acceptedChangeCount: workspace?.workingDraft?.acceptedChangeCount ?? 0,
+      sourceVersion: workspace?.workingDraft?.sourceVersion ?? null,
+      matchesCurrentVersion: Boolean(
+        workspace?.workingDraft
+        && workspace.versionInUse
+        && JSON.stringify(workspace.workingDraft.document) === JSON.stringify(workspace.versionInUse.document)
+      ),
+    }),
+    workspace: deriveAmbientWorkspaceView({
+      lifecycle: machineSnapshot.value.lifecycle as AgentDraftLifecycle,
+      connectivity: machineSnapshot.value.connectivity as AgentConnectivityState,
+      mutation,
+    }),
+    send: actor.send,
   }
 }

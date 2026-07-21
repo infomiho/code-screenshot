@@ -1,8 +1,10 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { MemoryRouter } from 'react-router'
 import { App } from '../../src/app'
 import { loadAmbientDefinition } from '../../src/ambient-registry'
 import { AgentPreviewCanvas } from '../../src/ambient-workspace/agent-preview-page'
+import { AmbientWorkspacePage } from '../../src/ambient-workspace/AmbientWorkspacePage'
 import { MockAmbientService } from '../../src/ambient-workspace/mock-ambient-service'
 import { renderScreenshotBlob } from '../../src/screenshot-export'
 import { swissPosterDocument } from '../../src/swiss-poster'
@@ -20,20 +22,42 @@ const hasExistingDraft = new URLSearchParams(window.location.search).has('existi
 
 if (hasExistingDraft) {
   ambientWorkspaceService.signIn()
-  ambientWorkspaceService.beginAmbient()
-  ambientWorkspaceService.createAmbient('Existing draft')
-  ambientWorkspaceService.forgetAgentAccess()
+  await ambientWorkspaceService.createAmbient('Existing draft')
 }
 
 if (!previewResult.definition || previewResult.definition.kind !== 'declarative') {
   throw new Error('Invalid agent preview fixture')
 }
 
+function FixtureApp() {
+  const initialWorkspace = new URLSearchParams(window.location.search).get('workspace')
+  const [workspaceId, setWorkspaceId] = useState<string | null>(initialWorkspace)
+
+  if (workspaceId) {
+    return (
+      <AmbientWorkspacePage
+        ambientId={workspaceId}
+        ambientWorkspaceService={ambientWorkspaceService}
+        onClose={() => setWorkspaceId(null)}
+      />
+    )
+  }
+
+  return (
+    <App
+      ambientWorkspaceService={ambientWorkspaceService}
+      onOpenWorkspace={setWorkspaceId}
+    />
+  )
+}
+
 createRoot(root).render(
   <StrictMode>
-    {isAgentPreview
-      ? <AgentPreviewCanvas definition={previewResult.definition} />
-      : <App ambientWorkspaceService={ambientWorkspaceService} />}
+    <MemoryRouter>
+      {isAgentPreview
+        ? <AgentPreviewCanvas definition={previewResult.definition} />
+        : <FixtureApp />}
+    </MemoryRouter>
   </StrictMode>,
 )
 

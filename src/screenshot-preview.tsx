@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { getStroke } from 'perfect-freehand'
 import { AmbientSelector, type YourAmbientsState } from './ambient-selector'
+import { AmbientSkeleton } from './ambient-skeleton'
 import { DeclarativeAmbient } from './declarative-ambient'
 import { EditorSkeleton } from './editor-skeleton'
 import { renderScreenshotBlob } from './screenshot-export'
@@ -20,6 +21,7 @@ type PreviewMode = 'fit' | 'edit'
 type ScreenshotPreviewProps = {
   ambientKey: string
   definitions: readonly AmbientDefinition[]
+  ambientLibraryRequest?: number
   yourAmbients: YourAmbientsState
   onAmbientPickerOpenChange: (isOpen: boolean) => void
   onAmbientChange: (ambientKey: string) => void
@@ -29,13 +31,31 @@ type ScreenshotPreviewProps = {
   editorHostRef: RefCallback<HTMLDivElement>
   editorHelpId: string
   isEditorReady: boolean
+  isFrameReady: boolean
 }
 
 const minFrameWidth = 420
 const maxFrameWidth = 1280
 const defaultFrameWidth = 860
 const frameWidthKeyStep = 20
+// Matches --skeleton-reveal-duration; the reveal fades in once, never on later ambient switches.
+const frameRevealDurationMs = 240
 const minEditablePreviewScale = 0.65
+const previewStateStorageKey = 'codeshot.preview-composition'
+
+type StoredPreviewState = {
+  frameWidth: number
+  penStrokes: number[][][]
+}
+
+const readStoredPreviewState = (): StoredPreviewState | null => {
+  try {
+    const value = globalThis.localStorage?.getItem(previewStateStorageKey)
+    return value ? JSON.parse(value) as StoredPreviewState : null
+  } catch {
+    return null
+  }
+}
 
 const clampFrameWidth = (width: number) =>
   Math.min(maxFrameWidth, Math.max(minFrameWidth, Math.round(width)))
@@ -133,6 +153,7 @@ const downloadBlob = (blob: Blob) => {
 export function ScreenshotPreview({
   ambientKey,
   definitions,
+  ambientLibraryRequest,
   yourAmbients,
   onAmbientPickerOpenChange,
   onAmbientChange,
@@ -142,18 +163,24 @@ export function ScreenshotPreview({
   editorHostRef,
   editorHelpId,
   isEditorReady,
+  isFrameReady,
 }: ScreenshotPreviewProps) {
+  const [storedPreviewState] = useState(readStoredPreviewState)
+  const [isFrameRevealed, setIsFrameRevealed] = useState(false)
+  const hasStartedRevealRef = useRef(false)
   const shotRef = useRef<HTMLDivElement>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const widthDragRef = useRef<{ startX: number; startWidth: number; scale: number } | null>(null)
   const activePenPointsRef = useRef<number[][] | null>(null)
-  const [frameWidth, setFrameWidth] = useState(defaultFrameWidth)
+  const [frameWidth, setFrameWidth] = useState(
+    () => clampFrameWidth(storedPreviewState?.frameWidth ?? defaultFrameWidth),
+  )
   const [previewScale, setPreviewScale] = useState(1)
   const [previewMode, setPreviewMode] = useState<PreviewMode>('fit')
   const [exportAction, setExportAction] = useState<ExportAction>(null)
   const [message, setMessage] = useState('')
   const [isPenActive, setIsPenActive] = useState(false)
-  const [penStrokes, setPenStrokes] = useState<number[][][]>([])
+  const [penStrokes, setPenStrokes] = useState<number[][][]>(storedPreviewState?.penStrokes ?? [])
   const [, setPenTick] = useState(0)
   const isCopying = exportAction === 'copy'
   const isDownloading = exportAction === 'download'
@@ -161,16 +188,20 @@ export function ScreenshotPreview({
   const renderedPreviewScale = previewMode === 'edit'
     ? Math.max(previewScale, minEditablePreviewScale)
     : previewScale
-  const frameClass = selectedAmbient.kind === 'react'
+  const frameStatus = !isFrameReady ? 'resolving' : isFrameRevealed ? 'ready' : 'revealing'
+  const isThemedFrame = isFrameReady && selectedAmbient.kind === 'react'
+  const frameClass = isThemedFrame
     ? `shot-frame ${selectedAmbient.frameClass}`
     : 'shot-frame'
   const frameStyle = {
     width: `${frameWidth}px`,
     '--annotation-ink': selectedAmbient.manifest.annotations.ink,
-    ...(selectedAmbient.kind === 'react' ? ambientVariables : {}),
+    ...(isThemedFrame ? ambientVariables : {}),
   } as CSSProperties
 
   const renderAmbient = () => {
+    if (!isFrameReady) return <AmbientSkeleton />
+
     const editorSkeleton = !isEditorReady && <EditorSkeleton />
 
     if (selectedAmbient.kind === 'declarative') {
@@ -198,11 +229,26 @@ export function ScreenshotPreview({
   }
 
   useEffect(() => {
+    if (!isFrameReady || hasStartedRevealRef.current) return
+    hasStartedRevealRef.current = true
+    const timer = window.setTimeout(() => setIsFrameRevealed(true), frameRevealDurationMs)
+    return () => window.clearTimeout(timer)
+  }, [isFrameReady])
+
+  useEffect(() => {
     if (!message) return
 
     const timer = window.setTimeout(() => setMessage(''), 4000)
     return () => window.clearTimeout(timer)
   }, [message])
+
+  useEffect(() => {
+    try {
+      globalThis.localStorage?.setItem(previewStateStorageKey, JSON.stringify({ frameWidth, penStrokes }))
+    } catch {
+      // Export and editing do not depend on local persistence.
+    }
+  }, [frameWidth, penStrokes])
 
   useEffect(() => {
     const viewport = previewViewportRef.current
@@ -371,6 +417,7 @@ export function ScreenshotPreview({
             </div>
             <AmbientSelector
               definitions={definitions}
+              openRequest={ambientLibraryRequest}
               selectedKey={ambientKey}
               yourAmbients={yourAmbients}
               onOpenChange={onAmbientPickerOpenChange}
@@ -439,6 +486,7 @@ export function ScreenshotPreview({
               ref={shotRef}
               className={frameClass}
               data-export-gutter={selectedAmbient.manifest.editor.exportGutter}
+              data-frame-status={frameStatus}
               style={frameStyle}
             >
               {renderAmbient()}

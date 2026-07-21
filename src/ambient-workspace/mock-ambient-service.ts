@@ -1,8 +1,11 @@
 import { createMinimalDraftDocument } from './minimal-draft'
 import type {
-  AgentDraftModel,
+  AmbientVersion,
   AmbientWorkspaceService,
   AmbientWorkspaceSnapshot,
+  CurrentAmbientVersion,
+  OpenAmbientWorkspace,
+  OwnedAmbientSummary,
   SavedAmbientRecord,
 } from './ambient-workspace-service'
 
@@ -10,45 +13,31 @@ const defaultAgentUpdateDelay = 1800
 const defaultSaveDelay = 650
 const signedOutAccount = { kind: 'signed-out' } as const
 const signedInAccount = { kind: 'signed-in', username: 'codeshot-user' } as const
-
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString()
+const now = () => new Date().toISOString()
 
-const createDraft = (id: string): AgentDraftModel => ({
-  id,
-  phase: 'setup',
-  notice: null,
-  ambientName: null,
-  agentSessionUrl: null,
-  agentSessionGeneration: null,
-  promptCopied: false,
-  promptExpiresAt: null,
-  saveState: 'idle',
-  revision: 0,
-  document: createMinimalDraftDocument(),
-})
-
-const createDraftDocument = (name: string) => createMinimalDraftDocument(name)
+type MockAmbient = {
+  summary: OwnedAmbientSummary
+  workspace: OpenAmbientWorkspace
+}
 
 export class MockAmbientService implements AmbientWorkspaceService {
   private snapshot: AmbientWorkspaceSnapshot = {
     isHydrated: true,
+    libraryStatus: 'ready',
     account: signedOutAccount,
-    draft: null,
-    savedAmbients: [],
+    ownedAmbients: [],
+    workspace: null,
   }
-
+  private ambients = new Map<string, MockAmbient>()
   private listeners = new Set<() => void>()
   private nextAmbientId = 1
   private agentUpdateTimer: ReturnType<typeof setTimeout> | null = null
 
-  constructor(private delays = {
-    agentUpdate: defaultAgentUpdateDelay,
-    save: defaultSaveDelay,
-  }) {}
+  constructor(private delays = { agentUpdate: defaultAgentUpdateDelay, save: defaultSaveDelay }) {}
 
   getSnapshot = () => this.snapshot
   getServerSnapshot = () => this.snapshot
-
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
@@ -59,12 +48,21 @@ export class MockAmbientService implements AmbientWorkspaceService {
     this.listeners.forEach((listener) => listener())
   }
 
-  private updateDraft = (update: (draft: AgentDraftModel) => AgentDraftModel) => {
-    if (!this.snapshot.draft) return
+  private sync = (workspace = this.snapshot.workspace) => {
+    if (workspace) {
+      const ambient = this.ambients.get(workspace.ambient.id)
+      if (ambient) ambient.workspace = workspace
+    }
     this.update({
       ...this.snapshot,
-      draft: update(this.snapshot.draft),
+      ownedAmbients: [...this.ambients.values()].map(({ summary }) => summary),
+      workspace,
     })
+  }
+
+  private updateWorkspace = (update: (workspace: OpenAmbientWorkspace) => OpenAmbientWorkspace) => {
+    if (!this.snapshot.workspace) return
+    this.sync(update(this.snapshot.workspace))
   }
 
   private cancelAgentUpdate = () => {
@@ -74,66 +72,120 @@ export class MockAmbientService implements AmbientWorkspaceService {
   }
 
   signIn = () => {
-    this.update({ ...this.snapshot, account: signedInAccount })
+    this.snapshot = { ...this.snapshot, account: signedInAccount }
+    this.sync()
+  }
+  signOut = () => this.update({ ...this.snapshot, account: signedOutAccount, ownedAmbients: [], workspace: null })
+  refreshLibrary = async () => this.sync()
+
+  openWorkspace = async (ambientId: string) => {
+    const ambient = this.ambients.get(ambientId)
+    if (!ambient || this.snapshot.account.kind !== 'signed-in') return false
+    this.sync(ambient.workspace)
+    return true
   }
 
-  signOut = () => {
-    this.update({ ...this.snapshot, account: signedOutAccount })
-  }
-
-  beginAmbient = () => {
-    if (this.snapshot.account.kind !== 'signed-in') return
+  closeWorkspace = () => {
     this.cancelAgentUpdate()
-    this.update({ ...this.snapshot, draft: createDraft('ambient-pending') })
+    this.sync(null)
   }
 
-  editAmbient = async (ambientId: string) => {
-    if (this.snapshot.draft) return false
-    const saved = this.snapshot.savedAmbients.find((ambient) => ambient.id === ambientId)
-    if (!saved) return false
-    this.update({
-      ...this.snapshot,
-      draft: {
-        id: saved.id,
-        phase: 'handoff',
-        notice: null,
-        ambientName: saved.document.name,
-        agentSessionUrl: 'https://codeshot.dev/agent/sessions/cap_demo_7c92f',
-        agentSessionGeneration: 1,
-        promptCopied: false,
-        promptExpiresAt: hoursFromNow(24),
-        saveState: 'idle',
-        revision: saved.version,
-        document: saved.document,
+  createAmbient = async (ambientName: string) => {
+    if (this.snapshot.account.kind !== 'signed-in') return null
+    const id = `ambient-mock-${this.nextAmbientId++}`
+    const document = createMinimalDraftDocument(ambientName)
+    const workspace: OpenAmbientWorkspace = {
+      ambient: { id, name: ambientName },
+      workingDraft: {
+        revision: 0,
+        baseRevision: 0,
+        sourceVersion: null,
+        document,
+        updatedAt: now(),
+        acceptedChangeCount: 0,
       },
+      versionInUse: null,
+      versions: [],
+      agentAccess: { status: 'not-created' },
+      agentAccessUrl: null,
+      promptCopied: false,
+      connectivity: 'online',
+      mutation: 'idle',
+    }
+    this.ambients.set(id, {
+      workspace,
+      summary: {
+        id,
+        name: ambientName,
+        visibility: 'private',
+        currentVersion: null,
+        draft: { status: 'waiting', revision: 0, document, updatedAt: workspace.workingDraft!.updatedAt },
+      },
+    })
+    this.sync(workspace)
+    return id
+  }
+
+  createAgentAccess = async () => {
+    if (!this.snapshot.workspace) return false
+    this.updateWorkspace((workspace) => {
+      const revision = Math.max(-1, ...workspace.versions.map((version) => version.draftRevision)) + 1
+      const workingDraft = workspace.workingDraft ?? (workspace.versionInUse ? {
+        revision,
+        baseRevision: revision,
+        sourceVersion: workspace.versionInUse.version,
+        document: JSON.parse(JSON.stringify(workspace.versionInUse.document)),
+        updatedAt: now(),
+        acceptedChangeCount: 0,
+      } : null)
+      const previousGeneration = workspace.agentAccess.status === 'not-created'
+        ? 0
+        : workspace.agentAccess.generation
+      const ambient = this.ambients.get(workspace.ambient.id)
+      if (ambient && workingDraft) {
+        ambient.summary = {
+          ...ambient.summary,
+          draft: {
+            status: workspace.versionInUse ? 'matches-version' : 'waiting',
+            revision: workingDraft.revision,
+            document: workingDraft.document,
+            updatedAt: workingDraft.updatedAt,
+          },
+        }
+      }
+      return {
+        ...workspace,
+        workingDraft,
+        agentAccess: {
+          status: 'available',
+          generation: previousGeneration + 1,
+          expiresAt: hoursFromNow(24),
+          lastUsedAt: null,
+        },
+        agentAccessUrl: 'https://codeshot.dev/agent/sessions/cap_demo_7c92f',
+        promptCopied: false,
+      }
     })
     return true
   }
 
-  createAmbient = (ambientName: string) => {
-    const id = `ambient-mock-${this.nextAmbientId}`
-    this.nextAmbientId += 1
-    this.updateDraft((draft) => ({
-      ...draft,
-      id,
-      phase: 'handoff',
-      notice: null,
-      ambientName,
-      agentSessionUrl: 'https://codeshot.dev/agent/sessions/cap_demo_7c92f',
-      agentSessionGeneration: 0,
-      promptExpiresAt: hoursFromNow(24),
+  discardAgentAccess = async () => {
+    if (!this.snapshot.workspace) return false
+    this.cancelAgentUpdate()
+    this.updateWorkspace((workspace) => ({
+      ...workspace,
+      agentAccess: workspace.agentAccess.status === 'not-created'
+        ? workspace.agentAccess
+        : { status: 'expired', generation: workspace.agentAccess.generation, expiresAt: now() },
+      agentAccessUrl: null,
+      promptCopied: false,
     }))
+    return true
   }
 
   copyPrompt = () => {
-    const draft = this.snapshot.draft
-    if (
-      !draft
-      || !['handoff', 'review', 'saved'].includes(draft.phase)
-      || draft.notice === 'expired'
-    ) return
-
-    this.updateDraft((current) => ({ ...current, promptCopied: true }))
+    if (!this.snapshot.workspace?.agentAccessUrl) return
+    this.updateWorkspace((workspace) => ({ ...workspace, promptCopied: true }))
     this.cancelAgentUpdate()
     this.agentUpdateTimer = globalThis.setTimeout(() => {
       this.agentUpdateTimer = null
@@ -142,82 +194,155 @@ export class MockAmbientService implements AmbientWorkspaceService {
   }
 
   private receiveAgentUpdate = () => {
-    this.updateDraft((draft) => {
-      if (!draft.ambientName || !['handoff', 'review', 'saved'].includes(draft.phase)) return draft
+    this.updateWorkspace((workspace) => {
+      const draft = workspace.workingDraft
+      if (!draft) return workspace
+      const revision = draft.revision + 1
+      const updatedAt = now()
+      const document = {
+        ...draft.document,
+        stylesheet: `${draft.document.stylesheet}\n/* accepted agent change ${revision} */`,
+      }
+      const ambient = this.ambients.get(workspace.ambient.id)
+      if (ambient) {
+        ambient.summary = {
+          ...ambient.summary,
+          draft: { status: 'review-ready', revision, document, updatedAt },
+        }
+      }
       return {
-        ...draft,
-        phase: 'review',
-        saveState: 'idle',
-        revision: draft.revision + 1,
-        document: createDraftDocument(draft.ambientName),
+        ...workspace,
+        workingDraft: {
+          ...draft,
+          revision,
+          updatedAt,
+          acceptedChangeCount: revision - draft.baseRevision,
+          document,
+        },
       }
     })
   }
 
-  renewAgentAccess = () => {
-    this.updateDraft((draft) => ({
-      ...draft,
-      notice: null,
-      agentSessionUrl: 'https://codeshot.dev/agent/sessions/cap_demo_renewed',
-      promptCopied: false,
-      promptExpiresAt: hoursFromNow(24),
-    }))
-  }
-
-  forgetAgentAccess = () => {
-    this.updateDraft((draft) => ({
-      ...draft,
-      notice: 'unavailable',
-      agentSessionUrl: null,
-    }))
-  }
-
-  retryConnection = () => {
-    this.updateDraft((draft) => ({ ...draft, notice: null }))
-  }
-
-  savePrivateVersion = async () => {
-    const draft = this.snapshot.draft
-    if (!draft?.document || draft.saveState === 'saving') return null
-
-    this.updateDraft((current) => ({ ...current, saveState: 'saving' }))
+  saveAmbientVersion = async () => {
+    const workspace = this.snapshot.workspace
+    if (!workspace?.workingDraft || workspace.mutation !== 'idle') return null
+    if (
+      workspace.versionInUse
+      && JSON.stringify(workspace.workingDraft.document) === JSON.stringify(workspace.versionInUse.document)
+    ) return null
+    const ambientId = workspace.ambient.id
+    const draftRevision = workspace.workingDraft.revision
+    this.updateWorkspace((current) => ({ ...current, mutation: 'saving' }))
     return new Promise<SavedAmbientRecord | null>((resolve) => {
       globalThis.setTimeout(() => {
-        const current = this.snapshot.draft
-        if (!current?.document) {
-          resolve(null)
-          return
+        const ambient = this.ambients.get(ambientId)
+        const current = ambient?.workspace
+        if (!ambient || !current?.workingDraft || current.workingDraft.revision !== draftRevision) {
+          return resolve(null)
         }
-
-        const previous = this.snapshot.savedAmbients.find((record) => record.id === current.id)
-        const record: SavedAmbientRecord = {
-          id: current.id,
-          version: (previous?.version ?? 0) + 1,
-          document: current.document,
+        const version: AmbientVersion = {
+          id: `${current.ambient.id}-version-${current.versions.length + 1}`,
+          version: current.versions.length + 1,
+          draftRevision: current.workingDraft.revision,
+          document: JSON.parse(JSON.stringify(current.workingDraft.document)),
+          createdAt: now(),
+          isInUse: true,
         }
-        const savedAmbients = [
-          ...this.snapshot.savedAmbients.filter((candidate) => candidate.id !== record.id),
-          record,
-        ]
-
-        this.update({
-          ...this.snapshot,
-          savedAmbients,
+        const record: CurrentAmbientVersion = version
+        ambient.summary = {
+          ...ambient.summary,
+          currentVersion: record,
           draft: {
-            ...current,
-            phase: 'saved',
-            saveState: 'idle',
+            status: 'matches-version',
+            revision: current.workingDraft.revision,
+            document: current.workingDraft.document,
+            updatedAt: now(),
           },
-        })
+        }
+        const savedWorkspace: OpenAmbientWorkspace = {
+          ...current,
+          versionInUse: record,
+          versions: [version, ...current.versions.map((item) => ({ ...item, isInUse: false }))],
+          workingDraft: {
+            ...current.workingDraft,
+            baseRevision: current.workingDraft.revision,
+            sourceVersion: version.version,
+            acceptedChangeCount: 0,
+          },
+          mutation: 'idle',
+        }
+        ambient.workspace = savedWorkspace
+        this.sync(this.snapshot.workspace?.ambient.id === ambientId ? savedWorkspace : this.snapshot.workspace)
         resolve(record)
       }, this.delays.save)
     })
   }
 
   discardAmbientDraft = async () => {
-    if (!this.snapshot.draft) return false
+    const workspace = this.snapshot.workspace
+    if (!workspace) return false
     this.cancelAgentUpdate()
-    this.update({ ...this.snapshot, draft: null })
+    const ambient = this.ambients.get(workspace.ambient.id)
+    if (!ambient) return false
+    if (!workspace.versionInUse) {
+      this.ambients.delete(workspace.ambient.id)
+      this.sync(null)
+      return true
+    }
+    ambient.summary = { ...ambient.summary, draft: null }
+    this.sync({
+      ...workspace,
+      workingDraft: null,
+      agentAccess: workspace.agentAccess.status === 'not-created'
+        ? workspace.agentAccess
+        : { status: 'expired', generation: workspace.agentAccess.generation, expiresAt: now() },
+      agentAccessUrl: null,
+      mutation: 'idle',
+    })
+    return true
+  }
+
+  createDraftFromVersion = async (versionId: string) => {
+    const workspace = this.snapshot.workspace
+    const version = workspace?.versions.find((candidate) => candidate.id === versionId)
+    if (!workspace || !version) return false
+    const maximumRevision = Math.max(
+      workspace.workingDraft?.revision ?? -1,
+      ...workspace.versions.map((candidate) => candidate.draftRevision),
+    )
+    const revision = maximumRevision + 1
+    const updatedAt = now()
+    const ambient = this.ambients.get(workspace.ambient.id)
+    if (ambient) {
+      ambient.summary = {
+        ...ambient.summary,
+        name: version.document.name,
+        draft: {
+            status: version.isInUse ? 'matches-version' : 'review-ready',
+            revision,
+            document: version.document,
+            updatedAt,
+        },
+      }
+    }
+    this.sync({
+      ...workspace,
+      ambient: { ...workspace.ambient, name: version.document.name },
+      workingDraft: {
+        revision,
+        baseRevision: revision,
+        sourceVersion: version.version,
+        document: JSON.parse(JSON.stringify(version.document)),
+        updatedAt,
+        acceptedChangeCount: 0,
+      },
+      agentAccess: workspace.agentAccess.status === 'not-created'
+        ? workspace.agentAccess
+        : { status: 'expired', generation: workspace.agentAccess.generation, expiresAt: now() },
+      agentAccessUrl: null,
+      promptCopied: false,
+      mutation: 'idle',
+    })
     return true
   }
 }

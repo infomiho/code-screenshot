@@ -1,23 +1,23 @@
-import type {
-  KeyboardEventHandler,
-  RefObject,
-} from 'react'
+import type { KeyboardEventHandler, RefObject } from 'react'
 import { AmbientMark } from './ambient-mark'
 import { getAmbientKey, type AmbientDefinition } from './ambient-themes'
 
+export type OwnedAmbientPickerItem = {
+  id: string
+  name: string
+  version: number | null
+  draftStatus: 'waiting' | 'review-ready' | 'matches-version' | null
+  draftDefinition: AmbientDefinition | null
+}
+
 export type YourAmbientsState =
-  | {
-      kind: 'signed-out'
-      onSignIn: () => void
-    }
+  | { kind: 'signed-out'; onCreateAmbient: () => void; onSignIn: () => void }
   | {
       kind: 'signed-in'
       username: string
-      draft: { actionLabel: string; name: string; status: string } | null
-      canCreate: boolean
+      ambients: readonly OwnedAmbientPickerItem[]
       onCreateAmbient: () => void
-      onEditAmbient: (ambientId: string) => void
-      onOpenDraft: () => void
+      onOpenAmbient: (ambientId: string) => void
     }
 
 export type AmbientPickerEntry = {
@@ -40,24 +40,11 @@ type AmbientPickerProps = {
   onSelect: (index: number) => void
 }
 
-type AmbientPickerOptionProps = AmbientPickerEntry & {
-  activeIndex: number
-  pickerId: string
-  selectedIndex: number
-  onActiveIndexChange: (index: number) => void
-  columnSpan?: number
-  onSelect: (index: number) => void
-}
-
-const getOptionStateLabel = (
-  definition: AmbientDefinition,
-  index: number,
-  selectedIndex: number,
-) => {
-  if (index === selectedIndex) return 'Selected'
-  if (definition.source === 'draft') return 'Draft'
-  return null
-}
+const draftStatusLabel = {
+  waiting: 'Working draft',
+  'review-ready': 'Ready to review',
+  'matches-version': 'Draft synced',
+} as const
 
 function AmbientPickerOption({
   activeIndex,
@@ -66,95 +53,74 @@ function AmbientPickerOption({
   pickerId,
   selectedIndex,
   onActiveIndexChange,
-  columnSpan,
   onSelect,
-}: AmbientPickerOptionProps) {
-  const stateLabel = getOptionStateLabel(definition, index, selectedIndex)
-
+}: AmbientPickerEntry & {
+  activeIndex: number
+  pickerId: string
+  selectedIndex: number
+  onActiveIndexChange: (index: number) => void
+  onSelect: (index: number) => void
+}) {
   return (
     <div
       id={`${pickerId}-option-${index}`}
       className="ambient-picker-option"
       role="gridcell"
       aria-selected={index === selectedIndex}
-      aria-colspan={columnSpan}
       data-active={index === activeIndex}
       onPointerMove={() => onActiveIndexChange(index)}
-      onClick={() => onSelect(index)}
     >
-      <AmbientMark definition={definition} />
-      <span>{definition.manifest.name}</span>
-      {stateLabel && <small>{stateLabel}</small>}
+      <button
+        className="ambient-picker-option-button"
+        type="button"
+        tabIndex={-1}
+        onClick={() => onSelect(index)}
+      >
+        <AmbientMark definition={definition} />
+        <span>{definition.manifest.name}</span>
+        {index === selectedIndex && <small>Selected</small>}
+      </button>
     </div>
   )
 }
 
-function AmbientPickerGroup({
+function IncludedAmbientGrid({
   activeIndex,
   entries,
-  label,
-  layout,
   pickerId,
   selectedIndex,
   onActiveIndexChange,
-  onEdit,
   onSelect,
 }: {
   activeIndex: number
   entries: AmbientPickerEntry[]
-  label: string
-  layout: 'grid' | 'list'
   pickerId: string
   selectedIndex: number
   onActiveIndexChange: (index: number) => void
-  onEdit?: (ambientId: string) => void
   onSelect: (index: number) => void
 }) {
-  const headingId = `${pickerId}-${label.toLocaleLowerCase().replaceAll(' ', '-')}`
-  const rowSize = layout === 'grid' ? 2 : 1
   const rows = Array.from(
-    { length: Math.ceil(entries.length / rowSize) },
-    (_, rowIndex) => entries.slice(rowIndex * rowSize, rowIndex * rowSize + rowSize),
+    { length: Math.ceil(entries.length / 2) },
+    (_, index) => entries.slice(index * 2, index * 2 + 2),
   )
 
   return (
-    <section className="ambient-picker-section" aria-labelledby={headingId}>
-      <h3 id={headingId}>{label}</h3>
-      <div className="ambient-picker-group" role="rowgroup">
+    <section className="ambient-picker-section" role="rowgroup" aria-label="Included ambients">
+      <h3 id={`${pickerId}-included`} aria-hidden="true">Included</h3>
+      <div className="ambient-picker-group" role="presentation">
         {rows.map((row) => (
-          <div
-            className={`ambient-picker-row ambient-picker-row-${layout}`}
-            role="row"
-            key={row.map(({ definition }) => getAmbientKey(definition)).join(':')}
-          >
-            {row.map(({ definition, index }) => {
-              const canEdit = Boolean(onEdit && definition.source === 'saved')
-              return (
-                <AmbientPickerOption
-                  activeIndex={activeIndex}
-                  columnSpan={layout === 'list' && !canEdit ? 2 : undefined}
-                  definition={definition}
-                  index={index}
-                  key={getAmbientKey(definition)}
-                  pickerId={pickerId}
-                  selectedIndex={selectedIndex}
-                  onActiveIndexChange={onActiveIndexChange}
-                  onSelect={onSelect}
-                />
-              )
-            })}
-            {row.length === 1 && onEdit && row[0].definition.source === 'saved' && (
-              <div className="ambient-picker-action-cell" role="gridcell">
-                <button
-                  className="ambient-picker-edit"
-                  type="button"
-                  aria-label={`Edit ${row[0].definition.manifest.name}`}
-                  onClick={() => onEdit(row[0].definition.id)}
-                >
-                  Edit
-                </button>
-              </div>
-            )}
+          <div className="ambient-picker-row ambient-picker-row-grid" role="row" key={row.map(({ definition }) => getAmbientKey(definition)).join(':')}>
+            {row.map((entry) => (
+              <AmbientPickerOption
+                {...entry}
+                activeIndex={activeIndex}
+                key={getAmbientKey(entry.definition)}
+                pickerId={pickerId}
+                selectedIndex={selectedIndex}
+                onActiveIndexChange={onActiveIndexChange}
+                onSelect={onSelect}
+              />
+            ))}
           </div>
         ))}
       </div>
@@ -162,55 +128,80 @@ function AmbientPickerGroup({
   )
 }
 
-function AmbientAccountActions({
-  hasPersonalAmbients,
+function OwnedAmbientList({
+  activeIndex,
+  entries,
+  pickerId,
+  selectedIndex,
   state,
-  onAction,
+  onActiveIndexChange,
+  onOpen,
+  onSelect,
 }: {
-  hasPersonalAmbients: boolean
-  state: YourAmbientsState
-  onAction: (action: () => void) => void
+  activeIndex: number
+  entries: AmbientPickerEntry[]
+  pickerId: string
+  selectedIndex: number
+  state: Extract<YourAmbientsState, { kind: 'signed-in' }>
+  onActiveIndexChange: (index: number) => void
+  onOpen: (ambientId: string) => void
+  onSelect: (index: number) => void
 }) {
-  if (state.kind === 'signed-out') {
-    return (
-      <section className="ambient-account" aria-label="Your ambients account">
-        {!hasPersonalAmbients && <h3>Your ambients</h3>}
-        <p>Sign in to create and save ambients.</p>
-        <button
-          className="ui-button ambient-account-action"
-          type="button"
-          onClick={() => onAction(state.onSignIn)}
-        >
-          Sign in with GitHub
-        </button>
-      </section>
-    )
-  }
+  const entriesById = new Map(entries.map((entry) => [entry.definition.id, entry]))
 
   return (
-    <section className="ambient-account" aria-label="Your ambients account">
-      {!hasPersonalAmbients && <h3>Your ambients</h3>}
-      <div className="ambient-account-meta">@{state.username}</div>
-      {state.draft && (
-        <div className="ambient-draft-row">
-          <div>
-            <strong>{state.draft.name}</strong>
-            <span>{state.draft.status}</span>
-          </div>
-          <button className="ui-button" type="button" onClick={() => onAction(state.onOpenDraft)}>
-            {state.draft.actionLabel}
-          </button>
+    <section className="ambient-picker-section ambient-owned-section" role="rowgroup" aria-label="Your ambients">
+      <h3 id={`${pickerId}-owned`} aria-hidden="true">Your ambients</h3>
+      {state.ambients.length === 0 ? (
+        <div className="ambient-library-empty">
+          <strong>Create your first ambient</strong>
+          <span>Build a reusable visual frame with help from your coding agent.</span>
         </div>
-      )}
-      {!hasPersonalAmbients && !state.draft && <p>No saved ambients yet.</p>}
-      {state.canCreate && (
-        <button
-          className="ui-button ambient-account-action"
-          type="button"
-          onClick={() => onAction(state.onCreateAmbient)}
-        >
-          New ambient
-        </button>
+      ) : (
+        <div className="ambient-picker-group ambient-owned-list" role="presentation">
+          {state.ambients.map((ambient) => {
+            const entry = entriesById.get(ambient.id)
+            return (
+              <div
+                className="ambient-picker-row ambient-picker-row-list ambient-owned-row"
+                role="row"
+                key={ambient.id}
+                data-active={entry?.index === activeIndex || undefined}
+                data-selected={entry?.index === selectedIndex || undefined}
+              >
+                {entry ? (
+                  <AmbientPickerOption
+                    {...entry}
+                    activeIndex={activeIndex}
+                    pickerId={pickerId}
+                    selectedIndex={selectedIndex}
+                    onActiveIndexChange={onActiveIndexChange}
+                    onSelect={onSelect}
+                  />
+                ) : (
+                  <div className="ambient-picker-option ambient-owned-placeholder" role="gridcell">
+                    {ambient.draftDefinition
+                      ? <AmbientMark definition={ambient.draftDefinition} />
+                      : <span className="ambient-owned-placeholder-mark" aria-hidden="true" />}
+                    <span>{ambient.name}</span>
+                  </div>
+                )}
+                <div className="ambient-owned-meta" role="gridcell">
+                  <span>{ambient.version === null ? 'Not saved' : `Version ${ambient.version}`}</span>
+                  <span>Private</span>
+                  {ambient.draftStatus && (
+                    <strong data-status={ambient.draftStatus}>{draftStatusLabel[ambient.draftStatus]}</strong>
+                  )}
+                </div>
+                <div className="ambient-picker-action-cell" role="gridcell">
+                  <button className="ambient-picker-edit" type="button" onClick={() => onOpen(ambient.id)}>
+                    {ambient.draftStatus ? 'Open' : 'Edit'}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </section>
   )
@@ -249,14 +240,8 @@ export function AmbientPicker({
       }}
     >
       <div className="ambient-picker-heading">
-        <span>Choose ambient</span>
-        <span>{String(selectedIndex + 1).padStart(2, '0')} / {String(builtIns.length + personal.length).padStart(2, '0')}</span>
-        <button
-          className="ui-button ui-button-ghost ui-button-icon ambient-picker-close"
-          type="button"
-          aria-label="Close ambient picker"
-          onClick={onEscape}
-        >
+        <span>Choose an ambient</span>
+        <button className="ui-button ui-button-ghost ui-button-icon ambient-picker-close" type="button" aria-label="Close ambient picker" onClick={onEscape}>
           &#215;
         </button>
       </div>
@@ -272,37 +257,48 @@ export function AmbientPicker({
           if (event.target === event.currentTarget) onKeyDown(event)
         }}
       >
-        <AmbientPickerGroup
+        <IncludedAmbientGrid
           activeIndex={activeIndex}
           entries={builtIns}
-          label="Built-in ambients"
-          layout="grid"
           pickerId={pickerId}
           selectedIndex={selectedIndex}
           onActiveIndexChange={onActiveIndexChange}
           onSelect={onSelect}
         />
-        {personal.length > 0 && (
-          <AmbientPickerGroup
+        {yourAmbients.kind === 'signed-in' && (
+          <OwnedAmbientList
             activeIndex={activeIndex}
             entries={personal}
-            label="Your ambients"
-            layout="list"
             pickerId={pickerId}
             selectedIndex={selectedIndex}
+            state={yourAmbients}
             onActiveIndexChange={onActiveIndexChange}
-            onEdit={yourAmbients.kind === 'signed-in' && !yourAmbients.draft
-              ? (ambientId) => runAction(() => yourAmbients.onEditAmbient(ambientId))
-              : undefined}
+            onOpen={(ambientId) => runAction(() => yourAmbients.onOpenAmbient(ambientId))}
             onSelect={onSelect}
           />
         )}
       </div>
-      <AmbientAccountActions
-        hasPersonalAmbients={personal.length > 0}
-        state={yourAmbients}
-        onAction={runAction}
-      />
+      <section className="ambient-account" data-account={yourAmbients.kind} aria-label="Your ambients account">
+        {yourAmbients.kind === 'signed-out' ? (
+          <>
+            <h3>Your ambients</h3>
+            <p>Sign in to create a reusable visual frame.</p>
+            <button className="ui-button ui-button-primary ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
+              Create ambient
+            </button>
+            <button className="ui-button ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onSignIn)}>
+              Sign in with GitHub
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="ambient-account-meta">@{yourAmbients.username}</div>
+            <button className="ui-button ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
+              Create ambient
+            </button>
+          </>
+        )}
+      </section>
     </div>
   )
 }
