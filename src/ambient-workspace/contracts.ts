@@ -11,7 +11,7 @@ export type WorkspaceDocumentDto = DeepMutable<AmbientDocument>
 
 export type AmbientAccountDto =
   | { kind: 'signed-out' }
-  | { kind: 'signed-in'; username: string }
+  | { kind: 'signed-in'; username: string; avatarUrl: string | null }
 
 export type SavedAmbientVersionDto = {
   id: string

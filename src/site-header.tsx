@@ -35,6 +35,7 @@ export function SiteHeader({
         ) : (
           <AccountMenu
             username={account.username}
+            avatarUrl={account.avatarUrl}
             draftCount={draftCount}
             onOpenLibrary={onOpenLibrary}
             onSignOut={onSignOut}

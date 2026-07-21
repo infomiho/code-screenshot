@@ -54,12 +54,19 @@
   width: var(--account-avatar-size);
   height: var(--account-avatar-size);
   place-items: center;
+  overflow: hidden;
   border-radius: 50%;
   background: oklch(0.7 0.075 240);
   color: oklch(0.14 0.008 250);
   font-family: var(--sans);
   font-size: var(--font-size-control);
   font-weight: var(--font-weight-heavy);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .account-username {

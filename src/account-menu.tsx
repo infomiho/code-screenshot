@@ -3,6 +3,7 @@ import './account-menu.css'
 
 type AccountMenuProps = {
   username: string
+  avatarUrl?: string | null
   draftCount?: number
   onOpenLibrary?: () => void
   onSignOut: () => void
@@ -13,7 +14,7 @@ const getAvatarInitial = (username: string) => username.trim().charAt(0).toLocal
 const formatLibraryLabel = (draftCount: number) =>
   draftCount > 0 ? `Your ambients (${draftCount} draft${draftCount === 1 ? '' : 's'})` : 'Your ambients'
 
-export function AccountMenu({ username, draftCount = 0, onOpenLibrary, onSignOut }: AccountMenuProps) {
+export function AccountMenu({ username, avatarUrl = null, draftCount = 0, onOpenLibrary, onSignOut }: AccountMenuProps) {
   const menuRef = useRef<HTMLDetailsElement>(null)
 
   useEffect(() => {
@@ -39,7 +40,9 @@ export function AccountMenu({ username, draftCount = 0, onOpenLibrary, onSignOut
   return (
     <details className="account-menu" ref={menuRef}>
       <summary>
-        <span className="account-avatar" aria-hidden="true">{getAvatarInitial(username)}</span>
+        <span className="account-avatar" aria-hidden="true">
+          {avatarUrl ? <img src={avatarUrl} alt="" /> : getAvatarInitial(username)}
+        </span>
         <span className="account-username">@{username}</span>
         <span className="account-disclosure" aria-hidden="true" />
       </summary>

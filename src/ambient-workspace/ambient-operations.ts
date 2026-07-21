@@ -134,7 +134,7 @@ export const listOwnedAmbients: ListOwnedAmbients<void, AmbientLibraryDto> = asy
   })
 
   return {
-    account: { kind: 'signed-in', username: user.githubLogin },
+    account: { kind: 'signed-in', username: user.githubLogin, avatarUrl: user.githubAvatarUrl ?? null },
     ownedAmbients: ambients.map((ambient) => {
       const currentVersion = ambient.versions[0]
       return {

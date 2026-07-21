@@ -12,7 +12,7 @@ import type {
 const defaultAgentUpdateDelay = 1800
 const defaultSaveDelay = 650
 const signedOutAccount = { kind: 'signed-out' } as const
-const signedInAccount = { kind: 'signed-in', username: 'codeshot-user' } as const
+const signedInAccount = { kind: 'signed-in', username: 'codeshot-user', avatarUrl: null } as const
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString()
 const now = () => new Date().toISOString()
 
@@ -75,7 +75,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
     this.snapshot = { ...this.snapshot, account: signedInAccount }
     this.sync()
   }
-  signOut = () => this.update({ ...this.snapshot, account: signedOutAccount, ownedAmbients: [], workspace: null })
+  signOut = async () => this.update({ ...this.snapshot, account: signedOutAccount, ownedAmbients: [], workspace: null })
   refreshLibrary = async () => this.sync()
 
   openWorkspace = async (ambientId: string) => {

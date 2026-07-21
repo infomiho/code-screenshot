@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { AccountMenu } from '../account-menu'
 import { AmbientMark } from '../ambient-mark'
 import type { AmbientDefinition } from '../ambient-themes'
-import type { AmbientWorkspaceService, OwnedAmbientSummary } from './ambient-workspace-service'
+import { countDraftAmbients, type AmbientWorkspaceService, type OwnedAmbientSummary } from './ambient-workspace-service'
 import { useAmbientWorkspace } from './use-ambient-workspace'
 import '../index.css'
 import './your-ambients-page.css'
@@ -130,8 +130,8 @@ export function YourAmbientsPage({
     }
   }
 
-  const signOut = () => {
-    service.signOut()
+  const signOut = async () => {
+    await service.signOut()
     openEditor()
   }
 
@@ -241,7 +241,15 @@ export function YourAmbientsPage({
           <span className="subpage-back-arrow" aria-hidden="true">←</span>
           <span className="subpage-back-label">Back to editor</span>
         </button>
-        {account && <AccountMenu username={account.username} onSignOut={signOut} />}
+        {account && (
+          <AccountMenu
+            username={account.username}
+            avatarUrl={account.avatarUrl}
+            draftCount={countDraftAmbients(snapshot.ownedAmbients)}
+            onOpenLibrary={() => navigate('/ambients')}
+            onSignOut={signOut}
+          />
+        )}
       </header>
 
       <section className="ambient-library-body" aria-label="Your ambients">

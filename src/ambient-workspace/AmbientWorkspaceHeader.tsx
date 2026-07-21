@@ -31,6 +31,7 @@ export function AmbientWorkspaceHeader({
         {account.kind === 'signed-in' && (
           <AccountMenu
             username={account.username}
+            avatarUrl={account.avatarUrl}
             draftCount={draftCount}
             onOpenLibrary={onClose}
             onSignOut={onSignOut}

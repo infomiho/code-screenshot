@@ -210,6 +210,28 @@ describe('HostedAmbientService', () => {
     unsubscribe()
   })
 
+  it('signs out locally first and resolves only after the server logout', async () => {
+    let resolveLogout: () => void = () => undefined
+    auth.logout.mockReturnValue(new Promise<void>((resolve) => {
+      resolveLogout = resolve
+    }))
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().account.kind).toBe('signed-in'))
+
+    let signedOut = false
+    const signingOut = service.signOut().then(() => {
+      signedOut = true
+    })
+
+    expect(service.getSnapshot().account.kind).toBe('signed-out')
+    expect(signedOut).toBe(false)
+    resolveLogout()
+    await signingOut
+    expect(signedOut).toBe(true)
+    unsubscribe()
+  })
+
   it('deletes an ambient, closing its workspace and cached access', async () => {
     sessionStorage.setItem('codeshot.agent-session.ambient-1', JSON.stringify({
       ambientId: 'ambient-1',

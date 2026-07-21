@@ -144,12 +144,18 @@ export class HostedAmbientService implements AmbientWorkspaceService {
 
   signIn = () => globalThis.location.assign(githubSignInUrl)
 
-  signOut = () => {
+  signOut = async () => {
     this.requestGeneration += 1
     this.stopPolling()
     clearCachedSessions()
     this.update(signedOutSnapshot)
-    void logout()
+    try {
+      // Awaiting keeps the session invalidated before callers navigate, so the
+      // next page's account fetch cannot race a still-valid session.
+      await logout()
+    } catch {
+      // Wasp clears local session data even when the server call fails.
+    }
   }
 
   refreshLibrary = async () => {

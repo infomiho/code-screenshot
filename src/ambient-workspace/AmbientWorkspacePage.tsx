@@ -133,8 +133,8 @@ export function AmbientWorkspacePage({
     }
   }
 
-  const signOut = () => {
-    service.signOut()
+  const signOut = async () => {
+    await service.signOut()
     if (onClose) {
       onClose()
     } else {
@@ -310,7 +310,7 @@ export function AmbientWorkspacePage({
         onSignOut={signOut}
       />
 
-      <div className="workspace-layout">
+      <div className="workspace-layout" data-sidebar={sidebar.isCollapsed ? 'collapsed' : 'expanded'}>
         <section id="workspace-preview-panel" className="workspace-preview-panel">
           {isComparing && selectedVersion ? (
             <DraftVersionComparison
@@ -336,9 +336,12 @@ export function AmbientWorkspacePage({
         <div className="workspace-activity-panel">
           <WorkspaceSidebar
             activeTab={sidebar.activeTab}
+            isCollapsed={sidebar.isCollapsed}
+            railStatus={workflow.workspace.status}
             statusMessage={statusMessage}
             versionCount={workspace.versions.length}
             onTabChange={sidebar.setActiveTab}
+            onToggleCollapse={sidebar.toggleCollapsed}
             work={(
               <WorkspaceWorkPanel
                 access={workflow.access}

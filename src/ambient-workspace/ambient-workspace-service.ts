@@ -71,7 +71,7 @@ export interface AmbientWorkspaceService {
   getServerSnapshot: () => AmbientWorkspaceSnapshot
   subscribe: (listener: () => void) => () => void
   signIn: () => void
-  signOut: () => void
+  signOut: () => Promise<void>
   refreshLibrary: () => Promise<void>
   openWorkspace: (ambientId: string) => Promise<boolean>
   closeWorkspace: () => void

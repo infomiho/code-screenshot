@@ -295,6 +295,55 @@ test('keeps the preview visible while switching Work and Versions on mobile', as
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
 })
 
+test('collapses and expands the workspace sidebar', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  const layout = page.locator('.workspace-layout')
+  const collapseButton = page.getByRole('button', { name: 'Collapse sidebar' })
+  const expandButton = page.getByRole('button', { name: 'Expand sidebar' })
+  const panelWidth = async () => (await page.locator('.workspace-activity-panel').boundingBox())?.width ?? 0
+  const storedCollapsed = () => page.evaluate(
+    () => window.localStorage.getItem('codeshot.workspace-sidebar-collapsed'),
+  )
+
+  await expect(layout).toHaveAttribute('data-sidebar', 'expanded')
+  await expect(collapseButton).toBeVisible()
+
+  await collapseButton.click()
+  await expect(layout).toHaveAttribute('data-sidebar', 'collapsed')
+  await expect(expandButton).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Work' })).toBeHidden()
+  await expect.poll(panelWidth).toBeLessThan(60)
+  await expect.poll(storedCollapsed).toBe('true')
+  await expect(expandButton).toBeFocused()
+
+  await expandButton.click()
+  await expect(layout).toHaveAttribute('data-sidebar', 'expanded')
+  await expect(collapseButton).toBeFocused()
+  await expect.poll(panelWidth).toBeGreaterThan(300)
+  await expect.poll(storedCollapsed).toBe('false')
+})
+
+test('keeps the sidebar expanded on mobile regardless of preference', async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('codeshot.workspace-sidebar-collapsed', 'true')
+    } catch {
+      // Ignore storage failures in the test harness.
+    }
+  })
+  await page.setViewportSize({ width: 600, height: 844 })
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  await expect(page.getByRole('button', { name: 'Collapse sidebar' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeHidden()
+  await expect(page.getByRole('tab', { name: 'Work' })).toBeVisible()
+})
+
 test('account navigation opens the ambient library and logs out private state', async ({ page }) => {
   await openApp(page)
   await createAmbient(page)

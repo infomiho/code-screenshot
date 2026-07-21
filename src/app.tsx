@@ -184,8 +184,8 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
     }))
   }
 
-  const signOut = () => {
-    service.signOut()
+  const signOut = async () => {
+    await service.signOut()
     setAmbientKey(defaultAmbientKey)
   }
 
