@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { AccountMenu } from '../account-menu'
 import { AmbientMark } from '../ambient-mark'
 import type { AmbientDefinition } from '../ambient-themes'
 import type { AmbientWorkspaceService, OwnedAmbientSummary } from './ambient-workspace-service'
@@ -129,6 +130,11 @@ export function YourAmbientsPage({
     }
   }
 
+  const signOut = () => {
+    service.signOut()
+    openEditor()
+  }
+
   const deleteAmbient = async () => {
     if (!pendingDelete) return
     setIsDeleting(true)
@@ -231,7 +237,7 @@ export function YourAmbientsPage({
           <span className="subpage-back-arrow" aria-hidden="true">←</span>
           <span className="subpage-back-label">Back to editor</span>
         </button>
-        {account && <span className="subpage-header-meta">@{account.username}</span>}
+        {account && <AccountMenu username={account.username} onSignOut={signOut} />}
       </header>
 
       <section className="ambient-library-body" aria-label="Your ambients">

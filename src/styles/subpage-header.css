@@ -43,6 +43,12 @@
   line-height: 1;
 }
 
+.subpage-header-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .subpage-header-meta {
   display: flex;
   min-height: 27px;

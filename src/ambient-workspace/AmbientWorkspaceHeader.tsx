@@ -1,11 +1,20 @@
+import { AccountMenu } from '../account-menu'
+import type { AmbientAccountDto } from './contracts'
+
 type AmbientWorkspaceHeaderProps = {
+  account: AmbientAccountDto
+  draftCount: number
   versionInUse: number | null
   onClose: () => void
+  onSignOut: () => void
 }
 
 export function AmbientWorkspaceHeader({
+  account,
+  draftCount,
   versionInUse,
   onClose,
+  onSignOut,
 }: AmbientWorkspaceHeaderProps) {
   return (
     <header className="subpage-header">
@@ -13,11 +22,21 @@ export function AmbientWorkspaceHeader({
         <span className="subpage-back-arrow" aria-hidden="true">←</span>
         <span className="subpage-back-label">Your ambients</span>
       </button>
-      {versionInUse !== null && (
-        <div className="subpage-header-meta" aria-label="Version in use">
-          Version {versionInUse} in use
-        </div>
-      )}
+      <div className="subpage-header-end">
+        {versionInUse !== null && (
+          <div className="subpage-header-meta" aria-label="Version in use">
+            Version {versionInUse} in use
+          </div>
+        )}
+        {account.kind === 'signed-in' && (
+          <AccountMenu
+            username={account.username}
+            draftCount={draftCount}
+            onOpenLibrary={onClose}
+            onSignOut={onSignOut}
+          />
+        )}
+      </div>
     </header>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { loadAmbientDefinition } from '../ambient-registry'
-import type { AmbientWorkspaceService } from './ambient-workspace-service'
+import { countDraftAmbients, type AmbientWorkspaceService } from './ambient-workspace-service'
 import { AmbientWorkspaceHeader } from './AmbientWorkspaceHeader'
 import { DiscardDraftDialog } from './DiscardDraftDialog'
 import { DraftVersionComparison } from './DraftVersionComparison'
@@ -133,6 +133,15 @@ export function AmbientWorkspacePage({
     }
   }
 
+  const signOut = () => {
+    service.signOut()
+    if (onClose) {
+      onClose()
+    } else {
+      navigate('/')
+    }
+  }
+
   const retryOpenWorkspace = () => {
     if (!requestedAmbientId) {
       return
@@ -236,13 +245,17 @@ export function AmbientWorkspacePage({
     return <WorkspaceLoadingSkeleton />
   }
 
+  const draftCount = countDraftAmbients(snapshot.ownedAmbients)
+
   if (loadState === 'setup' && !createdAmbientId) {
     return (
       <WorkspaceSetupState
-        isSignedIn={snapshot.account.kind === 'signed-in'}
+        account={snapshot.account}
+        draftCount={draftCount}
         onCancel={closeWorkspace}
         onCreate={createAmbient}
         onSignIn={service.signIn}
+        onSignOut={signOut}
       />
     )
   }
@@ -286,8 +299,11 @@ export function AmbientWorkspacePage({
     <main className="ambient-workspace-page">
       <h1 className="sr-only">{workspace.ambient.name}</h1>
       <AmbientWorkspaceHeader
+        account={snapshot.account}
+        draftCount={draftCount}
         versionInUse={workspace.versionInUse?.version ?? null}
         onClose={closeWorkspace}
+        onSignOut={signOut}
       />
 
       <div className="workspace-layout">

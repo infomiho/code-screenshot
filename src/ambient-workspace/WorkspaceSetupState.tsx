@@ -1,18 +1,23 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { AmbientWorkspaceHeader } from './AmbientWorkspaceHeader'
+import type { AmbientAccountDto } from './contracts'
 
 type WorkspaceSetupStateProps = {
-  isSignedIn: boolean
+  account: AmbientAccountDto
+  draftCount: number
   onCancel: () => void
   onCreate: (ambientName: string) => Promise<boolean>
   onSignIn: () => void
+  onSignOut: () => void
 }
 
 export function WorkspaceSetupState({
-  isSignedIn,
+  account,
+  draftCount,
   onCancel,
   onCreate,
   onSignIn,
+  onSignOut,
 }: WorkspaceSetupStateProps) {
   const nameInputRef = useRef<HTMLInputElement>(null)
   const [ambientName, setAmbientName] = useState('')
@@ -40,13 +45,19 @@ export function WorkspaceSetupState({
   return (
     <main className="ambient-workspace-page">
       <h1 className="sr-only">Create ambient</h1>
-      <AmbientWorkspaceHeader versionInUse={null} onClose={onCancel} />
+      <AmbientWorkspaceHeader
+        account={account}
+        draftCount={draftCount}
+        versionInUse={null}
+        onClose={onCancel}
+        onSignOut={onSignOut}
+      />
       <div className="workspace-layout">
         <section className="workspace-preview-panel workspace-setup-panel">
           <div className="workspace-setup-card">
             <span className="workspace-eyebrow">Ambient workspace</span>
             <h2>Name your ambient</h2>
-            {isSignedIn ? (
+            {account.kind === 'signed-in' ? (
               <form onSubmit={createAmbient}>
                 <label htmlFor="ambient-name">Ambient name</label>
                 <input

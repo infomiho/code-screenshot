@@ -1,0 +1,123 @@
+.account-menu {
+  position: relative;
+
+  summary {
+    display: grid;
+    grid-template-columns: var(--account-avatar-size) minmax(0, auto) 12px;
+    min-height: 40px;
+    align-items: center;
+    gap: var(--space-3);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: var(--font-size-label);
+    font-weight: var(--font-weight-heavy);
+    list-style: none;
+    padding: 3px var(--space-4) 3px 3px;
+    user-select: none;
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast),
+      scale var(--transition-fast);
+
+    &:hover {
+      background: var(--ambient-hover-bg);
+    }
+
+    &:active {
+      scale: 0.96;
+    }
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &:focus-visible {
+      outline: var(--focus-ring);
+      outline-offset: var(--focus-offset);
+    }
+
+    @media (max-width: 420px) {
+      min-height: 44px;
+    }
+  }
+
+  &[open] .account-disclosure {
+    transform: rotate(225deg) translate(-1px, -1px);
+  }
+}
+
+.account-avatar {
+  display: grid;
+  width: var(--account-avatar-size);
+  height: var(--account-avatar-size);
+  place-items: center;
+  border-radius: 50%;
+  background: oklch(0.7 0.075 240);
+  color: oklch(0.14 0.008 250);
+  font-family: var(--sans);
+  font-size: var(--font-size-control);
+  font-weight: var(--font-weight-heavy);
+}
+
+.account-username {
+  overflow: hidden;
+  max-width: 180px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  @media (max-width: 420px) {
+    max-width: 128px;
+  }
+}
+
+.account-disclosure {
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--muted);
+  border-bottom: 1px solid var(--muted);
+  transform: rotate(45deg) translate(-1px, -1px);
+  transition: transform var(--transition-fast);
+}
+
+.account-menu-content {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  display: grid;
+  width: 224px;
+  gap: var(--space-2);
+  border: var(--border-panel);
+  background: var(--panel);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 42%);
+  padding: var(--space-3);
+}
+
+.account-menu-action {
+  width: 100%;
+  margin-top: var(--space-3);
+  text-align: start;
+}
+
+.account-menu-link {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  align-content: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  padding: 10px 0;
+  text-align: left;
+
+  &:hover {
+    color: var(--wasp-yellow);
+  }
+}

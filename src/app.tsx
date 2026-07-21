@@ -11,7 +11,7 @@ import {
   type AmbientCustomizationState,
   type ScreenshotContent,
 } from './ambient-themes'
-import type { AmbientWorkspaceService } from './ambient-workspace/ambient-workspace-service'
+import { countDraftAmbients, type AmbientWorkspaceService } from './ambient-workspace/ambient-workspace-service'
 import { useAmbientWorkspace } from './ambient-workspace/use-ambient-workspace'
 import { ScreenshotControls } from './screenshot-controls'
 import { ScreenshotPreview } from './screenshot-preview'
@@ -97,7 +97,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
       || definition.id === getAmbientIdFromKey(ambientKey),
   )
   const isFrameReady = hasMounted && (isBuiltInAmbientKey || snapshot.isHydrated)
-  const draftCount = snapshot.ownedAmbients.filter((ambient) => ambient.draft !== null).length
+  const draftCount = countDraftAmbients(snapshot.ownedAmbients)
 
   useEffect(() => {
     document.title = 'codeshot.dev | Beautiful code screenshots'
@@ -165,7 +165,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
   }
 
   const yourAmbients: YourAmbientsState = snapshot.account.kind === 'signed-out'
-    ? { kind: 'signed-out', onCreateAmbient: createAmbient, onSignIn: service.signIn }
+    ? { kind: 'signed-out', onCreateAmbient: createAmbient }
     : {
         kind: 'signed-in',
         username: snapshot.account.username,

@@ -29,6 +29,7 @@ const openWorkspaceFromLibrary = async (page: Page, ambientName: string) => {
   const row = page.locator('.ambient-library-row').filter({ hasText: ambientName })
   await row.getByRole('button', { name: 'Edit' }).click()
   await expect(page.locator('.workspace-ambient-identity')).toContainText(ambientName)
+  await expect(page.locator('.subpage-header .account-menu')).toBeVisible()
 }
 
 test('keeps included ambients in a two-column grid', async ({ page }) => {
@@ -307,7 +308,7 @@ test('account navigation opens the ambient library and logs out private state', 
 
   await openAmbientPicker(page)
   await expect(page.getByRole('rowgroup', { name: 'Your ambients' })).toHaveCount(0)
-  await expect(page.getByLabel('Your ambients account').getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible()
+  await expect(page.getByLabel('Your ambients account').getByRole('button', { name: 'Create your own ambient' })).toBeVisible()
 })
 
 test('manages ambients from the library page', async ({ page }) => {
@@ -337,15 +338,15 @@ test('ambient picker closes from account controls', async ({ page }) => {
   const trigger = page.locator('.ambient-current')
 
   await trigger.click()
-  const signIn = page.getByRole('region', { name: 'Your ambients account' })
-    .getByRole('button', { name: 'Sign in with GitHub' })
-  await signIn.focus()
+  const createAmbient = page.getByRole('region', { name: 'Your ambients account' })
+    .getByRole('button', { name: 'Create your own ambient' })
+  await createAmbient.focus()
   await page.keyboard.press('Escape')
   await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
   await expect(trigger).toBeFocused()
 
   await trigger.click()
-  await signIn.focus()
+  await createAmbient.focus()
   await page.keyboard.press('Tab')
   await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
 })

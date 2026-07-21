@@ -30,6 +30,9 @@ export type OwnedAmbientSummary = {
   draft: OwnedAmbientDraftSummary | null
 }
 
+export const countDraftAmbients = (ambients: readonly OwnedAmbientSummary[]) =>
+  ambients.filter((ambient) => ambient.draft !== null).length
+
 export type WorkingDraft = {
   revision: number
   baseRevision: number

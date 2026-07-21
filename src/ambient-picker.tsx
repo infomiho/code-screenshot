@@ -3,7 +3,7 @@ import { AmbientMark } from './ambient-mark'
 import { getAmbientKey, type AmbientDefinition } from './ambient-themes'
 
 export type YourAmbientsState =
-  | { kind: 'signed-out'; onCreateAmbient: () => void; onSignIn: () => void }
+  | { kind: 'signed-out'; onCreateAmbient: () => void }
   | {
       kind: 'signed-in'
       username: string
@@ -207,9 +207,6 @@ export function AmbientPicker({
             <p>Sign in to create your own reusable visual frame.</p>
             <button className="ui-button ui-button-primary ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
               Create your own ambient
-            </button>
-            <button className="ui-button ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onSignIn)}>
-              Sign in with GitHub
             </button>
           </>
         ) : yourAmbients.hasAmbients ? (
