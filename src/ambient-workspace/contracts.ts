@@ -111,6 +111,7 @@ export type AmbientIdInput = z.infer<typeof ambientIdInputSchema>
 export type CreateAgentAccessInput = AmbientIdInput
 export type DiscardAgentAccessInput = AmbientIdInput
 export type DiscardAmbientDraftInput = AmbientIdInput
+export type DeleteAmbientInput = AmbientIdInput
 
 export type CreateAmbientResult = {
   ambientId: string

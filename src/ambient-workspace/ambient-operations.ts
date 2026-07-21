@@ -4,6 +4,7 @@ import type {
   CreateAgentAccess,
   CreateAmbient,
   CreateDraftFromVersion,
+  DeleteAmbient,
   DiscardAgentAccess,
   DiscardAmbientDraft,
   GetAmbientDraft,
@@ -26,6 +27,7 @@ import type {
   AgentSessionDto,
   AmbientIdInput,
   AmbientLibraryDto,
+  DeleteAmbientInput,
   AmbientVersionSummaryDto,
   AmbientWorkspaceDto,
   CreateAgentAccessInput,
@@ -479,4 +481,12 @@ export const discardAmbientDraft: DiscardAmbientDraft<
     await transaction.ambientDraft.deleteMany({ where: { ambientId } })
     return { ambientDeleted: false }
   }, { isolationLevel: 'Serializable' })
+}
+
+export const deleteAmbient: DeleteAmbient<DeleteAmbientInput, void> = async (args, context) => {
+  const user = requireUser(context.user)
+  const { ambientId } = parseInput(ambientIdInputSchema, args)
+  // Drafts, versions, and agent sessions cascade with the ambient row.
+  const deleted = await prisma.ambient.deleteMany({ where: { id: ambientId, ownerId: user.id } })
+  if (deleted.count === 0) throw new HttpError(404, 'Ambient not found.')
 }

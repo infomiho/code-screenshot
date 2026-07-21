@@ -21,7 +21,6 @@ type PreviewMode = 'fit' | 'edit'
 type ScreenshotPreviewProps = {
   ambientKey: string
   definitions: readonly AmbientDefinition[]
-  ambientLibraryRequest?: number
   yourAmbients: YourAmbientsState
   onAmbientPickerOpenChange: (isOpen: boolean) => void
   onAmbientChange: (ambientKey: string) => void
@@ -153,7 +152,6 @@ const downloadBlob = (blob: Blob) => {
 export function ScreenshotPreview({
   ambientKey,
   definitions,
-  ambientLibraryRequest,
   yourAmbients,
   onAmbientPickerOpenChange,
   onAmbientChange,
@@ -417,7 +415,6 @@ export function ScreenshotPreview({
             </div>
             <AmbientSelector
               definitions={definitions}
-              openRequest={ambientLibraryRequest}
               selectedKey={ambientKey}
               yourAmbients={yourAmbients}
               onOpenChange={onAmbientPickerOpenChange}

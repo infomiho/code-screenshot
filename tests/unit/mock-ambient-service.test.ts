@@ -103,4 +103,18 @@ describe('MockAmbientService', () => {
       generation: 2,
     })
   })
+
+  it('deletes an ambient and closes its open workspace', async () => {
+    const service = createService()
+    service.signIn()
+    const keptId = await service.createAmbient('Keeper')
+    const deletedId = await service.createAmbient('Signal study')
+
+    await expect(service.deleteAmbient(deletedId!)).resolves.toBe(true)
+
+    expect(service.getSnapshot().workspace).toBeNull()
+    expect(service.getSnapshot().ownedAmbients.map(({ id }) => id)).toEqual([keptId])
+    await expect(service.deleteAmbient(deletedId!)).resolves.toBe(false)
+    await expect(service.openWorkspace(deletedId!)).resolves.toBe(false)
+  })
 })

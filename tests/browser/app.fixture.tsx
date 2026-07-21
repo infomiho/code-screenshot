@@ -6,6 +6,7 @@ import { loadAmbientDefinition } from '../../src/ambient-registry'
 import { AgentPreviewCanvas } from '../../src/ambient-workspace/agent-preview-page'
 import { AmbientWorkspacePage } from '../../src/ambient-workspace/AmbientWorkspacePage'
 import { MockAmbientService } from '../../src/ambient-workspace/mock-ambient-service'
+import { YourAmbientsPage } from '../../src/ambient-workspace/YourAmbientsPage'
 import { renderScreenshotBlob } from '../../src/screenshot-export'
 import { swissPosterDocument } from '../../src/swiss-poster'
 
@@ -29,16 +30,35 @@ if (!previewResult.definition || previewResult.definition.kind !== 'declarative'
   throw new Error('Invalid agent preview fixture')
 }
 
-function FixtureApp() {
-  const initialWorkspace = new URLSearchParams(window.location.search).get('workspace')
-  const [workspaceId, setWorkspaceId] = useState<string | null>(initialWorkspace)
+type FixtureView = { name: 'editor' } | { name: 'library' } | { name: 'workspace'; ambientId: string }
 
-  if (workspaceId) {
+const readInitialView = (): FixtureView => {
+  const params = new URLSearchParams(window.location.search)
+  const workspaceId = params.get('workspace')
+  if (workspaceId) return { name: 'workspace', ambientId: workspaceId }
+  if (params.has('library')) return { name: 'library' }
+  return { name: 'editor' }
+}
+
+function FixtureApp() {
+  const [view, setView] = useState<FixtureView>(readInitialView)
+
+  if (view.name === 'workspace') {
     return (
       <AmbientWorkspacePage
-        ambientId={workspaceId}
+        ambientId={view.ambientId}
         ambientWorkspaceService={ambientWorkspaceService}
-        onClose={() => setWorkspaceId(null)}
+        onClose={() => setView({ name: 'library' })}
+      />
+    )
+  }
+
+  if (view.name === 'library') {
+    return (
+      <YourAmbientsPage
+        ambientWorkspaceService={ambientWorkspaceService}
+        onOpenEditor={() => setView({ name: 'editor' })}
+        onOpenWorkspace={(ambientId) => setView({ name: 'workspace', ambientId })}
       />
     )
   }
@@ -46,7 +66,8 @@ function FixtureApp() {
   return (
     <App
       ambientWorkspaceService={ambientWorkspaceService}
-      onOpenWorkspace={setWorkspaceId}
+      onOpenLibrary={() => setView({ name: 'library' })}
+      onOpenWorkspace={(ambientId) => setView({ name: 'workspace', ambientId })}
     />
   )
 }

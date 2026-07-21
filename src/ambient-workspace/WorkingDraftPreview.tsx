@@ -14,6 +14,10 @@ type DeclarativeAmbientDefinition = Extract<AmbientDefinition, { kind: 'declarat
 type WorkingDraftPreviewProps = {
   ambientName: string
   definition: AmbientDefinition | null
+  versionInUse: number | null
+  versionInUseDefinition: AmbientDefinition | null
+  canStartDraft: boolean
+  onStartDraft: () => void
 }
 
 export function AmbientFramePreview({
@@ -104,12 +108,14 @@ export function AmbientFramePreview({
   )
 }
 
-function DeclarativeDraftPreview({
+function DeclarativePreviewBlock({
   ambientName,
   definition,
+  meta,
 }: {
   ambientName: string
   definition: DeclarativeAmbientDefinition
+  meta: string
 }) {
   const editorHelpId = `${useId()}-editor-help`
   return (
@@ -119,9 +125,9 @@ function DeclarativeDraftPreview({
         <div className="workspace-ambient-identity">
           <AmbientIdentity
             definition={definition}
-          meta="Working draft"
-          name={ambientName}
-        />
+            meta={meta}
+            name={ambientName}
+          />
         </div>
         <span className="workspace-selector-chevron workspace-selector-chevron-next" aria-hidden="true" />
       </div>
@@ -133,12 +139,34 @@ function DeclarativeDraftPreview({
   )
 }
 
-export function WorkingDraftPreview({ ambientName, definition }: WorkingDraftPreviewProps) {
+export function WorkingDraftPreview({
+  ambientName,
+  definition,
+  versionInUse,
+  versionInUseDefinition,
+  canStartDraft,
+  onStartDraft,
+}: WorkingDraftPreviewProps) {
   if (!definition) {
+    if (versionInUse !== null && versionInUseDefinition?.kind === 'declarative') {
+      return (
+        <DeclarativePreviewBlock
+          ambientName={ambientName}
+          definition={versionInUseDefinition}
+          meta="Current version"
+        />
+      )
+    }
+
     return (
       <div className="workspace-empty-state">
         <h2>No working draft</h2>
-        <p>Select a saved version below to start a new draft.</p>
+        <p>Start a draft to begin shaping this ambient.</p>
+        <div className="workspace-empty-actions">
+          <button className="ui-button ui-button-primary" type="button" disabled={!canStartDraft} onClick={onStartDraft}>
+            Start a draft
+          </button>
+        </div>
       </div>
     )
   }
@@ -151,5 +179,5 @@ export function WorkingDraftPreview({ ambientName, definition }: WorkingDraftPre
     )
   }
 
-  return <DeclarativeDraftPreview ambientName={ambientName} definition={definition} />
+  return <DeclarativePreviewBlock ambientName={ambientName} definition={definition} meta="Working draft" />
 }

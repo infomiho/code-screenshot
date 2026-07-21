@@ -2,6 +2,7 @@ import { action, api, page, query, route, type Spec } from "@wasp.sh/spec";
 
 import { AgentPreviewPage } from "./agent-preview-page" with { type: "ref" };
 import { AmbientWorkspacePage } from "./AmbientWorkspacePage" with { type: "ref" };
+import { YourAmbientsPage } from "./YourAmbientsPage" with { type: "ref" };
 import {
   agentApiMiddleware,
   getAgentDraft,
@@ -12,6 +13,7 @@ import {
   createAgentAccess,
   createAmbient,
   createDraftFromVersion,
+  deleteAmbient,
   discardAgentAccess,
   discardAmbientDraft,
   getAmbientDraft,
@@ -22,6 +24,11 @@ import {
 } from "./ambient-operations" with { type: "ref" };
 
 export const ambientWorkspaceSpec: Spec = [
+  route(
+    "YourAmbientsRoute",
+    "/ambients",
+    page(YourAmbientsPage, { authRequired: true }),
+  ),
   route(
     "AmbientWorkspaceRoute",
     "/ambients/:ambientId",
@@ -46,6 +53,9 @@ export const ambientWorkspaceSpec: Spec = [
     entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
   }),
   action(saveAmbientVersion, { entities: ["Ambient", "AmbientDraft", "AmbientVersion"] }),
+  action(deleteAmbient, {
+    entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
+  }),
   api("GET", "/agent/sessions/:capability", getAgentSession, {
     auth: false,
     middlewareConfigFn: agentApiMiddleware,

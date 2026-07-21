@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { useNavigate } from 'react-router'
 import './index.css'
 import type { YourAmbientsState } from './ambient-picker'
 import {
@@ -19,6 +20,7 @@ import { useCodeEditor } from './use-code-editor'
 
 type AppProps = {
   ambientWorkspaceService?: AmbientWorkspaceService
+  onOpenLibrary?: () => void
   onOpenWorkspace?: (ambientId: string) => void
 }
 
@@ -43,25 +45,19 @@ const readStoredComposition = (): StoredComposition | null => {
   }
 }
 
-const draftPriority = {
-  'review-ready': 0,
-  waiting: 1,
-  'matches-version': 2,
-} as const
-
-export function App({ ambientWorkspaceService, onOpenWorkspace }: AppProps = {}) {
+export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }: AppProps = {}) {
+  const navigate = useNavigate()
   const editorHelpId = `${useId()}-editor-help`
   const highlightStatusId = `${useId()}-highlight-status`
   const [storedComposition] = useState(readStoredComposition)
   const [languageId, setLanguageId] = useState(storedComposition?.languageId ?? 'typescript')
   const [ambientKey, setAmbientKey] = useState(storedComposition?.ambientKey ?? defaultAmbientKey)
   const [title, setTitle] = useState(storedComposition?.title ?? 'top secret code')
-  const [ambientLibraryRequest, setAmbientLibraryRequest] = useState(0)
   const [ambientCustomizations, setAmbientCustomizations] = useState<AmbientCustomizationState>(
     storedComposition?.ambientCustomizations ?? {},
   )
   const [hasMounted, setHasMounted] = useState(false)
-  const { definitions, draftDefinitions, service, snapshot } = useAmbientWorkspace(ambientWorkspaceService)
+  const { definitions, service, snapshot } = useAmbientWorkspace(ambientWorkspaceService)
   const selectedAmbient = definitions.find(
     (definition) => getAmbientKey(definition) === ambientKey,
   ) ?? definitions.find(
@@ -101,9 +97,7 @@ export function App({ ambientWorkspaceService, onOpenWorkspace }: AppProps = {})
       || definition.id === getAmbientIdFromKey(ambientKey),
   )
   const isFrameReady = hasMounted && (isBuiltInAmbientKey || snapshot.isHydrated)
-  const draftAmbients = snapshot.ownedAmbients
-    .filter((ambient) => ambient.draft !== null)
-    .sort((a, b) => draftPriority[a.draft!.status] - draftPriority[b.draft!.status])
+  const draftCount = snapshot.ownedAmbients.filter((ambient) => ambient.draft !== null).length
 
   useEffect(() => {
     document.title = 'codeshot.dev | Beautiful code screenshots'
@@ -139,8 +133,19 @@ export function App({ ambientWorkspaceService, onOpenWorkspace }: AppProps = {})
   }, [ambientCustomizations, ambientKey, languageId, title])
 
   const openWorkspace = (ambientId: string) => {
-    if (onOpenWorkspace) onOpenWorkspace(ambientId)
-    else if (typeof window !== 'undefined') window.location.assign(`/ambients/${encodeURIComponent(ambientId)}`)
+    if (onOpenWorkspace) {
+      onOpenWorkspace(ambientId)
+    } else {
+      navigate(`/ambients/${encodeURIComponent(ambientId)}`)
+    }
+  }
+
+  const openLibrary = () => {
+    if (onOpenLibrary) {
+      onOpenLibrary()
+    } else {
+      navigate('/ambients')
+    }
   }
 
   const createAmbient = () => {
@@ -164,15 +169,9 @@ export function App({ ambientWorkspaceService, onOpenWorkspace }: AppProps = {})
     : {
         kind: 'signed-in',
         username: snapshot.account.username,
-        ambients: snapshot.ownedAmbients.map((ambient) => ({
-          id: ambient.id,
-          name: ambient.name,
-          version: ambient.currentVersion?.version ?? null,
-          draftStatus: ambient.draft?.status ?? null,
-          draftDefinition: draftDefinitions.get(ambient.id) ?? null,
-        })),
+        hasAmbients: snapshot.ownedAmbients.length > 0,
         onCreateAmbient: createAmbient,
-        onOpenAmbient: openWorkspace,
+        onManageAmbients: openLibrary,
       }
 
   const updateAmbientCustomization = (slotId: string, value: string) => {
@@ -196,17 +195,14 @@ export function App({ ambientWorkspaceService, onOpenWorkspace }: AppProps = {})
       <SiteHeader
         account={snapshot.account}
         isHydrated={snapshot.isHydrated}
-        draftCount={draftAmbients.length}
-        priorityDraft={draftAmbients[0] ?? null}
-        onOpenAmbients={() => setAmbientLibraryRequest((request) => request + 1)}
-        onOpenWorkspace={openWorkspace}
+        draftCount={draftCount}
+        onOpenLibrary={openLibrary}
         onSignIn={service.signIn}
         onSignOut={signOut}
       />
       <section className="workspace" aria-label="Editable screenshot">
         <ScreenshotPreview
           ambientKey={selectedAmbientKey}
-          ambientLibraryRequest={ambientLibraryRequest}
           definitions={definitions}
           yourAmbients={yourAmbients}
           onAmbientPickerOpenChange={() => undefined}

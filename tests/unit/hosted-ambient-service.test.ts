@@ -5,6 +5,7 @@ const operations = vi.hoisted(() => ({
   createAgentAccess: vi.fn(),
   createAmbient: vi.fn(),
   createDraftFromVersion: vi.fn(),
+  deleteAmbient: vi.fn(),
   discardAgentAccess: vi.fn(),
   discardAmbientDraft: vi.fn(),
   getAmbientDraftRevision: vi.fn(),
@@ -205,6 +206,29 @@ describe('HostedAmbientService', () => {
 
     await expect(service.createDraftFromVersion('version-1')).resolves.toBe(true)
 
+    expect(sessionStorage.getItem('codeshot.agent-session.ambient-1')).toBeNull()
+    unsubscribe()
+  })
+
+  it('deletes an ambient, closing its workspace and cached access', async () => {
+    sessionStorage.setItem('codeshot.agent-session.ambient-1', JSON.stringify({
+      ambientId: 'ambient-1',
+      generation: 2,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      url: 'http://localhost:3001/agent/sessions/secret',
+    }))
+    operations.deleteAmbient.mockResolvedValue(undefined)
+    const service = new HostedAmbientService()
+    const unsubscribe = service.subscribe(() => {})
+    await vi.waitFor(() => expect(service.getSnapshot().libraryStatus).toBe('ready'))
+    await service.openWorkspace('ambient-1')
+    operations.listOwnedAmbients.mockResolvedValue({ ...library, ownedAmbients: [] })
+
+    await expect(service.deleteAmbient('ambient-1')).resolves.toBe(true)
+
+    expect(operations.deleteAmbient).toHaveBeenCalledWith({ ambientId: 'ambient-1' })
+    expect(service.getSnapshot().workspace).toBeNull()
+    expect(service.getSnapshot().ownedAmbients).toHaveLength(0)
     expect(sessionStorage.getItem('codeshot.agent-session.ambient-1')).toBeNull()
     unsubscribe()
   })

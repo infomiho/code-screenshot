@@ -3,6 +3,7 @@ import {
   createAgentAccess as createAgentAccessOperation,
   createAmbient as createAmbientOperation,
   createDraftFromVersion as createDraftFromVersionOperation,
+  deleteAmbient as deleteAmbientOperation,
   discardAgentAccess as discardAgentAccessOperation,
   discardAmbientDraft as discardAmbientDraftOperation,
   getAmbientDraftRevision,
@@ -294,6 +295,22 @@ export class HostedAmbientService implements AmbientWorkspaceService {
       return true
     } catch (error) {
       if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
+      return false
+    }
+  }
+
+  deleteAmbient = async (ambientId: string) => {
+    if (this.snapshot.account.kind !== 'signed-in') return false
+    const generation = this.requestGeneration
+    try {
+      await deleteAmbientOperation({ ambientId })
+      if (generation !== this.requestGeneration) return false
+      cacheSession(null, ambientId)
+      if (this.snapshot.workspace?.ambient.id === ambientId) this.closeWorkspace()
+      await this.refreshLibrary()
+      return true
+    } catch (error) {
+      if (generation === this.requestGeneration) this.handleError(error)
       return false
     }
   }

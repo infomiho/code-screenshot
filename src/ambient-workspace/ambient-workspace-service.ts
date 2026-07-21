@@ -79,4 +79,5 @@ export interface AmbientWorkspaceService {
   saveAmbientVersion: () => Promise<SavedAmbientRecord | null>
   discardAmbientDraft: () => Promise<boolean>
   createDraftFromVersion: (versionId: string) => Promise<boolean>
+  deleteAmbient: (ambientId: string) => Promise<boolean>
 }

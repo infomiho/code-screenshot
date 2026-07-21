@@ -96,10 +96,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.ambient-picker-row-list {
-  grid-template-columns: minmax(150px, 1fr) minmax(0, 140px) 64px;
-}
-
 .ambient-picker-section + .ambient-picker-section {
   border-top: 1px solid var(--panel-border);
   margin-top: 8px;
@@ -159,154 +155,6 @@
   height: 34px;
 }
 
-.ambient-picker-action-cell {
-  display: grid;
-}
-
-.ambient-picker-row-list .ambient-picker-option-button {
-  grid-template-columns: 48px minmax(0, 1fr);
-}
-
-.ambient-owned-row {
-  min-height: 82px;
-  border-bottom: 1px solid color-mix(in oklch, var(--panel-border), transparent 35%);
-  background: transparent;
-  transition-property: background-color, box-shadow;
-  transition-duration: 120ms;
-
-  .ambient-picker-option-button {
-    background: transparent;
-    box-shadow: none;
-  }
-
-  &[data-active='true'] {
-    background: var(--ambient-hover-bg);
-  }
-
-  &[data-selected='true'] {
-    background: var(--ambient-selected-bg);
-    box-shadow: inset 3px 0 0 var(--wasp-yellow);
-  }
-
-  &:last-child {
-    border-bottom: 0;
-  }
-}
-
-.ambient-owned-meta {
-  display: grid;
-  min-width: 0;
-  align-content: center;
-  gap: 3px;
-  border-left: 1px solid color-mix(in oklch, var(--panel-border), transparent 35%);
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 9px;
-  line-height: 1.35;
-  padding: 10px 12px;
-
-  strong {
-    color: var(--text);
-    font-size: 9px;
-    font-weight: 700;
-    overflow-wrap: anywhere;
-
-    &[data-status='review-ready'] {
-      color: var(--wasp-yellow);
-    }
-  }
-}
-
-.ambient-owned-placeholder {
-  display: grid;
-  min-height: 76px;
-  grid-template-columns: 48px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  cursor: default;
-  padding: 10px 12px;
-}
-
-.ambient-owned-placeholder-mark {
-  display: block;
-  position: relative;
-  width: 48px;
-  height: 34px;
-  border: 1px solid var(--control-border);
-  background: color-mix(in oklch, var(--control), var(--text) 4%);
-
-  &::before,
-  &::after {
-    position: absolute;
-    left: 9px;
-    height: 1px;
-    background: var(--muted);
-    content: '';
-  }
-
-  &::before {
-    top: 12px;
-    width: 28px;
-  }
-
-  &::after {
-    top: 20px;
-    width: 20px;
-  }
-}
-
-.ambient-owned-placeholder .ambient-mark {
-  --ambient-mark-width: 48px;
-  --ambient-mark-height: 34px;
-}
-
-.ambient-library-empty {
-  display: grid;
-  gap: 5px;
-  color: var(--muted);
-  padding: 14px 12px 18px;
-
-  strong {
-    color: var(--text);
-    font-size: var(--font-size-control);
-  }
-
-  span {
-    font-size: 11px;
-    line-height: 1.5;
-  }
-}
-
-.ambient-picker-row-list .ambient-picker-option small {
-  display: none;
-}
-
-.ambient-picker-edit {
-  min-width: 64px;
-  border: 0;
-  border-inline-start: 1px solid var(--panel-border);
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: var(--font-weight-heavy);
-  text-transform: uppercase;
-  transition-property: background-color, color;
-  transition-duration: 120ms;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--ambient-hover-bg);
-    color: var(--wasp-yellow);
-  }
-
-  &:focus-visible {
-    outline: var(--focus-ring);
-    outline-offset: -3px;
-  }
-}
-
 .ambient-picker-option[data-active='true'] {
   background: transparent;
   box-shadow: none;
@@ -336,11 +184,6 @@
     inset 0 0 0 1px rgb(247 245 240 / 12%);
 }
 
-.ambient-owned-row .ambient-picker-option .ambient-picker-option-button {
-  background: transparent;
-  box-shadow: none;
-}
-
 .ambient-picker-option small {
   color: var(--wasp-yellow);
   font-size: 9px;
@@ -355,7 +198,7 @@
   border-top: 1px solid var(--panel-border);
   padding: var(--space-5) var(--space-4) var(--space-4);
 
-  &[data-account='signed-in'] {
+  &[data-has-ambients='true'] {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     padding: 12px 16px;
@@ -364,15 +207,14 @@
   h3 {
     padding: 0;
   }
-}
 
-.ambient-account p,
-.ambient-draft-row span {
-  margin: 0;
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: var(--font-size-control);
-  line-height: var(--line-height-help);
+  p {
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: var(--font-size-control);
+    line-height: var(--line-height-help);
+  }
 }
 
 .ambient-account-action {
@@ -385,28 +227,20 @@
   font-size: 10px;
 }
 
-.ambient-draft-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-5);
+.ambient-account-manage {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  font-weight: var(--font-weight-heavy);
+  padding: 0 var(--space-2);
+  transition: color var(--transition-fast);
 
-  > div {
-    display: grid;
-    min-width: 0;
-    gap: var(--space-1);
-  }
-
-  .ui-button {
-    white-space: nowrap;
-  }
-
-  strong {
-    overflow: hidden;
-    font-family: var(--sans);
-    font-size: var(--font-size-control);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  &:hover {
+    color: var(--wasp-yellow);
   }
 }
 

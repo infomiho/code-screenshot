@@ -1,15 +1,12 @@
 import { useEffect, useRef } from 'react'
 import type { AmbientAccountDto } from './ambient-workspace/contracts'
-import type { OwnedAmbientSummary } from './ambient-workspace/ambient-workspace-service'
 import './site-header.css'
 
 type SiteHeaderProps = {
   account: AmbientAccountDto
   isHydrated: boolean
   draftCount: number
-  priorityDraft: OwnedAmbientSummary | null
-  onOpenAmbients: () => void
-  onOpenWorkspace: (ambientId: string) => void
+  onOpenLibrary: () => void
   onSignIn: () => void
   onSignOut: () => void
 }
@@ -20,9 +17,7 @@ export function SiteHeader({
   account,
   isHydrated,
   draftCount,
-  priorityDraft,
-  onOpenAmbients,
-  onOpenWorkspace,
+  onOpenLibrary,
   onSignIn,
   onSignOut,
 }: SiteHeaderProps) {
@@ -71,28 +66,16 @@ export function SiteHeader({
               <span className="account-disclosure" aria-hidden="true" />
             </summary>
             <div className="account-menu-content">
-              <span>Signed in as</span>
-              <strong>@{account.username}</strong>
               <button
                 className="account-menu-link"
                 type="button"
                 onClick={() => {
                   accountMenuRef.current?.removeAttribute('open')
-                  onOpenAmbients()
+                  onOpenLibrary()
                 }}
               >
                 Your ambients{draftCount > 0 ? ` (${draftCount} draft${draftCount === 1 ? '' : 's'})` : ''}
               </button>
-              {priorityDraft?.draft && (
-                <button
-                  className="account-menu-link account-menu-workspace"
-                  type="button"
-                  onClick={() => onOpenWorkspace(priorityDraft.id)}
-                >
-                  <span>Open workspace</span>
-                  <small>{priorityDraft.draft.status === 'review-ready' ? 'Ready to review' : priorityDraft.name}</small>
-                </button>
-              )}
               <button className="ui-button account-menu-action" type="button" onClick={onSignOut}>
                 Log out
               </button>

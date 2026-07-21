@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { loadAmbientDefinition } from '../ambient-registry'
 import type { AmbientWorkspaceService } from './ambient-workspace-service'
 import { AmbientWorkspaceHeader } from './AmbientWorkspaceHeader'
@@ -7,6 +7,7 @@ import { DiscardDraftDialog } from './DiscardDraftDialog'
 import { DraftVersionComparison } from './DraftVersionComparison'
 import { VersionSpine } from './VersionSpine'
 import { WorkingDraftPreview } from './WorkingDraftPreview'
+import { WorkspaceLoadingSkeleton } from './WorkspaceLoadingSkeleton'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceWorkPanel } from './WorkspaceWorkPanel'
 import { useAgentWorkflow } from './use-agent-workflow'
@@ -23,17 +24,12 @@ type AmbientWorkspacePageProps = {
 
 type LoadState = 'loading' | 'setup' | 'ready' | 'not-found' | 'error'
 
-const changeBrowserRoute = (path: string, replace = false) => {
-  if (typeof window === 'undefined') return
-  window.history[replace ? 'replaceState' : 'pushState']({}, '', path)
-  window.dispatchEvent(new PopStateEvent('popstate'))
-}
-
 export function AmbientWorkspacePage({
   ambientId: providedAmbientId,
   ambientWorkspaceService,
   onClose,
 }: AmbientWorkspacePageProps = {}) {
+  const navigate = useNavigate()
   const routeParams = useParams<'ambientId'>()
   const requestedAmbientId = providedAmbientId ?? routeParams.ambientId
   const { service, snapshot, workspaceDefinition } = useAmbientWorkspace(ambientWorkspaceService)
@@ -126,11 +122,18 @@ export function AmbientWorkspacePage({
     if (!selectedVersion) return null
     return loadAmbientDefinition(selectedVersion, 'saved').definition
   }, [selectedVersion])
+  const versionInUseDefinition = useMemo(() => {
+    if (!workspace?.versionInUse) return null
+    return loadAmbientDefinition(workspace.versionInUse, 'saved').definition
+  }, [workspace?.versionInUse])
 
   const closeWorkspace = () => {
     service.closeWorkspace()
-    if (onClose) onClose()
-    else window.location.assign('/')
+    if (onClose) {
+      onClose()
+    } else {
+      navigate('/ambients')
+    }
   }
 
   const createAmbient = async (event: FormEvent<HTMLFormElement>) => {
@@ -158,8 +161,7 @@ export function AmbientWorkspacePage({
           ? `${name} created. Agent prompt is ready.`
           : `${name} created. Create agent access when you are ready.`,
       )
-      if (ambientWorkspaceService) changeBrowserRoute(`/ambients/${encodeURIComponent(id)}`, true)
-      else window.location.replace(`/ambients/${encodeURIComponent(id)}`)
+      navigate(`/ambients/${encodeURIComponent(id)}`, { replace: true })
     } catch {
       setFormError('Could not create this ambient. Try again.')
     } finally {
@@ -168,9 +170,16 @@ export function AmbientWorkspacePage({
   }
 
   const createAccess = async () => {
+    const startedFromVersion = workspace?.workingDraft ? null : workspace?.versionInUse?.version ?? null
     workflow.send({ type: 'ACCESS_STARTED' })
     const created = await service.createAgentAccess()
-    setStatusMessage(created ? 'Temporary agent access created.' : 'Could not create agent access.')
+    if (!created) {
+      setStatusMessage('Could not create agent access.')
+    } else if (startedFromVersion !== null) {
+      setStatusMessage(`New draft started from Version ${startedFromVersion}. Agent prompt is ready.`)
+    } else {
+      setStatusMessage('Temporary agent access created.')
+    }
   }
 
   const discardAccess = async () => {
@@ -214,8 +223,11 @@ export function AmbientWorkspacePage({
       setStatusMessage('Could not discard the working draft.')
       return
     }
-    if (shouldClose) closeWorkspace()
-    else setStatusMessage(`Draft changes discarded. Version ${workspace?.versionInUse?.version} remains available.`)
+    if (shouldClose) {
+      closeWorkspace()
+    } else {
+      setStatusMessage(`Draft changes discarded. Version ${workspace?.versionInUse?.version} remains available.`)
+    }
   }
 
   const showComparison = (versionId?: string) => {
@@ -226,47 +238,64 @@ export function AmbientWorkspacePage({
   }
 
   if (!snapshot.isHydrated || loadState === 'loading') {
-    return (
-      <main className="workspace-route-state" aria-busy="true">
-        <span className="workspace-eyebrow">Ambient workspace</span>
-        <h1>Loading workspace</h1>
-        <p>Preparing the working draft and saved versions.</p>
-      </main>
-    )
+    return <WorkspaceLoadingSkeleton />
   }
 
   if (loadState === 'setup' && !createdAmbientId) {
     return (
-      <main className="workspace-route-state workspace-setup-state">
-        <span className="workspace-eyebrow">Ambient workspace</span>
-        <h1>Name your ambient</h1>
-        <p>Create a reusable visual frame. A temporary agent prompt will be ready in the workspace.</p>
-        {snapshot.account.kind === 'signed-in' ? (
-          <form onSubmit={createAmbient}>
-            <label htmlFor="ambient-name">Ambient name</label>
-            <input
-              ref={nameInputRef}
-              id="ambient-name"
-              name="ambientName"
-              maxLength={80}
-              value={ambientName}
-              aria-invalid={formError ? true : undefined}
-              onChange={(event) => setAmbientName(event.target.value)}
-              aria-describedby={formError ? 'ambient-name-error' : undefined}
-            />
-            {formError && <p id="ambient-name-error" className="workspace-form-error" role="alert">{formError}</p>}
-            <div className="workspace-setup-actions">
-              <button className="ui-button" type="button" onClick={closeWorkspace}>Cancel</button>
-              <button className="ui-button ui-button-primary" type="submit" disabled={isCreating}>
-                {isCreating ? 'Creating ambient...' : 'Create ambient'}
-              </button>
+      <main className="ambient-workspace-page">
+        <h1 className="sr-only">Create ambient</h1>
+        <AmbientWorkspaceHeader versionInUse={null} onClose={closeWorkspace} />
+        <div className="workspace-layout">
+          <section className="workspace-preview-panel workspace-setup-panel">
+            <div className="workspace-setup-card">
+              <span className="workspace-eyebrow">Ambient workspace</span>
+              <h2>Name your ambient</h2>
+              <p>Create a reusable visual frame. A temporary agent prompt will be ready in the workspace.</p>
+              {snapshot.account.kind === 'signed-in' ? (
+                <form onSubmit={createAmbient}>
+                  <label htmlFor="ambient-name">Ambient name</label>
+                  <input
+                    ref={nameInputRef}
+                    id="ambient-name"
+                    name="ambientName"
+                    maxLength={80}
+                    value={ambientName}
+                    aria-invalid={formError ? true : undefined}
+                    onChange={(event) => setAmbientName(event.target.value)}
+                    aria-describedby={formError ? 'ambient-name-error' : undefined}
+                  />
+                  {formError && <p id="ambient-name-error" className="workspace-form-error" role="alert">{formError}</p>}
+                  <div className="workspace-setup-actions">
+                    <button className="ui-button" type="button" onClick={closeWorkspace}>Cancel</button>
+                    <button className="ui-button ui-button-primary" type="submit" disabled={isCreating}>
+                      {isCreating ? 'Creating ambient...' : 'Create ambient'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <button className="ui-button ui-button-primary" type="button" onClick={service.signIn}>
+                  Sign in to create an ambient
+                </button>
+              )}
             </div>
-          </form>
-        ) : (
-          <button className="ui-button ui-button-primary" type="button" onClick={service.signIn}>
-            Sign in to create an ambient
-          </button>
-        )}
+          </section>
+          <div className="workspace-activity-panel">
+            <div className="workspace-sidebar">
+              <div className="workspace-sidebar-tabs" aria-hidden="true">
+                <button type="button" disabled>Work</button>
+                <button type="button" disabled>Versions</button>
+              </div>
+              <div className="workspace-sidebar-panel">
+                <div className="workspace-work-panel">
+                  <section className="workspace-card workspace-status-card" aria-label="Draft status">
+                    <h2>Your draft will appear here</h2>
+                  </section>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     )
   }
@@ -297,11 +326,11 @@ export function AmbientWorkspacePage({
               .catch(() => setLoadState('error'))
           }}
         >
-          {isError ? 'Retry workspace' : 'Return to screenshot editor'}
+          {isError ? 'Retry workspace' : 'Your ambients'}
         </button>
         {isError && (
           <button className="workspace-secondary-link" type="button" onClick={closeWorkspace}>
-            Return to screenshot editor
+            Your ambients
           </button>
         )}
       </main>
@@ -335,7 +364,14 @@ export function AmbientWorkspacePage({
               versionDefinition={selectedVersionDefinition}
             />
           ) : (
-            <WorkingDraftPreview ambientName={workspace.ambient.name} definition={workspaceDefinition} />
+            <WorkingDraftPreview
+              ambientName={workspace.ambient.name}
+              definition={workspaceDefinition}
+              versionInUse={workspace.versionInUse?.version ?? null}
+              versionInUseDefinition={versionInUseDefinition}
+              canStartDraft={workspace.connectivity === 'online' && workspace.mutation === 'idle'}
+              onStartDraft={createAccess}
+            />
           )}
         </section>
 
@@ -355,7 +391,9 @@ export function AmbientWorkspacePage({
                 canSave={canSave}
                 discardLabel={workspace.versionInUse ? 'Discard changes' : 'Discard ambient'}
                 draftSafety={workflow.draftSafety}
+                hasWorkingDraft={workspace.workingDraft !== null}
                 isSaving={isSaving}
+                versionInUse={workspace.versionInUse?.version ?? null}
                 view={workflow.workspace}
                 onCompare={() => showComparison()}
                 onCopyPrompt={service.copyPrompt}
@@ -372,8 +410,10 @@ export function AmbientWorkspacePage({
             versions={(
               <VersionSpine
                 acceptedChangeCount={workspace.workingDraft?.acceptedChangeCount ?? 0}
+                isDraftSelected={!isComparing}
+                onSelectDraft={() => setIsComparing(false)}
                 onSelectVersion={showComparison}
-                selectedVersionId={selectedVersionId}
+                selectedVersionId={isComparing ? selectedVersionId : null}
                 versions={workspace.versions}
               />
             )}

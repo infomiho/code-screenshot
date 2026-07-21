@@ -8,13 +8,13 @@ export function AmbientWorkspaceHeader({
   onClose,
 }: AmbientWorkspaceHeaderProps) {
   return (
-    <header className="ambient-workspace-header">
-      <button className="workspace-exit-button" type="button" aria-label="Return to screenshot editor" onClick={onClose}>
-        <span className="workspace-exit-arrow" aria-hidden="true">←</span>
-        <span className="workspace-back-label">Back to editor</span>
+    <header className="subpage-header">
+      <button className="subpage-back-button" type="button" aria-label="Your ambients" onClick={onClose}>
+        <span className="subpage-back-arrow" aria-hidden="true">←</span>
+        <span className="subpage-back-label">Your ambients</span>
       </button>
       {versionInUse !== null && (
-        <div className="workspace-header-state" aria-label="Version in use">
+        <div className="subpage-header-meta" aria-label="Version in use">
           Version {versionInUse} in use
         </div>
       )}

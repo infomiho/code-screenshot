@@ -16,7 +16,9 @@ type WorkspaceWorkPanelProps = {
   canSave: boolean
   discardLabel: string
   draftSafety: DraftSafetyView
+  hasWorkingDraft: boolean
   isSaving: boolean
+  versionInUse: number | null
   view: AmbientWorkspaceView
   onCompare: () => void
   onCopyPrompt: () => void
@@ -37,7 +39,9 @@ export function WorkspaceWorkPanel({
   canSave,
   discardLabel,
   draftSafety,
+  hasWorkingDraft,
   isSaving,
+  versionInUse,
   view,
   onCompare,
   onCopyPrompt,
@@ -70,7 +74,9 @@ export function WorkspaceWorkPanel({
       agentAccessUrl={agentAccessUrl}
       canMutate={canMutate}
       discardLabel={discardLabel}
+      hasWorkingDraft={hasWorkingDraft}
       safety={draftSafety}
+      versionInUse={versionInUse}
       view={view}
       onCreateAccess={onCreateAccess}
       onDiscardAccess={onDiscardAccess}

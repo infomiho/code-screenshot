@@ -16,7 +16,6 @@ export type { YourAmbientsState } from './ambient-picker'
 
 type AmbientSelectorProps = {
   definitions: readonly AmbientDefinition[]
-  openRequest?: number
   selectedKey: string
   yourAmbients: YourAmbientsState
   onOpenChange?: (isOpen: boolean) => void
@@ -25,36 +24,39 @@ type AmbientSelectorProps = {
 
 const padIndex = (index: number) => String(index).padStart(2, '0')
 
+// Both picker sections are two-column grids; vertical moves stay in the same
+// column, cross section boundaries, and wrap around the ends.
 export const getVerticalAmbientIndex = (
   activeIndex: number,
   direction: -1 | 1,
   builtInCount: number,
   totalCount: number,
 ) => {
-  if (activeIndex >= builtInCount) {
-    if (direction === -1) return activeIndex === builtInCount ? builtInCount - 1 : activeIndex - 1
-    return activeIndex === totalCount - 1 ? 0 : activeIndex + 1
-  }
+  const personalCount = totalCount - builtInCount
+  const sections = personalCount > 0
+    ? [{ start: 0, count: builtInCount }, { start: builtInCount, count: personalCount }]
+    : [{ start: 0, count: builtInCount }]
+  const sectionIndex = activeIndex >= builtInCount ? 1 : 0
+  const section = sections[sectionIndex]
+  const local = activeIndex - section.start
+  const column = local % 2
+  const row = Math.floor(local / 2)
+  const lastRow = Math.ceil(section.count / 2) - 1
+  const enterRow = (target: { start: number; count: number }, targetRow: number) =>
+    target.start + Math.min(targetRow * 2 + column, target.count - 1)
 
-  const column = activeIndex % 2
-  const row = Math.floor(activeIndex / 2)
-  const lastBuiltInRow = Math.ceil(builtInCount / 2) - 1
   if (direction === -1) {
-    if (row > 0) return (row - 1) * 2 + column
-    const wrapped = lastBuiltInRow * 2 + column
-    return Math.min(wrapped, builtInCount - 1)
+    if (row > 0) return enterRow(section, row - 1)
+    const target = sections[(sectionIndex - 1 + sections.length) % sections.length]
+    return enterRow(target, Math.ceil(target.count / 2) - 1)
   }
 
-  if (row < lastBuiltInRow) {
-    const next = (row + 1) * 2 + column
-    return Math.min(next, builtInCount - 1)
-  }
-  return builtInCount < totalCount ? builtInCount : column
+  if (row < lastRow) return enterRow(section, row + 1)
+  return enterRow(sections[(sectionIndex + 1) % sections.length], 0)
 }
 
 export function AmbientSelector({
   definitions,
-  openRequest,
   selectedKey,
   yourAmbients,
   onOpenChange,
@@ -74,13 +76,11 @@ export function AmbientSelector({
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
-  const focusOwnedOnOpenRef = useRef(false)
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(selectedIndex)
   const [status, setStatus] = useState('')
 
   const updateOpen = (nextOpen: boolean) => {
-    if (nextOpen) focusOwnedOnOpenRef.current = false
     setIsOpen(nextOpen)
     onOpenChange?.(nextOpen)
   }
@@ -104,24 +104,8 @@ export function AmbientSelector({
   useEffect(() => {
     if (!isOpen) return
     setActiveIndex(selectedIndex)
-    if (!focusOwnedOnOpenRef.current) {
-      pickerRef.current?.focus({ preventScroll: true })
-      return
-    }
-    window.requestAnimationFrame(() => {
-      const ownedSection = document.getElementById(`${pickerId}-owned`)?.closest('section')
-      ownedSection?.scrollIntoView({ block: 'nearest' })
-      ownedSection?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true })
-      focusOwnedOnOpenRef.current = false
-    })
-  }, [isOpen, pickerId, selectedIndex])
-
-  useEffect(() => {
-    if (!openRequest) return
-    focusOwnedOnOpenRef.current = true
-    setIsOpen(true)
-    onOpenChange?.(true)
-  }, [openRequest])
+    pickerRef.current?.focus({ preventScroll: true })
+  }, [isOpen, selectedIndex])
 
   useEffect(() => {
     if (!isOpen) return

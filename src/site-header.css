@@ -148,21 +148,7 @@
   border: var(--border-panel);
   background: var(--panel);
   box-shadow: 0 16px 40px rgb(0 0 0 / 42%);
-  padding: var(--space-5);
-
-  > span {
-    color: var(--muted);
-    font-family: var(--sans);
-    font-size: var(--font-size-label);
-  }
-
-  > strong {
-    overflow: hidden;
-    font-family: var(--mono);
-    font-size: var(--font-size-control);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  padding: var(--space-3);
 }
 
 .account-menu-action {
@@ -178,7 +164,6 @@
   align-content: center;
   gap: 4px;
   border: 0;
-  border-top: 1px solid var(--panel-border);
   background: transparent;
   color: var(--text);
   cursor: pointer;
@@ -192,8 +177,3 @@
   }
 }
 
-.account-menu-workspace small {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 500;
-}

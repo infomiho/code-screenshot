@@ -302,6 +302,17 @@ export class MockAmbientService implements AmbientWorkspaceService {
     return true
   }
 
+  deleteAmbient = async (ambientId: string) => {
+    if (this.snapshot.account.kind !== 'signed-in' || !this.ambients.delete(ambientId)) return false
+    if (this.snapshot.workspace?.ambient.id === ambientId) {
+      this.cancelAgentUpdate()
+      this.sync(null)
+    } else {
+      this.sync()
+    }
+    return true
+  }
+
   createDraftFromVersion = async (versionId: string) => {
     const workspace = this.snapshot.workspace
     const version = workspace?.versions.find((candidate) => candidate.id === versionId)
