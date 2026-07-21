@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { AmbientIdentity } from '../ambient-identity'
 import {
+  getAmbientKey,
   resolveAmbientVariables,
   type AmbientDefinition,
   type ScreenshotContent,
@@ -8,11 +9,13 @@ import {
 import { DeclarativeAmbient } from '../declarative-ambient'
 import { EditorSkeleton } from '../editor-skeleton'
 import { defaultCode, useCodeEditor } from '../use-code-editor'
+import { PreviewCustomizationStrip, type PreviewCustomizations } from './PreviewCustomizationStrip'
 
 type DeclarativeAmbientDefinition = Extract<AmbientDefinition, { kind: 'declarative' }>
 
 type WorkingDraftPreviewProps = {
   ambientName: string
+  customizations: PreviewCustomizations
   definition: AmbientDefinition | null
   versionInUse: number | null
   versionInUseDefinition: AmbientDefinition | null
@@ -24,12 +27,14 @@ export function AmbientFramePreview({
   ambientName,
   definition,
   compact = false,
+  customizationValues,
   editorHelpId: providedEditorHelpId,
   previewTitle,
 }: {
   ambientName: string
   definition: DeclarativeAmbientDefinition
   compact?: boolean
+  customizationValues?: Record<string, string>
   editorHelpId?: string
   previewTitle?: string
 }) {
@@ -56,7 +61,9 @@ export function AmbientFramePreview({
     },
     lineCount: code.split('\n').length,
   }
-  const ambientStyle = resolveAmbientVariables(definition, {})
+  const ambientStyle = resolveAmbientVariables(definition, {
+    [getAmbientKey(definition)]: customizationValues ?? {},
+  })
   const frameStyle = {
     width: `${referenceWidth}px`,
     minWidth: `${referenceWidth}px`,
@@ -112,14 +119,17 @@ export function AmbientFramePreview({
 
 function DeclarativePreviewBlock({
   ambientName,
+  customizations,
   definition,
   meta,
 }: {
   ambientName: string
+  customizations: PreviewCustomizations
   definition: DeclarativeAmbientDefinition
   meta: string
 }) {
   const editorHelpId = `${useId()}-editor-help`
+  const customizationSlots = definition.manifest.customizations
   return (
     <>
       <div className="workspace-ambient-selector" aria-label={`${ambientName} ambient preview`}>
@@ -133,9 +143,16 @@ function DeclarativePreviewBlock({
         </div>
         <span className="workspace-selector-chevron workspace-selector-chevron-next" aria-hidden="true" />
       </div>
-      <AmbientFramePreview ambientName={ambientName} definition={definition} editorHelpId={editorHelpId} />
+      <AmbientFramePreview
+        ambientName={ambientName}
+        customizationValues={customizations.values}
+        definition={definition}
+        editorHelpId={editorHelpId}
+      />
+      <PreviewCustomizationStrip customizations={customizations} slots={customizationSlots} />
       <p id={editorHelpId} className="workspace-preview-help">
         Representative code rendered with the screenshot editor.
+        {customizationSlots.length > 0 && ' Customization changes are preview-only.'}
       </p>
     </>
   )
@@ -143,6 +160,7 @@ function DeclarativePreviewBlock({
 
 export function WorkingDraftPreview({
   ambientName,
+  customizations,
   definition,
   versionInUse,
   versionInUseDefinition,
@@ -154,6 +172,7 @@ export function WorkingDraftPreview({
       return (
         <DeclarativePreviewBlock
           ambientName={ambientName}
+          customizations={customizations}
           definition={versionInUseDefinition}
           meta="Current version"
         />
@@ -181,5 +200,12 @@ export function WorkingDraftPreview({
     )
   }
 
-  return <DeclarativePreviewBlock ambientName={ambientName} definition={definition} meta="Working draft" />
+  return (
+    <DeclarativePreviewBlock
+      ambientName={ambientName}
+      customizations={customizations}
+      definition={definition}
+      meta="Working draft"
+    />
+  )
 }

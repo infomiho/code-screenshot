@@ -2,9 +2,15 @@ import { useState } from 'react'
 import { ConfirmDialog } from '../confirm-dialog'
 import type { AmbientDefinition } from '../ambient-themes'
 import type { AmbientVersion } from './ambient-workspace-service'
+import {
+  PreviewCustomizationStrip,
+  usePreviewCustomizations,
+  type PreviewCustomizations,
+} from './PreviewCustomizationStrip'
 import { AmbientFramePreview } from './WorkingDraftPreview'
 
 type DraftVersionComparisonProps = {
+  draftCustomizations: PreviewCustomizations
   draftDefinition: AmbientDefinition | null
   isRestoring: boolean
   onClose: () => void
@@ -14,6 +20,7 @@ type DraftVersionComparisonProps = {
 }
 
 export function DraftVersionComparison({
+  draftCustomizations,
   draftDefinition,
   isRestoring,
   onClose,
@@ -22,6 +29,9 @@ export function DraftVersionComparison({
   versionDefinition,
 }: DraftVersionComparisonProps) {
   const [isConfirming, setIsConfirming] = useState(false)
+  const versionCustomizations = usePreviewCustomizations()
+  const declarativeDraft = draftDefinition?.kind === 'declarative' ? draftDefinition : null
+  const declarativeVersion = versionDefinition?.kind === 'declarative' ? versionDefinition : null
 
   return (
     <section className="draft-comparison" aria-labelledby="draft-comparison-heading">
@@ -35,14 +45,28 @@ export function DraftVersionComparison({
       <div className="draft-comparison-grid">
         <article>
           <h3>Working draft</h3>
-          {draftDefinition?.kind === 'declarative'
-            ? <AmbientFramePreview ambientName="Working draft" compact definition={draftDefinition} previewTitle="Ambient comparison" />
+          {declarativeDraft && (
+            <PreviewCustomizationStrip
+              customizations={draftCustomizations}
+              label="Draft customizations"
+              slots={declarativeDraft.manifest.customizations}
+            />
+          )}
+          {declarativeDraft
+            ? <AmbientFramePreview ambientName="Working draft" compact customizationValues={draftCustomizations.values} definition={declarativeDraft} previewTitle="Ambient comparison" />
             : <div className="comparison-mark"><span>No working draft</span></div>}
         </article>
         <article>
           <h3>Version {version.version}{version.isInUse ? ' in use' : ''}</h3>
-          {versionDefinition?.kind === 'declarative'
-            ? <AmbientFramePreview ambientName={`Version ${version.version}`} compact definition={versionDefinition} previewTitle="Ambient comparison" />
+          {declarativeVersion && (
+            <PreviewCustomizationStrip
+              customizations={versionCustomizations}
+              label="Version customizations"
+              slots={declarativeVersion.manifest.customizations}
+            />
+          )}
+          {declarativeVersion
+            ? <AmbientFramePreview ambientName={`Version ${version.version}`} compact customizationValues={versionCustomizations.values} definition={declarativeVersion} previewTitle="Ambient comparison" />
             : <div className="comparison-mark"><span>Preview unavailable</span></div>}
         </article>
       </div>

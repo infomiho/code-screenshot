@@ -284,6 +284,76 @@ test('starts a new draft from the version in use after discarding changes', asyn
     .toContainText('Update the codeshot.dev ambient "Signal study"')
 })
 
+test('previews customization options without persisting them', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+  await page.getByRole('button', { name: 'Create agent access' }).click()
+  await expect(page.getByRole('group', { name: 'Preview customizations' })).toHaveCount(0)
+
+  await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
+  await expect.poll(() => page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(1)
+
+  const strip = page.getByRole('group', { name: 'Preview customizations' })
+  const frameCanvas = () => page.evaluate(
+    () => document.querySelector<HTMLElement>('.workspace-preview-frame')?.style.getPropertyValue('--ambient-canvas'),
+  )
+  await expect(strip).toBeVisible()
+  await expect(page.locator('.workspace-preview-help')).toContainText('preview-only')
+  await expect(strip.getByRole('button', { name: 'Reset' })).toBeDisabled()
+  await expect.poll(frameCanvas).toBe('oklch(0.96 0.006 250)')
+
+  await strip.getByLabel('Canvas').selectOption('frost')
+  await expect.poll(frameCanvas).toBe('oklch(0.9 0.03 250)')
+  expect(await page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.document.customizations[0],
+  )).toMatchObject({ defaultOptionId: 'paper' })
+
+  await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
+  await expect.poll(() => page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(2)
+  await expect(strip.getByLabel('Canvas')).toHaveValue('frost')
+  await expect.poll(frameCanvas).toBe('oklch(0.9 0.03 250)')
+
+  await strip.getByRole('button', { name: 'Reset' }).click()
+  await expect.poll(frameCanvas).toBe('oklch(0.96 0.006 250)')
+  await expect(strip.getByRole('button', { name: 'Reset' })).toBeDisabled()
+})
+
+test('customizes each comparison pane independently', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+  await page.getByRole('button', { name: 'Create agent access' }).click()
+  await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
+  await expect.poll(() => page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(1)
+  await page.getByRole('button', { name: 'Save version' }).click()
+  await expect(page.getByRole('status')).toContainText('Version 1 saved')
+
+  await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
+  await expect.poll(() => page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(1)
+  await page.getByRole('tab', { name: /Versions/ }).click()
+  await page.getByRole('button', { name: /Version 1/ }).click()
+  await expect(page.getByRole('heading', { name: 'Draft and Version 1' })).toBeVisible()
+
+  const paneCanvasValues = () => page.evaluate(
+    () => [...document.querySelectorAll<HTMLElement>('.draft-comparison-grid .workspace-preview-frame')]
+      .map((frame) => frame.style.getPropertyValue('--ambient-canvas')),
+  )
+  await page.getByRole('group', { name: 'Draft customizations' }).getByLabel('Canvas').selectOption('moss')
+  await expect.poll(paneCanvasValues).toEqual(['oklch(0.88 0.05 150)', 'oklch(0.96 0.006 250)'])
+
+  await page.getByRole('group', { name: 'Version customizations' }).getByLabel('Canvas').selectOption('frost')
+  await expect.poll(paneCanvasValues).toEqual(['oklch(0.88 0.05 150)', 'oklch(0.9 0.03 250)'])
+})
+
 test('keeps the preview visible while switching Work and Versions on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await openApp(page)

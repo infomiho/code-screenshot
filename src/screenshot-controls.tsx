@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { AmbientCustomizationFields } from './ambient-customization-fields'
 import type { AmbientCustomizationSlot } from './ambient-themes'
 import type { LanguageOption } from './use-code-editor'
 
@@ -35,8 +35,6 @@ export function ScreenshotControls({
   onHighlightCurrentLine,
   onClearHighlights,
 }: ScreenshotControlsProps) {
-  const customizationIdBase = useId()
-
   return (
     <div className="control-panel" aria-label="Screenshot controls">
       <div className="control-groups">
@@ -78,50 +76,11 @@ export function ScreenshotControls({
               />
             </label>
 
-            {customizationSlots.map((slot) => {
-              const controlId = `${customizationIdBase}-${slot.id}`
-              const value = customizationValues?.[slot.id]
-
-              return (
-                <label className="toolbar-field" htmlFor={controlId} key={slot.id}>
-                  <span>{slot.label}</span>
-                  {slot.type === 'palette' ? (
-                    <select
-                      className="ambient-option-control"
-                      id={controlId}
-                      name={`ambient-option-${slot.id}`}
-                      value={value ?? slot.defaultOptionId}
-                      onInput={(event) =>
-                        onCustomizationChange(
-                          slot.id,
-                          (event.currentTarget as HTMLSelectElement).value,
-                        )
-                      }
-                    >
-                      {slot.options.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      className="ambient-option-control"
-                      id={controlId}
-                      name={`ambient-option-${slot.id}`}
-                      type="color"
-                      value={value ?? slot.defaultValue}
-                      onInput={(event) =>
-                        onCustomizationChange(
-                          slot.id,
-                          (event.currentTarget as HTMLInputElement).value,
-                        )
-                      }
-                    />
-                  )}
-                </label>
-              )
-            })}
+            <AmbientCustomizationFields
+              slots={customizationSlots}
+              values={customizationValues}
+              onChange={onCustomizationChange}
+            />
           </div>
         </details>
 

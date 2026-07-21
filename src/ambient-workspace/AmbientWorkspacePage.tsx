@@ -5,6 +5,7 @@ import { countDraftAmbients, type AmbientWorkspaceService } from './ambient-work
 import { AmbientWorkspaceHeader } from './AmbientWorkspaceHeader'
 import { DiscardDraftDialog } from './DiscardDraftDialog'
 import { DraftVersionComparison } from './DraftVersionComparison'
+import { usePreviewCustomizations } from './PreviewCustomizationStrip'
 import { VersionSpine } from './VersionSpine'
 import { WorkingDraftPreview } from './WorkingDraftPreview'
 import { WorkspaceLoadingSkeleton } from './WorkspaceLoadingSkeleton'
@@ -42,6 +43,7 @@ export function AmbientWorkspacePage({
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [isComparing, setIsComparing] = useState(false)
+  const draftCustomizations = usePreviewCustomizations()
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false)
   const previousAcceptedChangeCountRef = useRef<number | null>(null)
   const previousWorkspaceIdRef = useRef<string | null>(null)
@@ -89,6 +91,7 @@ export function AmbientWorkspacePage({
     if (!workspace) return
     setSelectedVersionId(workspace.versionInUse?.id ?? workspace.versions[0]?.id ?? null)
     setIsComparing(false)
+    draftCustomizations.onReset()
   }, [workspace?.ambient.id])
 
   useEffect(() => {
@@ -214,7 +217,10 @@ export function AmbientWorkspacePage({
         ? `Working draft started from Version ${selectedVersion.version}. Saved history is unchanged.`
         : `Could not start a draft from Version ${selectedVersion.version}.`,
     )
-    if (restored) setIsComparing(false)
+    if (restored) {
+      setIsComparing(false)
+      draftCustomizations.onReset()
+    }
   }
 
   const discardDraft = async () => {
@@ -227,6 +233,7 @@ export function AmbientWorkspacePage({
       setStatusMessage('Could not discard the working draft.')
       return
     }
+    draftCustomizations.onReset()
     if (shouldClose) {
       closeWorkspace()
     } else {
@@ -314,6 +321,8 @@ export function AmbientWorkspacePage({
         <section id="workspace-preview-panel" className="workspace-preview-panel">
           {isComparing && selectedVersion ? (
             <DraftVersionComparison
+              key={selectedVersion.id}
+              draftCustomizations={draftCustomizations}
               draftDefinition={workspaceDefinition}
               isRestoring={workspace.mutation === 'restoring'}
               onClose={() => setIsComparing(false)}
@@ -324,6 +333,7 @@ export function AmbientWorkspacePage({
           ) : (
             <WorkingDraftPreview
               ambientName={workspace.ambient.name}
+              customizations={draftCustomizations}
               definition={workspaceDefinition}
               versionInUse={workspace.versionInUse?.version ?? null}
               versionInUseDefinition={versionInUseDefinition}

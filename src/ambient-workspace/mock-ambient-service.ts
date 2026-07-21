@@ -1,3 +1,4 @@
+import type { AmbientDocument, AmbientPaletteSlot } from '../ambient-schema'
 import { createMinimalDraftDocument } from './minimal-draft'
 import type {
   AmbientVersion,
@@ -19,6 +20,32 @@ const now = () => new Date().toISOString()
 type MockAmbient = {
   summary: OwnedAmbientSummary
   workspace: OpenAmbientWorkspace
+}
+
+const canvasPaletteCustomization: AmbientPaletteSlot = {
+  type: 'palette',
+  id: 'canvas',
+  label: 'Canvas',
+  cssVariable: '--ambient-canvas',
+  valueKind: 'color',
+  defaultOptionId: 'paper',
+  options: [
+    { id: 'paper', label: 'Paper', value: 'oklch(0.96 0.006 250)' },
+    { id: 'frost', label: 'Frost', value: 'oklch(0.9 0.03 250)' },
+    { id: 'moss', label: 'Moss', value: 'oklch(0.88 0.05 150)' },
+  ],
+}
+
+const applyMockAgentChange = (document: AmbientDocument, revision: number): AmbientDocument => {
+  const note = `/* accepted agent change ${revision} */`
+  if (document.customizations.length > 0) {
+    return { ...document, stylesheet: `${document.stylesheet}\n${note}` }
+  }
+  return {
+    ...document,
+    customizations: [canvasPaletteCustomization],
+    stylesheet: `${document.stylesheet}\n.draft-canvas { background: var(--ambient-canvas); }\n${note}`,
+  }
 }
 
 export class MockAmbientService implements AmbientWorkspaceService {
@@ -199,10 +226,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
       if (!draft) return workspace
       const revision = draft.revision + 1
       const updatedAt = now()
-      const document = {
-        ...draft.document,
-        stylesheet: `${draft.document.stylesheet}\n/* accepted agent change ${revision} */`,
-      }
+      const document = applyMockAgentChange(draft.document, revision)
       const ambient = this.ambients.get(workspace.ambient.id)
       if (ambient) {
         ambient.summary = {

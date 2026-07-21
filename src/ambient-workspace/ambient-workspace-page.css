@@ -12,6 +12,7 @@
   --workspace-danger: oklch(0.69 0.18 25);
   --workspace-success: oklch(0.76 0.12 145);
   --workspace-radius: 2px;
+  --workspace-preview-copy-width: min(920px, 100%);
 }
 
 .ambient-workspace-page {
@@ -220,7 +221,8 @@
 }
 
 .workspace-preview-viewport {
-  width: 100%;
+  width: var(--workspace-preview-copy-width);
+  margin-inline: auto;
   overflow: auto;
   border: 1px solid var(--workspace-border);
   background:
@@ -248,12 +250,62 @@
 }
 
 .workspace-preview-help {
-  width: min(920px, 100%);
+  width: var(--workspace-preview-copy-width);
   margin: 10px auto 0;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 11px;
   line-height: 1.5;
+}
+
+.workspace-customization-strip {
+  display: grid;
+  width: var(--workspace-preview-copy-width);
+  gap: 12px;
+  margin: 18px auto 0;
+  border: 1px solid var(--workspace-border);
+  background: var(--workspace-surface);
+  padding: 14px 18px 18px;
+}
+
+.workspace-customization-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.workspace-customization-strip-header .workspace-link-button {
+  min-height: 0;
+  padding: 0;
+}
+
+.workspace-customization-strip-header .workspace-link-button:disabled {
+  color: var(--workspace-subtle);
+  cursor: default;
+  text-decoration-color: transparent;
+}
+
+.workspace-customization-strip-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.workspace-customization-strip-fields .toolbar-field {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.workspace-customization-strip-fields select {
+  width: auto;
+  min-width: 150px;
+}
+
+.draft-comparison .workspace-customization-strip {
+  width: 100%;
+  margin: 0;
 }
 
 .workspace-prompt-disclosure summary:focus-visible {
@@ -774,24 +826,32 @@ button.version-entry-button[aria-pressed='true'] .version-node,
 .draft-comparison-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: var(--space-7);
 }
 
-/* Heading row plus a stretching content row, so both columns always end up
-   the same height even when one side is just a placeholder. */
+/* Subgrid rows keep heading, strip, and preview aligned across both panes
+   even when only one side has a customization strip or a placeholder. */
 .draft-comparison-grid article {
   display: grid;
   min-width: 0;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+}
+
+.draft-comparison-grid .workspace-customization-strip {
+  grid-row: 2;
 }
 
 .draft-comparison-grid .comparison-mark,
 .draft-comparison-grid .workspace-comparison-preview {
+  grid-row: 3;
   height: 100%;
 }
 
 .draft-comparison-grid h3 {
-  margin: 0 0 var(--space-4);
+  grid-row: 1;
+  margin: 0;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 11px;
@@ -1003,7 +1063,8 @@ button.version-entry-button[aria-pressed='true'] .version-node,
 
   .workspace-secondary-link,
   .workspace-danger-link,
-  .workspace-link-button {
+  .workspace-link-button,
+  .workspace-customization-strip-header .workspace-link-button {
     min-height: 44px;
   }
 
