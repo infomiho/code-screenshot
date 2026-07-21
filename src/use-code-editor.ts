@@ -5,6 +5,7 @@ import { html } from '@codemirror/lang-html'
 import { javascript } from '@codemirror/lang-javascript'
 import { json } from '@codemirror/lang-json'
 import { markdown } from '@codemirror/lang-markdown'
+import { php } from '@codemirror/lang-php'
 import { python } from '@codemirror/lang-python'
 import {
   Compartment,
@@ -35,6 +36,7 @@ type HighlightLanguage =
   | 'json'
   | 'jsx'
   | 'markdown'
+  | 'php'
   | 'python'
   | 'tsx'
   | 'typescript'
@@ -66,6 +68,7 @@ const languageOptions: readonly LanguageOption[] = [
   { id: 'css', label: 'CSS', lang: 'css' },
   { id: 'html', label: 'HTML', lang: 'html' },
   { id: 'bash', label: 'Bash', lang: 'bash' },
+  { id: 'php', label: 'PHP', lang: 'php' },
   { id: 'python', label: 'Python', lang: 'python' },
   { id: 'markdown', label: 'Markdown', lang: 'markdown' },
   { id: 'text', label: 'Plain text', lang: 'text' },
@@ -186,6 +189,8 @@ const getLanguageExtension = (language: LanguageValue): Extension => {
       return json()
     case 'markdown':
       return markdown()
+    case 'php':
+      return php()
     case 'python':
       return python()
     case 'tsx':
