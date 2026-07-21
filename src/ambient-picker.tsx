@@ -6,7 +6,6 @@ export type YourAmbientsState =
   | { kind: 'signed-out'; onCreateAmbient: () => void }
   | {
       kind: 'signed-in'
-      username: string
       hasAmbients: boolean
       onCreateAmbient: () => void
       onManageAmbients: () => void
@@ -27,7 +26,6 @@ type AmbientPickerProps = {
   yourAmbients: YourAmbientsState
   onActiveIndexChange: (index: number) => void
   onClose: () => void
-  onEscape: () => void
   onKeyDown: KeyboardEventHandler<HTMLDivElement>
   onSelect: (index: number) => void
 }
@@ -130,7 +128,6 @@ export function AmbientPicker({
   yourAmbients,
   onActiveIndexChange,
   onClose,
-  onEscape,
   onKeyDown,
   onSelect,
 }: AmbientPickerProps) {
@@ -140,21 +137,10 @@ export function AmbientPicker({
   }
 
   return (
-    <div
-      className="ambient-picker-shell"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onClose()
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== 'Escape') return
-        event.preventDefault()
-        event.stopPropagation()
-        onEscape()
-      }}
-    >
+    <>
       <div className="ambient-picker-heading">
         <span>Choose an ambient</span>
-        <button className="ui-button ui-button-ghost ui-button-icon ambient-picker-close" type="button" aria-label="Close ambient picker" onClick={onEscape}>
+        <button className="ui-button ui-button-ghost ui-button-icon ambient-picker-close" type="button" aria-label="Close ambient picker" onClick={onClose}>
           &#215;
         </button>
       </div>
@@ -210,13 +196,10 @@ export function AmbientPicker({
             </button>
           </>
         ) : yourAmbients.hasAmbients ? (
-          <>
-            <div className="ambient-account-meta">@{yourAmbients.username}</div>
-            <button className="ambient-account-manage" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
-              Manage your ambients
-              <span aria-hidden="true"> →</span>
-            </button>
-          </>
+          <button className="ambient-account-manage" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
+            Manage your ambients
+            <span aria-hidden="true"> →</span>
+          </button>
         ) : (
           <>
             <h3>Your ambients</h3>
@@ -227,6 +210,6 @@ export function AmbientPicker({
           </>
         )}
       </section>
-    </div>
+    </>
   )
 }

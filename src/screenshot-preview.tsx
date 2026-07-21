@@ -62,8 +62,8 @@ const clampFrameWidth = (width: number) =>
 const penStrokeOptions = {
   size: 6,
   thinning: 0,
-  smoothing: 0.8,
-  streamline: 0.7,
+  smoothing: 0.55,
+  streamline: 0.5,
   simulatePressure: false,
 }
 
@@ -110,7 +110,7 @@ const findPenCorners = (points: number[][]) => {
   return corners
 }
 
-const smoothPenPoints = (points: number[][], passes = 3) => {
+const smoothPenPoints = (points: number[][], passes = 2) => {
   if (points.length < 5) return points
 
   const anchors = findPenCorners(points)

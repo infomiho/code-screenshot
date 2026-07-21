@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { Tabs } from '@base-ui/react/tabs'
 import type { WorkspaceSidebarTab } from './use-workspace-sidebar'
 
 type WorkspaceSidebarProps = {
@@ -12,8 +13,6 @@ type WorkspaceSidebarProps = {
   onToggleCollapse: () => void
 }
 
-const tabs: readonly WorkspaceSidebarTab[] = ['work', 'versions']
-
 export function WorkspaceSidebar({
   activeTab,
   isCollapsed,
@@ -24,15 +23,9 @@ export function WorkspaceSidebar({
   onTabChange,
   onToggleCollapse,
 }: WorkspaceSidebarProps) {
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const collapseRef = useRef<HTMLButtonElement | null>(null)
   const railRef = useRef<HTMLButtonElement | null>(null)
   const pendingFocusRef = useRef<'rail' | 'toggle' | null>(null)
-
-  const selectTab = (tab: WorkspaceSidebarTab) => {
-    onTabChange(tab)
-    tabRefs.current[tabs.indexOf(tab)]?.focus()
-  }
 
   const collapse = () => {
     pendingFocusRef.current = 'rail'
@@ -55,35 +48,16 @@ export function WorkspaceSidebar({
 
   return (
     <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Ambient workspace tools">
-      <div className="workspace-sidebar-collapsible">
+      <Tabs.Root
+        className="workspace-sidebar-collapsible"
+        value={activeTab}
+        onValueChange={(value) => onTabChange(value as WorkspaceSidebarTab)}
+      >
         <div className="workspace-sidebar-tabs">
-          <div className="workspace-sidebar-tablist" role="tablist" aria-label="Workspace tools">
-            {tabs.map((tab, index) => (
-              <button
-                key={tab}
-                ref={(element) => { tabRefs.current[index] = element }}
-                id={`workspace-${tab}-tab`}
-                type="button"
-                role="tab"
-                aria-controls={`workspace-${tab}-panel`}
-                aria-selected={activeTab === tab}
-                tabIndex={activeTab === tab ? 0 : -1}
-                onClick={() => onTabChange(tab)}
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowRight' || event.key === 'End') {
-                    event.preventDefault()
-                    selectTab('versions')
-                  }
-                  if (event.key === 'ArrowLeft' || event.key === 'Home') {
-                    event.preventDefault()
-                    selectTab('work')
-                  }
-                }}
-              >
-                {tab === 'work' ? 'Work' : `Versions ${versionCount}`}
-              </button>
-            ))}
-          </div>
+          <Tabs.List className="workspace-sidebar-tablist" aria-label="Workspace tools" activateOnFocus>
+            <Tabs.Tab value="work">Work</Tabs.Tab>
+            <Tabs.Tab value="versions">Versions {versionCount}</Tabs.Tab>
+          </Tabs.List>
           <button
             ref={collapseRef}
             type="button"
@@ -98,25 +72,13 @@ export function WorkspaceSidebar({
           </button>
         </div>
 
-        <div
-          id="workspace-work-panel"
-          className="workspace-sidebar-panel"
-          role="tabpanel"
-          aria-labelledby="workspace-work-tab"
-          hidden={activeTab !== 'work'}
-        >
+        <Tabs.Panel className="workspace-sidebar-panel" value="work">
           {work}
-        </div>
-        <div
-          id="workspace-versions-panel"
-          className="workspace-sidebar-panel"
-          role="tabpanel"
-          aria-labelledby="workspace-versions-tab"
-          hidden={activeTab !== 'versions'}
-        >
+        </Tabs.Panel>
+        <Tabs.Panel className="workspace-sidebar-panel" value="versions">
           {versions}
-        </div>
-      </div>
+        </Tabs.Panel>
+      </Tabs.Root>
 
       <div className="workspace-live-region" role="status" aria-live="polite" aria-atomic="true">
         {statusMessage}

@@ -168,7 +168,6 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
     ? { kind: 'signed-out', onCreateAmbient: createAmbient }
     : {
         kind: 'signed-in',
-        username: snapshot.account.username,
         hasAmbients: snapshot.ownedAmbients.length > 0,
         onCreateAmbient: createAmbient,
         onManageAmbients: openLibrary,

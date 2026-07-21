@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AccountMenu } from '../account-menu'
 import { AmbientMark } from '../ambient-mark'
+import { ConfirmDialog } from '../confirm-dialog'
 import type { AmbientDefinition } from '../ambient-themes'
 import { countDraftAmbients, type AmbientWorkspaceService, type OwnedAmbientSummary } from './ambient-workspace-service'
 import { useAmbientWorkspace } from './use-ambient-workspace'
@@ -31,45 +32,22 @@ function DeleteAmbientDialog({
   onCancel: () => void
   onConfirm: () => void
 }) {
-  const cancelRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    dialogRef.current?.showModal()
-    cancelRef.current?.focus()
-    return () => dialogRef.current?.close()
-  }, [])
+  const description = ambient.currentVersion
+    ? `This permanently removes ${ambient.name}, all ${ambient.currentVersion.version === 1 ? 'its saved history' : `${ambient.currentVersion.version} versions`}, and any working draft. Screenshots already exported are not affected.`
+    : `This permanently removes ${ambient.name} and its working draft.`
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="ambient-library-dialog"
-      aria-labelledby="delete-ambient-heading"
-      aria-describedby="delete-ambient-description"
-      onCancel={(event) => {
-        if (isDeleting) {
-          event.preventDefault()
-        } else {
-          onCancel()
-        }
-      }}
-    >
-      <span className="ambient-library-eyebrow">Permanent action</span>
-      <h2 id="delete-ambient-heading">Delete {ambient.name}?</h2>
-      <p id="delete-ambient-description">
-        {ambient.currentVersion
-          ? `This permanently removes ${ambient.name}, all ${ambient.currentVersion.version === 1 ? 'its saved history' : `${ambient.currentVersion.version} versions`}, and any working draft. Screenshots already exported are not affected.`
-          : `This permanently removes ${ambient.name} and its working draft.`}
-      </p>
-      <div className="ambient-library-dialog-actions">
-        <button ref={cancelRef} className="ui-button" type="button" disabled={isDeleting} onClick={onCancel}>
-          Cancel
-        </button>
-        <button className="ambient-library-danger-button" type="button" disabled={isDeleting} onClick={onConfirm}>
-          {isDeleting ? 'Deleting...' : 'Delete ambient'}
-        </button>
-      </div>
-    </dialog>
+    <ConfirmDialog
+      confirmLabel={isDeleting ? 'Deleting...' : 'Delete ambient'}
+      description={description}
+      eyebrow="Permanent action"
+      isBusy={isDeleting}
+      isDanger
+      isOpen
+      title={`Delete ${ambient.name}?`}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   )
 }
 

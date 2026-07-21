@@ -123,6 +123,9 @@
   /* Account */
   --account-avatar-size: 32px;
 
+  /* Confirmation dialogs */
+  --confirm-danger: oklch(0.69 0.18 25);
+
   /* Skeletons */
   --skeleton-surface: color-mix(in oklch, var(--bg), var(--text) 7%);
   --skeleton-raised: color-mix(in oklch, var(--bg), var(--text) 12%);

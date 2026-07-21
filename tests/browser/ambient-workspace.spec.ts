@@ -32,6 +32,14 @@ const openWorkspaceFromLibrary = async (page: Page, ambientName: string) => {
   await expect(page.locator('.subpage-header .account-menu-trigger')).toBeVisible()
 }
 
+test('toggles the ambient picker closed from its trigger', async ({ page }) => {
+  await openApp(page)
+  await openAmbientPicker(page)
+
+  await page.locator('.ambient-current').click()
+  await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
+})
+
 test('keeps included ambients in a two-column grid', async ({ page }) => {
   await openApp(page)
   await openAmbientPicker(page)
@@ -206,8 +214,8 @@ test('uses context-specific discard copy for a never-saved ambient', async ({ pa
   await page.getByRole('button', { name: 'Discard ambient' }).click()
 
   await expect(page.getByRole('heading', { name: 'Discard this ambient?' })).toBeVisible()
-  await expect(page.getByRole('dialog')).toContainText('This ambient has never been saved')
-  await page.getByRole('dialog').getByRole('button', { name: 'Discard ambient' }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('This ambient has never been saved')
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard ambient' }).click()
   await expect(page.getByRole('heading', { name: 'No ambients yet' })).toBeVisible()
   expect(await page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().ownedAmbients.length,
@@ -237,7 +245,7 @@ test('restores an older version into a new working draft', async ({ page }) => {
   await page.getByRole('button', { name: /Version 1/ }).click()
   await expect(page.getByRole('heading', { name: 'Draft and Version 1' })).toBeVisible()
   await page.getByRole('button', { name: 'Start draft from Version 1' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Start from Version 1' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Start from Version 1' }).click()
   await expect(page.getByRole('status')).toContainText('Working draft started from Version 1')
   await expect(page.getByText('Version 2', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Work' }).click()
@@ -260,7 +268,7 @@ test('starts a new draft from the version in use after discarding changes', asyn
 
   await page.getByRole('button', { name: 'Close draft' }).click()
   await expect(page.getByRole('heading', { name: 'Close the working draft?' })).toBeVisible()
-  await page.getByRole('dialog').getByRole('button', { name: 'Close draft' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Close draft' }).click()
   await expect(page.getByRole('button', { name: 'Close draft' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'No active draft' })).toBeVisible()
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Current version')
@@ -381,7 +389,7 @@ test('manages ambients from the library page', async ({ page }) => {
   const row = page.locator('.ambient-library-row').filter({ hasText: 'Signal study' })
   await row.getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByRole('heading', { name: 'Delete Signal study?' })).toBeVisible()
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete ambient' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete ambient' }).click()
 
   await expect(page.getByRole('heading', { name: 'No ambients yet' })).toBeVisible()
   expect(await page.evaluate(

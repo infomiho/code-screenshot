@@ -1,0 +1,84 @@
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(0 0 0 / 55%);
+}
+
+.confirm-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 50;
+  display: grid;
+  width: min(480px, calc(100vw - 40px));
+  gap: var(--space-6);
+  border: var(--border-panel);
+  background: var(--panel);
+  box-shadow: 0 28px 80px rgb(0 0 0 / 48%);
+  color: var(--text);
+  padding: clamp(20px, 4vw, 32px);
+  translate: -50% -50%;
+  animation: confirm-dialog-in var(--ambient-motion-duration) var(--ambient-motion-ease);
+}
+
+@keyframes confirm-dialog-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.confirm-dialog-eyebrow {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.confirm-dialog-title {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 18px;
+}
+
+.confirm-dialog-description {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: var(--font-size-control);
+  line-height: var(--line-height-help);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: end;
+  gap: var(--space-3);
+}
+
+.confirm-dialog-danger-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklch, var(--confirm-danger), black 15%);
+  background: var(--confirm-danger);
+  color: white;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  font-weight: var(--font-weight-heavy);
+  padding-inline: var(--space-6);
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: var(--disabled-opacity);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-dialog {
+    animation: none;
+  }
+}

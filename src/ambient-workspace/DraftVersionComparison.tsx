@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { ConfirmDialog } from '../confirm-dialog'
 import type { AmbientDefinition } from '../ambient-themes'
 import type { AmbientVersion } from './ambient-workspace-service'
 import { AmbientFramePreview } from './WorkingDraftPreview'
@@ -21,22 +22,6 @@ export function DraftVersionComparison({
   versionDefinition,
 }: DraftVersionComparisonProps) {
   const [isConfirming, setIsConfirming] = useState(false)
-  const cancelRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const previousFocusRef = useRef<HTMLElement | null>(null)
-
-  useEffect(() => {
-    if (!isConfirming) return
-    previousFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
-    dialogRef.current?.showModal()
-    cancelRef.current?.focus()
-    return () => {
-      dialogRef.current?.close()
-      previousFocusRef.current?.focus()
-    }
-  }, [isConfirming])
 
   return (
     <section className="draft-comparison" aria-labelledby="draft-comparison-heading">
@@ -64,33 +49,19 @@ export function DraftVersionComparison({
       <button className="ui-button" type="button" onClick={() => setIsConfirming(true)}>
         Start draft from Version {version.version}
       </button>
-      {isConfirming && (
-        <dialog
-          ref={dialogRef}
-          className="workspace-dialog workspace-restore-dialog"
-          aria-labelledby="restore-dialog-heading"
-          onCancel={() => setIsConfirming(false)}
-        >
-          <h3 id="restore-dialog-heading">Replace the working draft?</h3>
-          <p>Current draft changes will be replaced. Saved version history will remain intact.</p>
-          <div className="workspace-dialog-actions">
-            <button ref={cancelRef} className="ui-button" type="button" onClick={() => setIsConfirming(false)}>
-              Cancel
-            </button>
-            <button
-              className="ui-button ui-button-primary"
-              type="button"
-              disabled={isRestoring}
-              onClick={async () => {
-                await onRestore()
-                setIsConfirming(false)
-              }}
-            >
-              {isRestoring ? 'Starting draft...' : `Start from Version ${version.version}`}
-            </button>
-          </div>
-        </dialog>
-      )}
+      <ConfirmDialog
+        confirmLabel={isRestoring ? 'Starting draft...' : `Start from Version ${version.version}`}
+        description="Current draft changes will be replaced. Saved version history will remain intact."
+        eyebrow="Version restore"
+        isBusy={isRestoring}
+        isOpen={isConfirming}
+        title="Replace the working draft?"
+        onCancel={() => setIsConfirming(false)}
+        onConfirm={async () => {
+          await onRestore()
+          setIsConfirming(false)
+        }}
+      />
     </section>
   )
 }

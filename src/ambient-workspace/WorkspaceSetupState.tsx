@@ -87,17 +87,19 @@ export function WorkspaceSetupState({
         </section>
         <div className="workspace-activity-panel">
           <div className="workspace-sidebar">
-            <div className="workspace-sidebar-tabs" aria-hidden="true">
-              <div className="workspace-sidebar-tablist">
-                <button type="button" disabled>Work</button>
-                <button type="button" disabled>Versions</button>
+            <div className="workspace-sidebar-collapsible">
+              <div className="workspace-sidebar-tabs" aria-hidden="true">
+                <div className="workspace-sidebar-tablist">
+                  <button type="button" disabled>Work</button>
+                  <button type="button" disabled>Versions</button>
+                </div>
               </div>
-            </div>
-            <div className="workspace-sidebar-panel">
-              <div className="workspace-work-panel">
-                <section className="workspace-card workspace-status-card" aria-label="Draft status">
-                  <h2>Your draft will appear here</h2>
-                </section>
+              <div className="workspace-sidebar-panel">
+                <div className="workspace-work-panel">
+                  <section className="workspace-card workspace-status-card" aria-label="Draft status">
+                    <h2>Your draft will appear here</h2>
+                  </section>
+                </div>
               </div>
             </div>
           </div>

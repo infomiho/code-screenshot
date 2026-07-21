@@ -5,6 +5,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
+import { Popover } from '@base-ui/react/popover'
 import { AmbientIdentity } from './ambient-identity'
 import {
   AmbientPicker,
@@ -73,9 +74,8 @@ export function AmbientSelector({
   const entries = definitions.map((definition, index) => ({ definition, index }))
   const builtIns = entries.filter(({ definition }) => definition.source === 'built-in')
   const personal = entries.filter(({ definition }) => definition.source !== 'built-in')
-  const rootRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
   const pickerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(selectedIndex)
   const [status, setStatus] = useState('')
@@ -85,26 +85,9 @@ export function AmbientSelector({
     onOpenChange?.(nextOpen)
   }
 
-  const closeAndRestoreFocus = () => {
-    updateOpen(false)
-    window.requestAnimationFrame(() => triggerRef.current?.focus())
-  }
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) updateOpen(false)
-    }
-
-    document.addEventListener('pointerdown', closeOnOutsidePointer)
-    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer)
-  }, [isOpen])
-
   useEffect(() => {
     if (!isOpen) return
     setActiveIndex(selectedIndex)
-    pickerRef.current?.focus({ preventScroll: true })
   }, [isOpen, selectedIndex])
 
   useEffect(() => {
@@ -130,7 +113,7 @@ export function AmbientSelector({
     )
 
     if (closeAfterSelection) {
-      closeAndRestoreFocus()
+      updateOpen(false)
     }
   }
 
@@ -168,7 +151,6 @@ export function AmbientSelector({
     <div
       className="ambient-selector"
       data-picker-open={isOpen || undefined}
-      ref={rootRef}
       role="group"
       aria-label="Ambient"
     >
@@ -180,26 +162,63 @@ export function AmbientSelector({
       >
         <span className="ambient-arrow" aria-hidden="true" />
       </button>
-      <button
-        ref={triggerRef}
-        className="ambient-current"
-        type="button"
-        aria-haspopup="grid"
-        aria-expanded={isOpen}
-        aria-controls={pickerId}
-        onClick={() => updateOpen(!isOpen)}
-        onKeyDown={(event) => {
-          if (event.key !== 'ArrowDown') return
-          event.preventDefault()
-          updateOpen(true)
-        }}
-      >
-        <AmbientIdentity
-          definition={selected}
-          meta={`${padIndex(selectedIndex + 1)} / ${padIndex(definitions.length)}`}
-          showDisclosure
+      <Popover.Root open={isOpen} onOpenChange={updateOpen} modal={false}>
+        <Popover.Trigger
+          render={(
+            <button
+              ref={triggerRef}
+              className="ambient-current"
+              type="button"
+              aria-haspopup="grid"
+              aria-controls={pickerId}
+              onKeyDown={(event) => {
+                if (event.key !== 'ArrowDown') return
+                event.preventDefault()
+                updateOpen(true)
+              }}
+            >
+              <AmbientIdentity
+                definition={selected}
+                meta={`${padIndex(selectedIndex + 1)} / ${padIndex(definitions.length)}`}
+                showDisclosure
+              />
+            </button>
+          )}
         />
-      </button>
+        <Popover.Portal>
+          <Popover.Positioner className="ambient-picker-positioner" side="bottom" align="center" sideOffset={6} collisionPadding={16}>
+            <Popover.Popup
+              className="ambient-picker-shell"
+              initialFocus={pickerRef}
+              onBlur={(event) => {
+                const nextFocus = event.relatedTarget as Node | null
+                // Focus moving to the trigger means a toggle click; closing here
+                // first would make that click immediately reopen the picker.
+                if (nextFocus && triggerRef.current?.contains(nextFocus)) {
+                  return
+                }
+                if (!event.currentTarget.contains(nextFocus)) {
+                  updateOpen(false)
+                }
+              }}
+            >
+              <AmbientPicker
+                activeIndex={activeIndex}
+                builtIns={builtIns}
+                personal={personal}
+                pickerId={pickerId}
+                pickerRef={pickerRef}
+                selectedIndex={selectedIndex}
+                yourAmbients={yourAmbients}
+                onActiveIndexChange={setActiveIndex}
+                onClose={() => updateOpen(false)}
+                onKeyDown={handlePickerKeyDown}
+                onSelect={(index) => selectAt(index, true)}
+              />
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
       <button
         className="ambient-step ambient-step-next"
         type="button"
@@ -208,23 +227,6 @@ export function AmbientSelector({
       >
         <span className="ambient-arrow" aria-hidden="true" />
       </button>
-
-      {isOpen && (
-        <AmbientPicker
-          activeIndex={activeIndex}
-          builtIns={builtIns}
-          personal={personal}
-          pickerId={pickerId}
-          pickerRef={pickerRef}
-          selectedIndex={selectedIndex}
-          yourAmbients={yourAmbients}
-          onActiveIndexChange={setActiveIndex}
-          onClose={() => updateOpen(false)}
-          onEscape={closeAndRestoreFocus}
-          onKeyDown={handlePickerKeyDown}
-          onSelect={(index) => selectAt(index, true)}
-        />
-      )}
 
       <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">{status}</span>
     </div>

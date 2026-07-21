@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { ConfirmDialog } from '../confirm-dialog'
 
 type DiscardDraftDialogProps = {
   draftMatchesVersion: boolean
@@ -17,25 +17,6 @@ export function DiscardDraftDialog({
   onConfirm,
   versionInUse,
 }: DiscardDraftDialogProps) {
-  const cancelRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const previousFocusRef = useRef<HTMLElement | null>(null)
-
-  useEffect(() => {
-    if (!isOpen) return
-    previousFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
-    dialogRef.current?.showModal()
-    cancelRef.current?.focus()
-    return () => {
-      dialogRef.current?.close()
-      previousFocusRef.current?.focus()
-    }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
   const neverSaved = versionInUse === null
   const closingSyncedDraft = !neverSaved && draftMatchesVersion
   const heading = neverSaved
@@ -49,32 +30,19 @@ export function DiscardDraftDialog({
   const confirmLabel = neverSaved
     ? 'Discard ambient'
     : closingSyncedDraft ? 'Close draft' : 'Discard changes'
+  const busyLabel = closingSyncedDraft ? 'Closing...' : 'Discarding...'
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="workspace-dialog"
-      aria-labelledby="discard-dialog-heading"
-      aria-describedby="discard-dialog-description"
-      onCancel={(event) => {
-        if (isDiscarding) {
-          event.preventDefault()
-        } else {
-          onCancel()
-        }
-      }}
-    >
-      <span className="workspace-eyebrow">{closingSyncedDraft ? 'Finish editing' : 'Permanent action'}</span>
-      <h2 id="discard-dialog-heading">{heading}</h2>
-      <p id="discard-dialog-description">{description}</p>
-      <div className="workspace-dialog-actions">
-        <button ref={cancelRef} className="ui-button" type="button" disabled={isDiscarding} onClick={onCancel}>
-          Cancel
-        </button>
-        <button className="workspace-danger-button" type="button" disabled={isDiscarding} onClick={onConfirm}>
-          {isDiscarding ? (closingSyncedDraft ? 'Closing...' : 'Discarding...') : confirmLabel}
-        </button>
-      </div>
-    </dialog>
+    <ConfirmDialog
+      confirmLabel={isDiscarding ? busyLabel : confirmLabel}
+      description={description}
+      eyebrow={closingSyncedDraft ? 'Finish editing' : 'Permanent action'}
+      isBusy={isDiscarding}
+      isDanger
+      isOpen={isOpen}
+      title={heading}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   )
 }

@@ -806,67 +806,6 @@ button.version-entry-button[aria-pressed='true'] .version-node,
   font-size: 10px;
 }
 
-.workspace-dialog {
-  display: grid;
-  width: min(480px, 100%);
-  max-width: calc(100vw - 40px);
-  gap: var(--space-6);
-  margin: auto;
-  border: 1px solid var(--workspace-border);
-  background: var(--workspace-surface-raised);
-  box-shadow: 0 28px 80px rgb(0 0 0 / 48%);
-  color: var(--text);
-  padding: clamp(20px, 4vw, 32px);
-}
-
-.workspace-dialog::backdrop {
-  background: rgb(0 0 0 / 72%);
-}
-
-.workspace-dialog h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.workspace-dialog p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.65;
-}
-
-.workspace-restore-dialog h3 {
-  margin: 0;
-  font-size: 20px;
-}
-
-.workspace-dialog-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-4);
-}
-
-.workspace-danger-button {
-  display: inline-flex;
-  min-height: 40px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid color-mix(in oklch, var(--workspace-danger), black 15%);
-  background: var(--workspace-danger);
-  color: white;
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--font-size-control);
-  font-weight: 800;
-  padding-inline: 14px;
-}
-
-.workspace-danger-button:disabled {
-  cursor: not-allowed;
-  opacity: var(--disabled-opacity);
-}
-
 .workspace-mobile-tabs {
   display: none;
 }
@@ -1096,19 +1035,10 @@ button.version-entry-button[aria-pressed='true'] .version-node,
   .comparison-mark {
     min-height: 150px;
   }
-
-  .workspace-dialog {
-    width: calc(100vw - 24px);
-    max-width: calc(100vw - 24px);
-    max-height: calc(100dvh - 24px);
-    margin: auto auto 12px;
-    overflow: auto;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ambient-workspace-page *,
-  .workspace-dialog * {
+  .ambient-workspace-page * {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;

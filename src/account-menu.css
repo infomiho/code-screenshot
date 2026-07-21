@@ -15,15 +15,16 @@
   user-select: none;
   transition:
     background-color var(--transition-fast),
-    color var(--transition-fast),
-    scale var(--transition-fast);
+    color var(--transition-fast);
 
   &:hover {
     background: var(--ambient-hover-bg);
   }
 
+  /* No press scale: the popup measures the anchor while pressed, and a scaled
+     trigger makes it land 1-2px off once the press releases. */
   &:active {
-    scale: 0.96;
+    background: var(--ambient-selected-bg);
   }
 
   &:focus-visible {

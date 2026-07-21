@@ -16,7 +16,7 @@ const formatLibraryLabel = (draftCount: number) =>
 
 export function AccountMenu({ username, avatarUrl = null, draftCount = 0, onOpenLibrary, onSignOut }: AccountMenuProps) {
   return (
-    <Menu.Root>
+    <Menu.Root modal={false}>
       <Menu.Trigger className="account-menu-trigger">
         <span className="account-avatar" aria-hidden="true">
           {avatarUrl ? <img src={avatarUrl} alt="" /> : getAvatarInitial(username)}
