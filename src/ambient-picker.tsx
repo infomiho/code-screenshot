@@ -191,9 +191,9 @@ export function AmbientPicker({
             </button>
           </>
         ) : yourAmbients.hasAmbients ? (
-          <button className="ui-button ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
-            Manage your ambients
-            <span aria-hidden="true"> →</span>
+          <button className="ambient-account-manage" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
+            <span>Manage your ambients</span>
+            <span aria-hidden="true">→</span>
           </button>
         ) : (
           <>

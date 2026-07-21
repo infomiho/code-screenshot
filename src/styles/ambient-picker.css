@@ -200,6 +200,12 @@
   border-top: 1px solid var(--panel-border);
   padding: var(--space-5) var(--space-4) var(--space-4);
 
+  /* The manage row is a full-bleed footer item like the picker tiles, so it
+     supplies its own inset instead of the section padding. */
+  &:has(.ambient-account-manage) {
+    padding: 0;
+  }
+
   h3 {
     padding: 0;
   }
@@ -215,6 +221,47 @@
 
 .ambient-account-action {
   justify-self: start;
+}
+
+.ambient-account-manage {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  font-weight: var(--font-weight-heavy);
+
+  /* Matches the heading band inset so the footer bookends the popup. */
+  padding: 0 16px;
+  transition: background-color var(--ambient-motion-duration) var(--ambient-motion-ease);
+
+  span[aria-hidden='true'] {
+    color: var(--muted);
+    transition:
+      color var(--ambient-motion-duration) var(--ambient-motion-ease),
+      translate var(--ambient-motion-duration) var(--ambient-motion-ease);
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--ambient-hover-bg);
+
+    span[aria-hidden='true'] {
+      color: var(--wasp-yellow);
+      translate: 3px 0;
+    }
+  }
+
+  &:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: -2px;
+  }
 }
 
 @keyframes ambient-picker-in {
