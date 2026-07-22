@@ -379,15 +379,24 @@ test('collapses and expands the workspace sidebar', async ({ page }) => {
   await openWorkspaceFromLibrary(page, 'Signal study')
 
   const layout = page.locator('.workspace-layout')
+  const sidebarToggle = page.locator('.workspace-sidebar-toggle')
   const collapseButton = page.getByRole('button', { name: 'Collapse sidebar' })
   const expandButton = page.getByRole('button', { name: 'Expand sidebar' })
   const panelWidth = async () => (await page.locator('.workspace-activity-panel').boundingBox())?.width ?? 0
+  const iconCenter = async () => sidebarToggle.locator('svg').evaluate((icon) => {
+    const bounds = icon.getBoundingClientRect()
+    return {
+      x: bounds.left + bounds.width / 2,
+      y: bounds.top + bounds.height / 2,
+    }
+  })
   const storedCollapsed = () => page.evaluate(
     () => window.localStorage.getItem('codeshot.workspace-sidebar-collapsed'),
   )
 
   await expect(layout).toHaveAttribute('data-sidebar', 'expanded')
   await expect(collapseButton).toBeVisible()
+  const expandedIconCenter = await iconCenter()
 
   await collapseButton.click()
   await expect(layout).toHaveAttribute('data-sidebar', 'collapsed')
@@ -396,6 +405,8 @@ test('collapses and expands the workspace sidebar', async ({ page }) => {
   await expect.poll(panelWidth).toBeLessThan(60)
   await expect.poll(storedCollapsed).toBe('true')
   await expect(expandButton).toBeFocused()
+  await expect.poll(async () => (await iconCenter()).x).toBeCloseTo(expandedIconCenter.x, 1)
+  await expect.poll(async () => (await iconCenter()).y).toBeCloseTo(expandedIconCenter.y, 1)
 
   await expandButton.click()
   await expect(layout).toHaveAttribute('data-sidebar', 'expanded')

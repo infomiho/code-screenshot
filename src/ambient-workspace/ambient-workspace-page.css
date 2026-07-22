@@ -2,6 +2,12 @@
 .workspace-route-state {
   --workspace-rail-width: clamp(320px, 27vw, 380px);
   --workspace-collapsed-rail-width: 48px;
+  --workspace-sidebar-toggle-size: 40px;
+  --workspace-sidebar-icon-size: var(--icon-size);
+  --workspace-sidebar-icon-stroke: 1.25;
+  --workspace-tab-inset: 2px;
+  --workspace-tab-count-size: calc(var(--icon-size) + var(--space-1));
+  --workspace-tab-count-font-size: 10px;
   --workspace-collapse-duration: 220ms;
   --workspace-collapse-fade: 120ms;
   --workspace-collapse-fade-in-delay: 140ms;
@@ -9,6 +15,11 @@
   --workspace-surface-raised: color-mix(in oklch, var(--panel), var(--text) 3%);
   --workspace-border: color-mix(in oklch, var(--panel-border), var(--text) 5%);
   --workspace-subtle: color-mix(in oklch, var(--muted), transparent 84%);
+  --workspace-tab-selected-bg: color-mix(in oklch, var(--control), var(--text) 14%);
+  --workspace-tab-selected-count-bg: color-mix(in oklch, var(--text), transparent 88%);
+  --workspace-tab-selected-shadow:
+    0 0 0 1px var(--button-border-hover) inset,
+    0 1px 0 rgb(247 245 240 / 7%) inset;
   --workspace-danger: oklch(0.69 0.18 25);
   --workspace-success: oklch(0.76 0.12 145);
   --workspace-radius: 2px;
@@ -337,16 +348,18 @@
 }
 
 .workspace-sidebar {
+  position: relative;
   display: grid;
   height: 100%;
   min-height: 0;
-  min-width: var(--workspace-rail-width);
+  min-width: 0;
   grid-template-rows: minmax(0, 1fr) auto;
   background: var(--workspace-surface);
 }
 
 .workspace-sidebar-collapsible {
   display: grid;
+  min-width: var(--workspace-rail-width);
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
   opacity: 1;
@@ -367,36 +380,70 @@
 
 .workspace-sidebar-tabs {
   display: grid;
-  grid-template-columns: 1fr auto;
+  align-items: center;
   border-bottom: 1px solid var(--workspace-border);
-  background: var(--control);
-  box-shadow: var(--control-inset);
-  padding-inline: 12px;
+  background: var(--workspace-surface);
+  padding:
+    var(--space-1)
+    calc(var(--workspace-sidebar-toggle-size) + var(--space-3))
+    var(--space-1)
+    var(--space-3);
 }
 
 .workspace-sidebar-tablist {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: var(--workspace-tab-inset);
+  border: 1px solid var(--button-border);
+  background: var(--control);
+  box-shadow: var(--control-inset);
+  padding: var(--workspace-tab-inset);
 }
 
 .workspace-sidebar-tablist button {
-  min-height: 48px;
+  display: inline-flex;
+  min-height: var(--workspace-sidebar-toggle-size);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   border: 0;
-  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--font-size-control);
   font-weight: 800;
-  text-transform: uppercase;
-  transition-property: border-color, color, scale;
+  transition-property: background-color, box-shadow, color, scale;
   transition-duration: var(--ambient-motion-duration);
   transition-timing-function: var(--ambient-motion-ease);
 }
 
+.workspace-sidebar-tablist button:hover {
+  background: var(--button-hover-bg);
+  color: var(--text);
+}
+
 .workspace-sidebar-tablist button[aria-selected='true'] {
-  border-bottom-color: var(--wasp-yellow);
+  background: var(--workspace-tab-selected-bg);
+  box-shadow: var(--workspace-tab-selected-shadow);
+  color: var(--text);
+}
+
+.workspace-sidebar-tab-count {
+  display: inline-grid;
+  min-width: var(--workspace-tab-count-size);
+  height: var(--workspace-tab-count-size);
+  place-items: center;
+  background: var(--workspace-subtle);
+  color: var(--muted);
+  font-size: var(--workspace-tab-count-font-size);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  padding-inline: var(--space-1);
+}
+
+.workspace-sidebar-tablist button[aria-selected='true'] .workspace-sidebar-tab-count {
+  background: var(--workspace-tab-selected-count-bg);
   color: var(--text);
 }
 
@@ -409,80 +456,46 @@
   opacity: var(--disabled-opacity);
 }
 
-.workspace-sidebar-collapse {
+.workspace-sidebar-toggle {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 44px;
+  width: var(--workspace-sidebar-toggle-size);
+  height: var(--workspace-sidebar-toggle-size);
   border: 0;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   transition:
-    color var(--ambient-motion-duration) var(--ambient-motion-ease),
-    scale var(--ambient-motion-duration) var(--ambient-motion-ease);
+    background-color var(--ambient-motion-duration) var(--ambient-motion-ease),
+    color var(--ambient-motion-duration) var(--ambient-motion-ease);
 }
 
-.workspace-collapsed-rail {
-  position: absolute;
-  inset: 0 auto 0 0;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  width: var(--workspace-collapsed-rail-width);
-  border: 0;
-  background: var(--workspace-surface);
-  color: var(--muted);
-  cursor: pointer;
-  padding-top: 14px;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--workspace-collapse-fade) var(--ambient-motion-ease),
-    visibility 0s linear var(--workspace-collapse-fade);
-}
-
-.workspace-layout[data-sidebar='collapsed'] .workspace-collapsed-rail {
-  opacity: 1;
-  visibility: visible;
-  transition:
-    opacity var(--workspace-collapse-fade) var(--ambient-motion-ease) var(--workspace-collapse-fade-in-delay),
-    visibility 0s;
-}
-
-.workspace-sidebar-collapse:hover,
-.workspace-collapsed-rail:hover {
+.workspace-sidebar-toggle:hover {
+  background: var(--button-hover-bg);
   color: var(--text);
 }
 
-.workspace-sidebar-collapse:active,
-/* No press scale here: shrinking the full-height strip visibly drags its
-   top-anchored chevron downward. */
-.workspace-collapsed-rail:active {
+.workspace-sidebar-toggle:active {
   background: var(--workspace-surface-raised);
 }
 
-.workspace-sidebar-collapse:focus-visible,
-.workspace-collapsed-rail:focus-visible {
+.workspace-sidebar-toggle:focus-visible {
   outline: var(--focus-ring);
   outline-offset: -2px;
 }
 
-.workspace-collapse-chevron,
-.workspace-rail-chevron {
-  width: 10px;
-  height: 10px;
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-}
-
-.workspace-collapse-chevron {
-  rotate: 45deg;
-}
-
-.workspace-rail-chevron {
-  rotate: -135deg;
+.workspace-panel-icon {
+  width: var(--workspace-sidebar-icon-size);
+  height: var(--workspace-sidebar-icon-size);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: var(--workspace-sidebar-icon-stroke);
 }
 
 .workspace-sidebar-panel {
@@ -1033,9 +1046,12 @@ button.version-entry-button[aria-pressed='true'] .version-node,
     border-left: 0;
   }
 
-  .workspace-sidebar-collapse,
-  .workspace-collapsed-rail {
+  .workspace-sidebar-toggle {
     display: none;
+  }
+
+  .workspace-sidebar-tabs {
+    padding-inline: var(--space-3);
   }
 
   .workspace-layout[data-sidebar='collapsed'] {
@@ -1050,6 +1066,10 @@ button.version-entry-button[aria-pressed='true'] .version-node,
   }
 
   .workspace-sidebar {
+    min-width: 0;
+  }
+
+  .workspace-sidebar-collapsible {
     min-width: 0;
   }
 
