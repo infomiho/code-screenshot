@@ -4,6 +4,7 @@ import type {
   AmbientWorkspaceSnapshot,
   OpenAmbientWorkspace,
 } from './ambient-workspace-service'
+import { documentsEqual } from './contracts'
 import {
   agentWorkflowMachine,
   deriveAgentAccessView,
@@ -29,7 +30,7 @@ const getLifecycle = (workspace: OpenAmbientWorkspace | null): AgentDraftLifecyc
   if (workspace.mutation === 'saving') return 'reviewReady'
   const matchesVersionInUse = Boolean(
     workspace.versionInUse
-    && JSON.stringify(workspace.workingDraft.document) === JSON.stringify(workspace.versionInUse.document)
+    && documentsEqual(workspace.workingDraft.document, workspace.versionInUse.document)
   )
   if (workspace.workingDraft.acceptedChangeCount > 0 || (workspace.versionInUse && !matchesVersionInUse)) {
     return 'reviewReady'
@@ -70,7 +71,7 @@ export function useAgentWorkflow(snapshot: AmbientWorkspaceSnapshot) {
       matchesCurrentVersion: Boolean(
         workspace?.workingDraft
         && workspace.versionInUse
-        && JSON.stringify(workspace.workingDraft.document) === JSON.stringify(workspace.versionInUse.document)
+        && documentsEqual(workspace.workingDraft.document, workspace.versionInUse.document)
       ),
     }),
     workspace: deriveAmbientWorkspaceView({

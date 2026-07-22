@@ -1,4 +1,5 @@
 import type { AmbientDocument, AmbientPaletteSlot } from '../ambient-schema'
+import { createSyncToken, documentsEqual } from './contracts'
 import { createMinimalDraftDocument } from './minimal-draft'
 import type {
   AmbientVersion,
@@ -16,15 +17,6 @@ const signedOutAccount = { kind: 'signed-out' } as const
 const signedInAccount = { kind: 'signed-in', username: 'codeshot-user', avatarUrl: null } as const
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString()
 const now = () => new Date().toISOString()
-const createSyncToken = (
-  revision: number | null,
-  agentSessionGeneration = 0,
-  currentVersion: number | null = null,
-) => ({
-  revision,
-  agentSessionGeneration,
-  currentVersion,
-})
 
 type MockAmbient = {
   summary: OwnedAmbientSummary
@@ -268,7 +260,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
     if (!workspace?.workingDraft || workspace.mutation !== 'idle') return null
     if (
       workspace.versionInUse
-      && JSON.stringify(workspace.workingDraft.document) === JSON.stringify(workspace.versionInUse.document)
+      && documentsEqual(workspace.workingDraft.document, workspace.versionInUse.document)
     ) return null
     const ambientId = workspace.ambient.id
     const draftRevision = workspace.workingDraft.revision

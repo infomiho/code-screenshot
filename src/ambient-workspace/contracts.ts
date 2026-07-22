@@ -28,6 +28,18 @@ export type OwnedAmbientDraftSummaryDto = {
   updatedAt: string
 }
 
+export const documentsEqual = (a: AmbientDocument, b: AmbientDocument) =>
+  JSON.stringify(a) === JSON.stringify(b)
+
+export const deriveDraftStatus = (
+  draftDocument: AmbientDocument,
+  acceptedChangeCount: number,
+  versionDocument: AmbientDocument | null,
+): OwnedAmbientDraftSummaryDto['status'] => {
+  if (!versionDocument) return acceptedChangeCount > 0 ? 'review-ready' : 'waiting'
+  return documentsEqual(draftDocument, versionDocument) ? 'matches-version' : 'review-ready'
+}
+
 export type OwnedAmbientSummaryDto = {
   id: string
   name: string
@@ -80,6 +92,12 @@ export type AmbientSyncTokenDto = {
   agentSessionGeneration: number
   currentVersion: number | null
 }
+
+export const createSyncToken = (
+  revision: number | null,
+  agentSessionGeneration = 0,
+  currentVersion: number | null = null,
+): AmbientSyncTokenDto => ({ revision, agentSessionGeneration, currentVersion })
 
 export type SyncAmbientDraftResult =
   | { kind: 'unchanged'; token: AmbientSyncTokenDto }

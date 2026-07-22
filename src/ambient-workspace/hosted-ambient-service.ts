@@ -17,6 +17,7 @@ import type {
   OpenAmbientWorkspace,
   SavedAmbientRecord,
 } from './ambient-workspace-service'
+import { deriveDraftStatus } from './contracts'
 import type { AgentSessionDto, AmbientWorkspaceDto } from './contracts'
 import { startAmbientSync } from './ambient-sync'
 
@@ -476,12 +477,11 @@ export class HostedAmbientService implements AmbientWorkspaceService {
 
       const currentWorkspace = this.snapshot.workspace
       if (!currentWorkspace || currentWorkspace.ambient.id !== workspace.ambient.id) return
-      const currentVersion = currentWorkspace.versionInUse
-      const matchesVersion = currentVersion
-        && JSON.stringify(result.draft.document) === JSON.stringify(currentVersion.document)
-      const draftStatus = !currentVersion
-        ? result.draft.acceptedChangeCount > 0 ? 'review-ready' : 'waiting'
-        : matchesVersion ? 'matches-version' : 'review-ready'
+      const draftStatus = deriveDraftStatus(
+        result.draft.document,
+        result.draft.acceptedChangeCount,
+        currentWorkspace.versionInUse?.document ?? null,
+      )
       this.update({
         ...this.snapshot,
         ownedAmbients: this.snapshot.ownedAmbients.map((ambient) => ambient.id === workspace.ambient.id

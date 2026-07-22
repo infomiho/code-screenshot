@@ -10,7 +10,7 @@ const pollInterval = 1_500
 const streamReadyTimeout = 10_000
 const maximumReconnectDelay = 30_000
 
-const parseEventBlock = (block: string) => {
+const parseEventName = (block: string) => {
   let event = 'message'
   block.split('\n').forEach((line) => {
     if (line.startsWith('event:')) event = line.slice(6).trimStart()
@@ -44,7 +44,7 @@ const readAmbientStream = async (
     buffer = `${buffer}${value}`.replaceAll('\r\n', '\n')
     let boundary = buffer.indexOf('\n\n')
     while (boundary >= 0) {
-      const event = parseEventBlock(buffer.slice(0, boundary))
+      const event = parseEventName(buffer.slice(0, boundary))
       buffer = buffer.slice(boundary + 2)
       if (event === 'ready' && !ready) {
         ready = true

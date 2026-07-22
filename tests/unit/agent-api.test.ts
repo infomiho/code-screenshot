@@ -93,6 +93,7 @@ describe('agent capability API', () => {
     expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
       error: 'agent_session_expired',
     }))
+    expect(changeStream.publishAmbientChange).not.toHaveBeenCalled()
   })
 
   it('rejects invalid documents without changing the draft', async () => {
@@ -107,6 +108,7 @@ describe('agent capability API', () => {
       diagnostics: expect.any(Array),
     }))
     expect(database.transaction).not.toHaveBeenCalled()
+    expect(changeStream.publishAmbientChange).not.toHaveBeenCalled()
   })
 
   it('reports the current revision when an optimistic update loses a race', async () => {
@@ -125,6 +127,7 @@ describe('agent capability API', () => {
       error: 'draft_revision_conflict',
       currentRevision: 2,
     }))
+    expect(changeStream.publishAmbientChange).not.toHaveBeenCalled()
   })
 
   it('atomically replaces a valid current draft', async () => {
@@ -185,6 +188,9 @@ describe('agent draft patching', () => {
       revision: 2,
       previewUrl: `http://localhost:3000/agent-preview/${capability}`,
     })
+    expect(changeStream.publishAmbientChange).toHaveBeenCalledWith({
+      ambientId: 'ambient-1',
+    })
   })
 
   it('rejects a patch that removes a required field', async () => {
@@ -217,6 +223,7 @@ describe('agent draft patching', () => {
       error: 'draft_revision_conflict',
       currentRevision: 2,
     }))
+    expect(changeStream.publishAmbientChange).not.toHaveBeenCalled()
   })
 
   it('expires the session when the commit finds it gone', async () => {
