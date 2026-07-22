@@ -61,6 +61,7 @@ export type AgentAccessSummaryDto =
 
 export type AmbientWorkspaceDto = {
   ambient: { id: string; name: string }
+  syncToken: AmbientSyncTokenDto
   workingDraft: WorkingDraftDto | null
   versionInUse: SavedAmbientVersionDto | null
   versions: AmbientVersionSummaryDto[]
@@ -74,10 +75,21 @@ export type WorkspaceDraftRevisionDto = {
   document: WorkspaceDocumentDto
 }
 
-export type WorkspaceDraftStatusDto = {
-  revision: number
+export type AmbientSyncTokenDto = {
+  revision: number | null
   agentSessionGeneration: number
+  currentVersion: number | null
 }
+
+export type SyncAmbientDraftResult =
+  | { kind: 'unchanged'; token: AmbientSyncTokenDto }
+  | {
+      kind: 'draft-changed'
+      token: AmbientSyncTokenDto
+      name: string
+      draft: WorkingDraftDto
+    }
+  | { kind: 'workspace-invalidated'; token: AmbientSyncTokenDto }
 
 export const ambientIdInputSchema = z.strictObject({
   ambientId: z.string().min(1).max(128),
@@ -99,6 +111,12 @@ export const createDraftFromVersionInputSchema = ambientIdInputSchema.extend({
   versionId: z.string().min(1).max(128),
 })
 
+export const syncAmbientDraftInputSchema = ambientIdInputSchema.extend({
+  knownRevision: z.number().int().nonnegative().nullable(),
+  knownAgentSessionGeneration: z.number().int().nonnegative(),
+  knownCurrentVersion: z.number().int().nonnegative().nullable(),
+})
+
 export const replaceAgentDraftInputSchema = z.strictObject({
   baseRevision: z.number().int().nonnegative(),
   document: z.unknown(),
@@ -112,6 +130,7 @@ export const patchAgentDraftInputSchema = z.strictObject({
 export type CreateAmbientInput = z.infer<typeof createAmbientInputSchema>
 export type SaveAmbientVersionInput = z.infer<typeof saveAmbientVersionInputSchema>
 export type CreateDraftFromVersionInput = z.infer<typeof createDraftFromVersionInputSchema>
+export type SyncAmbientDraftInput = z.infer<typeof syncAmbientDraftInputSchema>
 export type AmbientIdInput = z.infer<typeof ambientIdInputSchema>
 export type CreateAgentAccessInput = AmbientIdInput
 export type DiscardAgentAccessInput = AmbientIdInput

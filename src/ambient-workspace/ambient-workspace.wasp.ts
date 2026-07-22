@@ -1,4 +1,4 @@
-import { action, api, page, query, route, type Spec } from "@wasp.sh/spec";
+import { action, api, apiNamespace, page, query, route, type Spec } from "@wasp.sh/spec";
 
 import { AgentPreviewPage } from "./agent-preview-page" with { type: "ref" };
 import { AmbientWorkspacePage } from "./AmbientWorkspacePage" with { type: "ref" };
@@ -9,17 +9,20 @@ import {
   getAgentSession,
 } from "./agent-api" with { type: "ref" };
 import {
+  ambientWorkspaceApiMiddleware,
+  streamAmbientChanges,
+} from "./ambient-change-stream" with { type: "ref" };
+import {
   createAgentAccess,
   createAmbient,
   createDraftFromVersion,
   deleteAmbient,
   discardAgentAccess,
   discardAmbientDraft,
-  getAmbientDraft,
-  getAmbientDraftRevision,
   getAmbientWorkspace,
   listOwnedAmbients,
   saveAmbientVersion,
+  syncAmbientDraft,
 } from "./ambient-operations" with { type: "ref" };
 
 export const ambientWorkspaceSpec: Spec = [
@@ -38,8 +41,7 @@ export const ambientWorkspaceSpec: Spec = [
   query(getAmbientWorkspace, {
     entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
   }),
-  query(getAmbientDraftRevision, { entities: ["Ambient", "AmbientDraft"] }),
-  query(getAmbientDraft, { entities: ["Ambient", "AmbientDraft"] }),
+  query(syncAmbientDraft, { entities: ["Ambient", "AmbientDraft"] }),
   action(createAmbient, { entities: ["Ambient", "AmbientDraft"] }),
   action(createAgentAccess, {
     entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
@@ -63,5 +65,12 @@ export const ambientWorkspaceSpec: Spec = [
   api("ALL", "/agent/sessions/:capability/draft", agentDraftRoute, {
     auth: false,
     middlewareConfigFn: agentApiMiddleware,
+  }),
+  api("GET", "/ambient-workspaces/:ambientId/events", streamAmbientChanges, {
+    auth: true,
+    entities: ["Ambient"],
+  }),
+  apiNamespace("/ambient-workspaces", {
+    middlewareConfigFn: ambientWorkspaceApiMiddleware,
   }),
 ];

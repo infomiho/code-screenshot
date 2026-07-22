@@ -2,6 +2,7 @@ import type { AmbientDocument } from '../ambient-schema'
 import type {
   AgentAccessSummaryDto,
   AmbientAccountDto,
+  AmbientSyncTokenDto,
   OwnedAmbientDraftSummaryDto,
 } from './contracts'
 
@@ -48,6 +49,7 @@ export type AmbientVersion = CurrentAmbientVersion & {
 
 export type OpenAmbientWorkspace = {
   ambient: { id: string; name: string }
+  syncToken: AmbientSyncTokenDto
   workingDraft: WorkingDraft | null
   versionInUse: CurrentAmbientVersion | null
   versions: readonly AmbientVersion[]

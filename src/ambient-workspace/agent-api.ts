@@ -9,6 +9,7 @@ import type { AmbientDocument } from '../ambient-schema'
 import { capabilityParamsSchema, patchAgentDraftInputSchema, replaceAgentDraftInputSchema } from './contracts'
 import type { AgentDraftDto, PatchAgentDraftInput, ReplaceAgentDraftInput, WorkspaceDocumentDto } from './contracts'
 import { agentPreviewUrl, agentSessionUrl, hashAgentCapability } from './agent-session-access'
+import { publishAmbientChange } from './ambient-change-stream'
 
 type CapabilityParams = { capability: string }
 type AgentError = {
@@ -171,6 +172,9 @@ const sendCommitResult = async (
     return
   }
   res.json({ revision: outcome.revision, previewUrl: agentPreviewUrl(capability) })
+  publishAmbientChange({
+    ambientId: session.ambientId,
+  })
 }
 
 export const getAgentSession: GetAgentSession<CapabilityParams, string | AgentError> = async (

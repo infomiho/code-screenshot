@@ -11,6 +11,7 @@ const database = vi.hoisted(() => ({
   },
   transaction: vi.fn(),
 }))
+const changeStream = vi.hoisted(() => ({ publishAmbientChange: vi.fn() }))
 
 vi.mock('wasp/server', () => ({
   config: { frontendUrl: 'http://localhost:3000/' },
@@ -21,6 +22,7 @@ vi.mock('wasp/server', () => ({
     $transaction: database.transaction,
   },
 }))
+vi.mock('../../src/ambient-workspace/ambient-change-stream', () => changeStream)
 
 import { agentDraftRoute, getAgentDraft, patchAgentDraft, replaceAgentDraft } from '../../src/ambient-workspace/agent-api'
 
@@ -145,6 +147,9 @@ describe('agent capability API', () => {
     expect(response.json).toHaveBeenCalledWith({
       revision: 2,
       previewUrl: `http://localhost:3000/agent-preview/${capability}`,
+    })
+    expect(changeStream.publishAmbientChange).toHaveBeenCalledWith({
+      ambientId: 'ambient-1',
     })
   })
 })

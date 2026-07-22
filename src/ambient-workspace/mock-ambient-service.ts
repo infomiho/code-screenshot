@@ -16,6 +16,15 @@ const signedOutAccount = { kind: 'signed-out' } as const
 const signedInAccount = { kind: 'signed-in', username: 'codeshot-user', avatarUrl: null } as const
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString()
 const now = () => new Date().toISOString()
+const createSyncToken = (
+  revision: number | null,
+  agentSessionGeneration = 0,
+  currentVersion: number | null = null,
+) => ({
+  revision,
+  agentSessionGeneration,
+  currentVersion,
+})
 
 type MockAmbient = {
   summary: OwnedAmbientSummary
@@ -123,6 +132,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
     const document = createMinimalDraftDocument(ambientName)
     const workspace: OpenAmbientWorkspace = {
       ambient: { id, name: ambientName },
+      syncToken: createSyncToken(0),
       workingDraft: {
         revision: 0,
         baseRevision: 0,
@@ -182,6 +192,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
       }
       return {
         ...workspace,
+        syncToken: createSyncToken(workingDraft?.revision ?? null, previousGeneration + 1),
         workingDraft,
         agentAccess: {
           status: 'available',
@@ -201,6 +212,10 @@ export class MockAmbientService implements AmbientWorkspaceService {
     this.cancelAgentUpdate()
     this.updateWorkspace((workspace) => ({
       ...workspace,
+      syncToken: createSyncToken(
+        workspace.workingDraft?.revision ?? null,
+        workspace.agentAccess.status === 'not-created' ? 0 : workspace.agentAccess.generation + 1,
+      ),
       agentAccess: workspace.agentAccess.status === 'not-created'
         ? workspace.agentAccess
         : { status: 'expired', generation: workspace.agentAccess.generation, expiresAt: now() },
@@ -236,6 +251,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
       }
       return {
         ...workspace,
+        syncToken: createSyncToken(revision, workspace.syncToken.agentSessionGeneration),
         workingDraft: {
           ...draft,
           revision,
@@ -285,6 +301,11 @@ export class MockAmbientService implements AmbientWorkspaceService {
         }
         const savedWorkspace: OpenAmbientWorkspace = {
           ...current,
+          syncToken: createSyncToken(
+            current.workingDraft.revision,
+            current.syncToken.agentSessionGeneration,
+            version.version,
+          ),
           versionInUse: record,
           versions: [version, ...current.versions.map((item) => ({ ...item, isInUse: false }))],
           workingDraft: {
@@ -316,6 +337,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
     ambient.summary = { ...ambient.summary, draft: null }
     this.sync({
       ...workspace,
+      syncToken: createSyncToken(null, workspace.syncToken.agentSessionGeneration + 1),
       workingDraft: null,
       agentAccess: workspace.agentAccess.status === 'not-created'
         ? workspace.agentAccess
@@ -362,6 +384,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
     }
     this.sync({
       ...workspace,
+      syncToken: createSyncToken(revision, workspace.syncToken.agentSessionGeneration + 1),
       ambient: { ...workspace.ambient, name: version.document.name },
       workingDraft: {
         revision,

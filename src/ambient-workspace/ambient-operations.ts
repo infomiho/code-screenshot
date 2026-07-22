@@ -7,11 +7,10 @@ import type {
   DeleteAmbient,
   DiscardAgentAccess,
   DiscardAmbientDraft,
-  GetAmbientDraft,
-  GetAmbientDraftRevision,
   GetAmbientWorkspace,
   ListOwnedAmbients,
   SaveAmbientVersion,
+  SyncAmbientDraft,
 } from 'wasp/server/operations'
 import type { ZodType } from 'zod'
 import { compileAmbientDocument } from '../ambient-compiler'
@@ -22,6 +21,7 @@ import {
   createAmbientInputSchema,
   createDraftFromVersionInputSchema,
   saveAmbientVersionInputSchema,
+  syncAmbientDraftInputSchema,
 } from './contracts'
 import type {
   AgentSessionDto,
@@ -40,9 +40,10 @@ import type {
   OwnedAmbientDraftSummaryDto,
   SaveAmbientVersionInput,
   SavedAmbientVersionDto,
+  SyncAmbientDraftInput,
+  SyncAmbientDraftResult,
   WorkspaceDocumentDto,
   WorkspaceDraftRevisionDto,
-  WorkspaceDraftStatusDto,
 } from './contracts'
 import { createMinimalDraftDocument } from './minimal-draft'
 
@@ -105,19 +106,6 @@ const toDraftSummary = (
     document: readDocument(draft.document),
     updatedAt: draft.updatedAt.toISOString(),
   }
-}
-
-const getOwnedAmbient = async (
-  Ambient: typeof prisma.ambient,
-  ambientId: string,
-  ownerId: string,
-) => {
-  const ambient = await Ambient.findFirst({
-    where: { id: ambientId, ownerId },
-    include: { draft: true },
-  })
-  if (!ambient) throw new HttpError(404, 'Ambient not found.')
-  return ambient
 }
 
 export const listOwnedAmbients: ListOwnedAmbients<void, AmbientLibraryDto> = async (_args, context) => {
@@ -187,6 +175,11 @@ export const getAmbientWorkspace: GetAmbientWorkspace<AmbientIdInput, AmbientWor
 
   return {
     ambient: { id: ambient.id, name: ambient.name },
+    syncToken: {
+      revision: ambient.draft?.revision ?? null,
+      agentSessionGeneration: ambient.agentSessionGeneration,
+      currentVersion: ambient.currentVersion,
+    },
     workingDraft: ambient.draft
       ? {
           revision: ambient.draft.revision,
@@ -307,27 +300,74 @@ export const discardAgentAccess: DiscardAgentAccess<DiscardAgentAccessInput, voi
   }, { isolationLevel: 'Serializable' })
 }
 
-export const getAmbientDraftRevision: GetAmbientDraftRevision<AmbientIdInput, WorkspaceDraftStatusDto> = async (
+export const syncAmbientDraft: SyncAmbientDraft<SyncAmbientDraftInput, SyncAmbientDraftResult> = async (
   args,
   context,
 ) => {
   const user = requireUser(context.user)
-  const { ambientId } = parseInput(ambientIdInputSchema, args)
-  const ambient = await getOwnedAmbient(context.entities.Ambient, ambientId, user.id)
-  if (!ambient.draft) throw new HttpError(404, 'Ambient draft not found.')
-  return { revision: ambient.draft.revision, agentSessionGeneration: ambient.agentSessionGeneration }
-}
+  const input = parseInput(syncAmbientDraftInputSchema, args)
+  const status = await context.entities.Ambient.findFirst({
+    where: { id: input.ambientId, ownerId: user.id },
+    select: {
+      agentSessionGeneration: true,
+      currentVersion: true,
+      draft: { select: { revision: true } },
+    },
+  })
+  if (!status) throw new HttpError(404, 'Ambient not found.')
 
-export const getAmbientDraft: GetAmbientDraft<AmbientIdInput, WorkspaceDraftRevisionDto> = async (args, context) => {
-  const user = requireUser(context.user)
-  const { ambientId } = parseInput(ambientIdInputSchema, args)
-  const ambient = await getOwnedAmbient(context.entities.Ambient, ambientId, user.id)
-  if (!ambient.draft) throw new HttpError(404, 'Ambient draft not found.')
-  return {
-    ambientId: ambient.id,
-    name: ambient.name,
+  const token = {
+    revision: status.draft?.revision ?? null,
+    agentSessionGeneration: status.agentSessionGeneration,
+    currentVersion: status.currentVersion,
+  }
+  if (
+    token.agentSessionGeneration !== input.knownAgentSessionGeneration
+    || token.currentVersion !== input.knownCurrentVersion
+    || token.revision === null
+    || (input.knownRevision !== null && token.revision < input.knownRevision)
+  ) {
+    return { kind: 'workspace-invalidated', token }
+  }
+  if (token.revision === input.knownRevision) {
+    return { kind: 'unchanged', token }
+  }
+
+  const ambient = await context.entities.Ambient.findFirst({
+    where: { id: input.ambientId, ownerId: user.id },
+    select: {
+      name: true,
+      agentSessionGeneration: true,
+      currentVersion: true,
+      draft: true,
+    },
+  })
+  if (!ambient?.draft) return { kind: 'workspace-invalidated', token }
+
+  const currentToken = {
     revision: ambient.draft.revision,
-    document: readDocument(ambient.draft.document),
+    agentSessionGeneration: ambient.agentSessionGeneration,
+    currentVersion: ambient.currentVersion,
+  }
+  if (
+    currentToken.agentSessionGeneration !== input.knownAgentSessionGeneration
+    || currentToken.currentVersion !== token.currentVersion
+    || currentToken.revision < (input.knownRevision ?? -1)
+  ) {
+    return { kind: 'workspace-invalidated', token: currentToken }
+  }
+  return {
+    kind: 'draft-changed',
+    token: currentToken,
+    name: ambient.name,
+    draft: {
+      revision: ambient.draft.revision,
+      baseRevision: ambient.draft.baseRevision,
+      sourceVersion: ambient.draft.sourceVersion,
+      document: readDocument(ambient.draft.document),
+      updatedAt: ambient.draft.updatedAt.toISOString(),
+      acceptedChangeCount: ambient.draft.revision - ambient.draft.baseRevision,
+    },
   }
 }
 

@@ -6,10 +6,10 @@ import {
   deleteAmbient as deleteAmbientOperation,
   discardAgentAccess as discardAgentAccessOperation,
   discardAmbientDraft as discardAmbientDraftOperation,
-  getAmbientDraftRevision,
   getAmbientWorkspace,
   listOwnedAmbients,
   saveAmbientVersion as saveAmbientVersionOperation,
+  syncAmbientDraft,
 } from 'wasp/client/operations'
 import type {
   AmbientWorkspaceService,
@@ -18,6 +18,7 @@ import type {
   SavedAmbientRecord,
 } from './ambient-workspace-service'
 import type { AgentSessionDto, AmbientWorkspaceDto } from './contracts'
+import { startAmbientSync } from './ambient-sync'
 
 const signedOutSnapshot: AmbientWorkspaceSnapshot = {
   isHydrated: true,
@@ -93,19 +94,25 @@ const toOpenWorkspace = (
 export class HostedAmbientService implements AmbientWorkspaceService {
   private snapshot: AmbientWorkspaceSnapshot = loadingSnapshot
   private listeners = new Set<() => void>()
-  private pollingTimer: ReturnType<typeof setInterval> | null = null
+  private stopAmbientSync: (() => void) | null = null
+  private accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
+  private syncGeneration = 0
   private requestGeneration = 0
-  private isPolling = false
 
   getSnapshot = () => this.snapshot
   getServerSnapshot = () => loadingSnapshot
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener)
-    if (this.listeners.size === 1) void this.refreshLibrary()
+    if (this.listeners.size === 1) {
+      void this.refreshLibrary()
+      this.startSync()
+    }
     return () => {
       this.listeners.delete(listener)
-      if (this.listeners.size === 0) this.stopPolling()
+      if (this.listeners.size === 0) {
+        this.stopSync()
+      }
     }
   }
 
@@ -117,6 +124,14 @@ export class HostedAmbientService implements AmbientWorkspaceService {
   private updateWorkspace = (update: (workspace: OpenAmbientWorkspace) => OpenAmbientWorkspace) => {
     if (!this.snapshot.workspace) return
     this.update({ ...this.snapshot, workspace: update(this.snapshot.workspace) })
+  }
+
+  private finishMutation = (ambientId: string, mutation: OpenAmbientWorkspace['mutation']) => {
+    if (
+      this.snapshot.workspace?.ambient.id !== ambientId
+      || this.snapshot.workspace.mutation !== mutation
+    ) return
+    this.updateWorkspace((workspace) => ({ ...workspace, mutation: 'idle' }))
   }
 
   private isCurrentWorkspaceRequest = (generation: number, ambientId: string) => (
@@ -131,14 +146,13 @@ export class HostedAmbientService implements AmbientWorkspaceService {
 
   private handleError = (error: unknown) => {
     if (this.getStatusCode(error) === 401) {
-      this.stopPolling()
+      this.stopSync()
       this.update(signedOutSnapshot)
       return
     }
     this.updateWorkspace((workspace) => ({
       ...workspace,
       connectivity: this.getStatusCode(error) !== null ? 'request-error' : 'offline',
-      mutation: 'idle',
     }))
   }
 
@@ -146,7 +160,7 @@ export class HostedAmbientService implements AmbientWorkspaceService {
 
   signOut = async () => {
     this.requestGeneration += 1
-    this.stopPolling()
+    this.stopSync()
     clearCachedSessions()
     this.update(signedOutSnapshot)
     try {
@@ -183,13 +197,13 @@ export class HostedAmbientService implements AmbientWorkspaceService {
 
   openWorkspace = async (ambientId: string) => {
     const generation = ++this.requestGeneration
-    this.stopPolling()
+    this.stopSync()
     try {
       const workspace = await getAmbientWorkspace({ ambientId })
       if (generation !== this.requestGeneration) return false
       const openWorkspace = toOpenWorkspace(workspace, this.snapshot.workspace)
       this.update({ ...this.snapshot, workspace: openWorkspace })
-      if (openWorkspace.agentAccess.status === 'available') this.startPolling()
+      if (openWorkspace.agentAccess.status === 'available') this.startSync()
       return true
     } catch (error) {
       if (generation !== this.requestGeneration) return false
@@ -201,7 +215,7 @@ export class HostedAmbientService implements AmbientWorkspaceService {
 
   closeWorkspace = () => {
     this.requestGeneration += 1
-    this.stopPolling()
+    this.stopSync()
     this.update({ ...this.snapshot, workspace: null })
   }
 
@@ -225,6 +239,7 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     const workspace = this.snapshot.workspace
     if (!workspace || workspace.mutation !== 'idle') return false
     const generation = this.requestGeneration
+    this.stopSync()
     this.updateWorkspace((current) => ({ ...current, mutation: 'creating-access' }))
     try {
       const session = await createAgentAccessOperation({ ambientId: workspace.ambient.id })
@@ -238,6 +253,9 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     } catch (error) {
       if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
       return false
+    } finally {
+      this.finishMutation(workspace.ambient.id, 'creating-access')
+      this.startSync()
     }
   }
 
@@ -245,6 +263,7 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     const workspace = this.snapshot.workspace
     if (!workspace) return false
     const generation = this.requestGeneration
+    this.stopSync()
     try {
       await discardAgentAccessOperation({ ambientId: workspace.ambient.id })
       if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return false
@@ -254,6 +273,8 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     } catch (error) {
       if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
       return false
+    } finally {
+      this.startSync()
     }
   }
 
@@ -261,13 +282,14 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     const workspace = this.snapshot.workspace
     if (!workspace?.agentAccessUrl) return
     this.updateWorkspace((current) => ({ ...current, promptCopied: true }))
-    this.startPolling()
+    this.startSync()
   }
 
   saveAmbientVersion = async () => {
     const workspace = this.snapshot.workspace
     if (!workspace?.workingDraft || workspace.mutation !== 'idle') return null
     const generation = this.requestGeneration
+    this.stopSync()
     this.updateWorkspace((current) => ({ ...current, mutation: 'saving' }))
     try {
       const version = await saveAmbientVersionOperation({
@@ -282,6 +304,9 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     } catch (error) {
       if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
       return null
+    } finally {
+      this.finishMutation(workspace.ambient.id, 'saving')
+      this.startSync()
     }
   }
 
@@ -289,6 +314,7 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     const workspace = this.snapshot.workspace
     if (!workspace || workspace.mutation !== 'idle') return false
     const generation = this.requestGeneration
+    this.stopSync()
     this.updateWorkspace((current) => ({ ...current, mutation: 'discarding' }))
     try {
       const result = await discardAmbientDraftOperation({ ambientId: workspace.ambient.id })
@@ -302,6 +328,9 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     } catch (error) {
       if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
       return false
+    } finally {
+      this.finishMutation(workspace.ambient.id, 'discarding')
+      this.startSync()
     }
   }
 
@@ -325,6 +354,7 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     const workspace = this.snapshot.workspace
     if (!workspace || workspace.mutation !== 'idle') return false
     const generation = this.requestGeneration
+    this.stopSync()
     this.updateWorkspace((current) => ({ ...current, mutation: 'restoring' }))
     try {
       await createDraftFromVersionOperation({ ambientId: workspace.ambient.id, versionId })
@@ -337,48 +367,156 @@ export class HostedAmbientService implements AmbientWorkspaceService {
     } catch (error) {
       if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
       return false
+    } finally {
+      this.finishMutation(workspace.ambient.id, 'restoring')
+      this.startSync()
     }
   }
 
-  private startPolling = () => {
-    if (this.pollingTimer !== null) return
-    this.pollingTimer = globalThis.setInterval(() => void this.pollDraft(), 1500)
-    void this.pollDraft()
-  }
-
-  private stopPolling = () => {
-    if (this.pollingTimer === null) return
-    globalThis.clearInterval(this.pollingTimer)
-    this.pollingTimer = null
-  }
-
-  private pollDraft = async () => {
+  private startSync = () => {
     const workspace = this.snapshot.workspace
-    if (!workspace?.workingDraft || this.isPolling) return
+    if (
+      this.stopAmbientSync
+      || this.listeners.size === 0
+      || !workspace
+      || workspace.agentAccess.status !== 'available'
+    ) return
+    const syncGeneration = ++this.syncGeneration
+    this.stopAmbientSync = startAmbientSync({
+      ambientId: workspace.ambient.id,
+      sync: () => this.syncDraft(syncGeneration),
+    })
+    const accessGeneration = workspace.agentAccess.generation
+    const expiresIn = Math.max(0, new Date(workspace.agentAccess.expiresAt).getTime() - Date.now())
+    this.scheduleAccessExpiryRefresh(workspace.ambient.id, accessGeneration, expiresIn)
+  }
+
+  private scheduleAccessExpiryRefresh = (
+    ambientId: string,
+    accessGeneration: number,
+    delay: number,
+  ) => {
+    this.accessExpiryTimer = setTimeout(() => {
+      this.accessExpiryTimer = null
+      const current = this.snapshot.workspace
+      if (
+        current?.ambient.id === ambientId
+        && current.agentAccess.status === 'available'
+        && current.agentAccess.generation === accessGeneration
+      ) {
+        void this.openWorkspace(ambientId).then((opened) => {
+          const latest = this.snapshot.workspace
+          if (
+            !opened
+            && latest?.ambient.id === ambientId
+            && latest.agentAccess.status === 'available'
+            && latest.agentAccess.generation === accessGeneration
+          ) this.closeWorkspace()
+        }).catch(() => {
+          const latest = this.snapshot.workspace
+          if (
+            this.listeners.size > 0
+            && latest?.ambient.id === ambientId
+            && latest.agentAccess.status === 'available'
+            && latest.agentAccess.generation === accessGeneration
+          ) this.scheduleAccessExpiryRefresh(ambientId, accessGeneration, 30_000)
+        })
+      }
+    }, delay)
+  }
+
+  private stopSync = () => {
+    this.syncGeneration += 1
+    this.stopAmbientSync?.()
+    this.stopAmbientSync = null
+    if (this.accessExpiryTimer !== null) clearTimeout(this.accessExpiryTimer)
+    this.accessExpiryTimer = null
+  }
+
+  private syncDraft = async (syncGeneration: number) => {
+    const workspace = this.snapshot.workspace
+    if (!workspace?.workingDraft) return
     const generation = this.requestGeneration
     if (workspace.agentAccess.status !== 'available') {
-      this.stopPolling()
+      this.stopSync()
       return
     }
     if (new Date(workspace.agentAccess.expiresAt) <= new Date()) {
-      this.stopPolling()
+      this.stopSync()
       await this.openWorkspace(workspace.ambient.id)
       return
     }
-    this.isPolling = true
     try {
-      const status = await getAmbientDraftRevision({ ambientId: workspace.ambient.id })
-      if (!this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) return
+      const result = await syncAmbientDraft({
+        ambientId: workspace.ambient.id,
+        knownRevision: workspace.syncToken.revision,
+        knownAgentSessionGeneration: workspace.syncToken.agentSessionGeneration,
+        knownCurrentVersion: workspace.syncToken.currentVersion,
+      })
       if (
-        status.revision > workspace.workingDraft.revision
-        || status.agentSessionGeneration !== workspace.agentAccess.generation
-      ) {
+        syncGeneration !== this.syncGeneration
+        || !this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)
+      ) return
+      if (result.kind === 'workspace-invalidated') {
         await this.openWorkspace(workspace.ambient.id)
+        return
       }
+      if (result.kind === 'unchanged') {
+        if (
+          workspace.connectivity !== 'online'
+          || result.token.revision !== workspace.syncToken.revision
+          || result.token.agentSessionGeneration !== workspace.syncToken.agentSessionGeneration
+          || result.token.currentVersion !== workspace.syncToken.currentVersion
+        ) {
+          this.updateWorkspace((current) => ({ ...current, syncToken: result.token, connectivity: 'online' }))
+        }
+        return
+      }
+      if (result.draft.revision < (this.snapshot.workspace?.workingDraft?.revision ?? -1)) return
+
+      const currentWorkspace = this.snapshot.workspace
+      if (!currentWorkspace || currentWorkspace.ambient.id !== workspace.ambient.id) return
+      const currentVersion = currentWorkspace.versionInUse
+      const matchesVersion = currentVersion
+        && JSON.stringify(result.draft.document) === JSON.stringify(currentVersion.document)
+      const draftStatus = !currentVersion
+        ? result.draft.acceptedChangeCount > 0 ? 'review-ready' : 'waiting'
+        : matchesVersion ? 'matches-version' : 'review-ready'
+      this.update({
+        ...this.snapshot,
+        ownedAmbients: this.snapshot.ownedAmbients.map((ambient) => ambient.id === workspace.ambient.id
+          ? {
+              ...ambient,
+              name: result.name,
+              draft: {
+                status: draftStatus,
+                revision: result.draft.revision,
+                document: result.draft.document,
+                updatedAt: result.draft.updatedAt,
+              },
+            }
+          : ambient),
+        workspace: {
+          ...currentWorkspace,
+          ambient: { ...currentWorkspace.ambient, name: result.name },
+          syncToken: result.token,
+          workingDraft: result.draft,
+          connectivity: 'online',
+        },
+      })
     } catch (error) {
-      if (this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)) this.handleError(error)
-    } finally {
-      this.isPolling = false
+      if (
+        syncGeneration === this.syncGeneration
+        && this.isCurrentWorkspaceRequest(generation, workspace.ambient.id)
+      ) {
+        if (this.getStatusCode(error) === 404) {
+          this.closeWorkspace()
+          await this.refreshLibrary()
+          return
+        }
+        this.handleError(error)
+      }
+      throw error
     }
   }
 }
