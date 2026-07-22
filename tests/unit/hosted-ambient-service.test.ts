@@ -14,9 +14,9 @@ const operations = vi.hoisted(() => ({
   syncAmbientDraft: vi.fn(),
 }))
 const auth = vi.hoisted(() => ({ logout: vi.fn() }))
-const ambientSync = vi.hoisted(() => ({
-  startAmbientSync: vi.fn(({ sync }: { sync: () => Promise<void> }) => {
-    void sync().catch(() => undefined)
+const ambientDraftSync = vi.hoisted(() => ({
+  startAmbientDraftSync: vi.fn(({ syncDraft }: { syncDraft: () => Promise<void> }) => {
+    void syncDraft().catch(() => undefined)
     return vi.fn()
   }),
 }))
@@ -26,7 +26,7 @@ vi.mock('wasp/client/auth', () => ({
   githubSignInUrl: 'http://localhost:3001/auth/github/login',
   logout: auth.logout,
 }))
-vi.mock('../../src/ambient-workspace/ambient-sync', () => ambientSync)
+vi.mock('../../src/ambient-workspace/ambient-draft-sync', () => ambientDraftSync)
 
 import { HostedAmbientService } from '../../src/ambient-workspace/hosted-ambient-service'
 

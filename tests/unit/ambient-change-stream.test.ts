@@ -46,7 +46,7 @@ describe('ambient change stream', () => {
       where: { id: 'ambient-1', ownerId: 'user-1' },
     }))
     expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream; charset=utf-8')
-    expect(response.write).toHaveBeenCalledWith('event: ambient-change\n')
+    expect(response.write).toHaveBeenCalledWith('event: ambient.changed\ndata: {}\n\n')
 
     response.emit('close')
     response.write.mockClear()
@@ -96,7 +96,7 @@ describe('ambient change stream', () => {
     healthy.write.mockClear()
 
     expect(() => publishAmbientChange({ ambientId: 'ambient-1' })).not.toThrow()
-    expect(healthy.write).toHaveBeenCalledWith('event: ambient-change\n')
+    expect(healthy.write).toHaveBeenCalledWith('event: ambient.changed\ndata: {}\n\n')
 
     broken.emit('close')
     healthy.emit('close')

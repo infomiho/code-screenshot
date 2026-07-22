@@ -19,7 +19,7 @@ import type {
 } from './ambient-workspace-service'
 import { deriveDraftStatus } from './contracts'
 import type { AgentSessionDto, AmbientWorkspaceDto } from './contracts'
-import { startAmbientSync } from './ambient-sync'
+import { startAmbientDraftSync } from './ambient-draft-sync'
 
 const signedOutSnapshot: AmbientWorkspaceSnapshot = {
   isHydrated: true,
@@ -95,7 +95,7 @@ const toOpenWorkspace = (
 export class HostedAmbientService implements AmbientWorkspaceService {
   private snapshot: AmbientWorkspaceSnapshot = loadingSnapshot
   private listeners = new Set<() => void>()
-  private stopAmbientSync: (() => void) | null = null
+  private stopAmbientDraftSync: (() => void) | null = null
   private accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
   private syncGeneration = 0
   private requestGeneration = 0
@@ -377,15 +377,15 @@ export class HostedAmbientService implements AmbientWorkspaceService {
   private startSync = () => {
     const workspace = this.snapshot.workspace
     if (
-      this.stopAmbientSync
+      this.stopAmbientDraftSync
       || this.listeners.size === 0
       || !workspace
       || workspace.agentAccess.status !== 'available'
     ) return
     const syncGeneration = ++this.syncGeneration
-    this.stopAmbientSync = startAmbientSync({
+    this.stopAmbientDraftSync = startAmbientDraftSync({
       ambientId: workspace.ambient.id,
-      sync: () => this.syncDraft(syncGeneration),
+      syncDraft: () => this.syncDraft(syncGeneration),
     })
     const accessGeneration = workspace.agentAccess.generation
     const expiresIn = Math.max(0, new Date(workspace.agentAccess.expiresAt).getTime() - Date.now())
@@ -428,8 +428,8 @@ export class HostedAmbientService implements AmbientWorkspaceService {
 
   private stopSync = () => {
     this.syncGeneration += 1
-    this.stopAmbientSync?.()
-    this.stopAmbientSync = null
+    this.stopAmbientDraftSync?.()
+    this.stopAmbientDraftSync = null
     if (this.accessExpiryTimer !== null) clearTimeout(this.accessExpiryTimer)
     this.accessExpiryTimer = null
   }
