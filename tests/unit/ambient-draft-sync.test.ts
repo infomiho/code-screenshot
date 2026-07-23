@@ -4,7 +4,7 @@ const clientApi = vi.hoisted(() => ({ api: { get: vi.fn() } }))
 
 vi.mock('wasp/client/api', () => clientApi)
 
-import { startAmbientDraftSync } from '../../src/ambient-workspace/ambient-draft-sync'
+import { startAmbientDraftSync } from '../../src/ambient/management/ambient-draft-sync'
 
 const createStream = () => {
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined

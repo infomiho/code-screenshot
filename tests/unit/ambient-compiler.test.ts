@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { compileAmbientDocument } from '../../src/ambient-compiler'
-import type { AmbientDocument } from '../../src/ambient-schema'
+import { compileAmbientDocument } from '../../src/ambient/compiler'
+import type { AmbientDocument } from '../../src/ambient/schema'
 
 const validDocument: AmbientDocument = {
   schemaVersion: 1,

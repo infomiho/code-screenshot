@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import './index.css'
-import type { YourAmbientsState } from './ambient-picker'
+import type { YourAmbientsState } from './ambient/selection/ambient-picker'
 import {
   ambientDefinitions,
   defaultAmbientKey,
@@ -10,16 +10,16 @@ import {
   resolveAmbientVariables,
   type AmbientCustomizationState,
   type ScreenshotContent,
-} from './ambient-themes'
-import { countDraftAmbients, type AmbientWorkspaceService } from './ambient-workspace/ambient-workspace-service'
-import { useAmbientWorkspace } from './ambient-workspace/use-ambient-workspace'
-import { ScreenshotControls } from './screenshot-controls'
-import { ScreenshotPreview } from './screenshot-preview'
+} from './ambient/rendering/ambient-themes'
+import { countDraftAmbients, type AmbientWorkspaceService } from './ambient/management/ambient-workspace-service'
+import { useAmbientWorkspace } from './ambient/management/use-ambient-workspace'
+import { ScreenshotControls } from './screenshot/screenshot-controls'
+import { ScreenshotPreview } from './screenshot/screenshot-preview'
 import { SiteHeader } from './site-header'
-import { Toaster, toastManager } from './toast'
-import { useCodeEditor } from './use-code-editor'
-import { loadAmbientDefinition } from './ambient-registry'
-import type { SavedAmbientRecord } from './ambient-workspace/ambient-workspace-service'
+import { Toaster, toastManager } from './ui/toast'
+import { useCodeEditor } from './screenshot/use-code-editor'
+import { loadAmbientDefinition } from './ambient/rendering/ambient-registry'
+import type { SavedAmbientRecord } from './ambient/management/ambient-workspace-service'
 
 type AppProps = {
   ambientWorkspaceService?: AmbientWorkspaceService

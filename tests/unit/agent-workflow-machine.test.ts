@@ -5,7 +5,7 @@ import {
   deriveAgentAccessView,
   deriveAmbientWorkspaceView,
   deriveDraftSafetyView,
-} from '../../src/ambient-workspace/agent-workflow-machine'
+} from '../../src/ambient/management/agent/agent-workflow-machine'
 
 describe('agentWorkflowMachine', () => {
   it('tracks lifecycle, access, and connectivity independently', () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { swissPosterDocument } from '../../src/swiss-poster'
+import { swissPosterDocument } from '../../src/ambient/rendering/swiss-poster'
 
 const database = vi.hoisted(() => ({
   ambientAgentSession: {
@@ -22,9 +22,9 @@ vi.mock('wasp/server', () => ({
     $transaction: database.transaction,
   },
 }))
-vi.mock('../../src/ambient-workspace/ambient-change-stream', () => changeStream)
+vi.mock('../../src/ambient/management/ambient-change-stream', () => changeStream)
 
-import { getAgentDraft, patchAgentDraft, replaceAgentDraft } from '../../src/ambient-workspace/agent-api'
+import { getAgentDraft, patchAgentDraft, replaceAgentDraft } from '../../src/ambient/management/agent/agent-api'
 
 const document = JSON.parse(JSON.stringify(swissPosterDocument))
 const capability = 'capability-secret-32-characters-long'

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { swissPosterDocument } from '../../src/swiss-poster'
+import { swissPosterDocument } from '../../src/ambient/rendering/swiss-poster'
 
 vi.mock('wasp/server', () => ({
   HttpError: class HttpError extends Error {
@@ -13,7 +13,7 @@ vi.mock('wasp/server', () => ({
 import {
   getSharedAmbient,
   setAmbientLinkSharing,
-} from '../../src/ambient-workspace/ambient-operations'
+} from '../../src/ambient/management/ambient-operations'
 
 const currentVersion = {
   id: 'version-2',

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   publishAmbientChange,
   streamAmbientChanges,
-} from '../../src/ambient-workspace/ambient-change-stream'
+} from '../../src/ambient/management/ambient-change-stream'
 
 const createRequest = () =>
   Object.assign(new EventEmitter(), { aborted: false, params: { ambientId: 'ambient-1' } })

@@ -3,7 +3,7 @@ import {
   cacheAgentSession,
   clearAgentSessions,
   readAgentSession,
-} from '../../src/ambient-workspace/agent-session-cache'
+} from '../../src/ambient/management/agent/agent-session-cache'
 
 const createStorage = (): Storage => {
   const values = new Map<string, string>()

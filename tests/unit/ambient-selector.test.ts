@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getVerticalAmbientIndex } from '../../src/ambient-selector'
+import { getVerticalAmbientIndex } from '../../src/ambient/selection/ambient-selector'
 
 describe('getVerticalAmbientIndex', () => {
   it('wraps vertically within both built-in columns', () => {

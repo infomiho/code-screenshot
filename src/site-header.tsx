@@ -1,5 +1,5 @@
-import { AccountMenu } from './account-menu'
-import type { AmbientAccountDto } from './ambient-workspace/contracts'
+import { AccountMenu } from './account/account-menu'
+import type { AmbientAccountDto } from './ambient/management/contracts'
 import './site-header.css'
 
 type SiteHeaderProps = {
