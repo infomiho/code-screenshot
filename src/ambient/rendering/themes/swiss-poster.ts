@@ -1,5 +1,7 @@
-import { assertCompiledAmbientDocument } from '../compiler'
-import type { AmbientDocument } from '../schema'
+import { assertCompiledAmbientDocument } from '../../compiler'
+import type { AmbientDocument, AmbientManifest } from '../../schema'
+import { createAmbientEditorExtension } from '../ambient-highlighting'
+import type { AmbientDefinition } from '../ambient-themes'
 
 export const swissPosterDocument = {
   schemaVersion: 1,
@@ -219,3 +221,20 @@ export const swissPosterDocument = {
 } satisfies AmbientDocument
 
 export const compiledSwissPoster = assertCompiledAmbientDocument(swissPosterDocument)
+
+const manifest: AmbientManifest = {
+  name: swissPosterDocument.name,
+  editor: swissPosterDocument.editor,
+  annotations: swissPosterDocument.annotations,
+  customizations: swissPosterDocument.customizations,
+}
+
+export const swissPosterAmbientDefinition = {
+  id: 'swiss-poster',
+  version: 2,
+  source: 'built-in',
+  kind: 'declarative',
+  manifest,
+  compiledDocument: compiledSwissPoster,
+  editorExtension: createAmbientEditorExtension(swissPosterDocument.editor.tokens),
+} satisfies AmbientDefinition

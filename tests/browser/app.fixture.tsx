@@ -9,7 +9,7 @@ import { AmbientWorkspacePage } from '../../src/ambient/management/workspace/Amb
 import { MockAmbientService } from '../../src/ambient/management/mock-ambient-service'
 import { YourAmbientsPage } from '../../src/ambient/management/library/YourAmbientsPage'
 import { renderScreenshotBlob } from '../../src/screenshot/screenshot-export'
-import { swissPosterDocument } from '../../src/ambient/rendering/swiss-poster'
+import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
 
 const root = document.querySelector<HTMLElement>('#root')
 if (!root) throw new Error('Missing app root')

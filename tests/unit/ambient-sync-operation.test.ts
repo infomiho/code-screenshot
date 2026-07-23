@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { swissPosterDocument } from '../../src/ambient/rendering/swiss-poster'
+import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
 
 vi.mock('wasp/server', () => ({
   HttpError: class HttpError extends Error {
