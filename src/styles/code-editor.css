@@ -13,6 +13,10 @@
     line-height: var(--ambient-editor-line-height, var(--line-height-code));
   }
 
+  .cm-editor.cm-focused {
+    outline: none;
+  }
+
   .cm-scroller {
     overflow: visible;
     font-family: inherit;

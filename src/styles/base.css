@@ -17,8 +17,7 @@ button:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 input:focus-visible,
-.width-handle:focus-visible,
-.cm-editor.cm-focused {
+.width-handle:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
