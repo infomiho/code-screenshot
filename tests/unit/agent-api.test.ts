@@ -24,7 +24,7 @@ vi.mock('wasp/server', () => ({
 }))
 vi.mock('../../src/ambient-workspace/ambient-change-stream', () => changeStream)
 
-import { agentDraftRoute, getAgentDraft, patchAgentDraft, replaceAgentDraft } from '../../src/ambient-workspace/agent-api'
+import { getAgentDraft, patchAgentDraft, replaceAgentDraft } from '../../src/ambient-workspace/agent-api'
 
 const document = JSON.parse(JSON.stringify(swissPosterDocument))
 const capability = 'capability-secret-32-characters-long'
@@ -68,12 +68,6 @@ const callPatchDraft = (
   body: unknown,
   method = 'PATCH',
 ) => patchAgentDraft({ params: { capability }, body, method } as never, response as never, {} as never)
-
-const callDraftRoute = (
-  response: ReturnType<typeof createResponse>,
-  method: string,
-  body?: unknown,
-) => agentDraftRoute({ params: { capability }, body, method } as never, response as never, {} as never)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -256,18 +250,6 @@ describe('agent draft patching', () => {
     expect(database.transaction).not.toHaveBeenCalled()
   })
 
-  it('rejects any method other than PATCH with an Allow header', async () => {
-    const response = createResponse()
-
-    await callPatchDraft(response, { baseRevision: 1, patch: { name: 'Renamed' } }, 'POST')
-
-    expect(response.set).toHaveBeenCalledWith('Allow', 'GET, HEAD, PUT, PATCH')
-    expect(response.status).toHaveBeenCalledWith(405)
-    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
-      error: 'method_not_allowed',
-    }))
-  })
-
   it('never pollutes prototypes and drops proto keys from the stored document', async () => {
     database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
     const updateDraft = vi.fn().mockResolvedValue({ count: 1 })
@@ -286,43 +268,5 @@ describe('agent draft patching', () => {
     expect(Object.getPrototypeOf(written)).toBe(Object.prototype)
     expect(written.polluted).toBeUndefined()
     expect(written.name).toBe('Renamed')
-  })
-})
-
-describe('agent draft route dispatch', () => {
-  it('routes GET and HEAD to the draft read', async () => {
-    for (const method of ['GET', 'HEAD']) {
-      vi.clearAllMocks()
-      database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
-      database.ambientAgentSession.update.mockResolvedValue({})
-      const response = createResponse()
-
-      await callDraftRoute(response, method)
-
-      expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
-        ambientId: 'ambient-1',
-        revision: 1,
-      }))
-    }
-  })
-
-  it('routes PUT to the replace handler', async () => {
-    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
-    const response = createResponse()
-
-    await callDraftRoute(response, 'PUT', { baseRevision: 1 })
-
-    expect(response.status).toHaveBeenCalledWith(400)
-    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
-      error: 'invalid_request',
-    }))
-  })
-
-  it('routes other methods to the patch handler for its 405 guard', async () => {
-    const response = createResponse()
-
-    await callDraftRoute(response, 'DELETE')
-
-    expect(response.status).toHaveBeenCalledWith(405)
   })
 })

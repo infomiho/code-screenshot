@@ -1,21 +1,77 @@
-import { useMemo, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { loadAmbientDefinition } from '../ambient-registry'
 import { ambientDefinitions } from '../ambient-themes'
 import type { AmbientWorkspaceService, SavedAmbientRecord } from './ambient-workspace-service'
-import { HostedAmbientService } from './hosted-ambient-service'
+import { useHostedAmbientWorkspace, type WorkspaceLoadState } from './use-hosted-ambient-workspace'
 
-export function useAmbientWorkspace(providedService?: AmbientWorkspaceService) {
-  const [service] = useState(() => providedService ?? new HostedAmbientService())
+const emptySnapshot = {
+  isHydrated: false,
+  libraryStatus: 'loading',
+  account: { kind: 'signed-out' },
+  ownedAmbients: [],
+  workspace: null,
+} as const
+
+const emptyService: AmbientWorkspaceService = {
+  getSnapshot: () => emptySnapshot,
+  getServerSnapshot: () => emptySnapshot,
+  subscribe: () => () => undefined,
+  signIn: () => undefined,
+  signOut: async () => undefined,
+  refreshLibrary: async () => undefined,
+  openWorkspace: async () => false,
+  closeWorkspace: () => undefined,
+  createAmbient: async () => null,
+  createAgentAccess: async () => false,
+  discardAgentAccess: async () => false,
+  copyPrompt: () => undefined,
+  saveAmbientVersion: async () => null,
+  discardAmbientDraft: async () => false,
+  createDraftFromVersion: async () => false,
+  deleteAmbient: async () => false,
+}
+
+export function useAmbientWorkspace(providedService?: AmbientWorkspaceService, ambientId?: string) {
+  const [injectedService] = useState(() => providedService ?? emptyService)
   const storedSnapshot = useSyncExternalStore(
-    service.subscribe,
-    service.getSnapshot,
-    service.getServerSnapshot,
+    injectedService.subscribe,
+    injectedService.getSnapshot,
+    injectedService.getServerSnapshot,
   )
+  const hosted = useHostedAmbientWorkspace(ambientId, !providedService)
+  const [injectedLoadState, setInjectedLoadState] = useState<WorkspaceLoadState>(
+    ambientId === 'new' ? 'setup' : 'loading',
+  )
+  const service = providedService ? injectedService : hosted.service
+  const sourceSnapshot = providedService ? storedSnapshot : hosted.snapshot
+
+  useEffect(() => {
+    if (!providedService) return
+    if (ambientId === 'new') {
+      setInjectedLoadState('setup')
+      return
+    }
+    if (!ambientId) {
+      setInjectedLoadState('not-found')
+      return
+    }
+    let active = true
+    setInjectedLoadState('loading')
+    void injectedService.openWorkspace(ambientId).then((opened) => {
+      if (active) setInjectedLoadState(opened ? 'ready' : 'not-found')
+    }).catch(() => {
+      if (active) setInjectedLoadState('error')
+    })
+    return () => {
+      active = false
+    }
+  }, [ambientId, injectedService, providedService])
+
   const snapshot = useMemo(
-    () => storedSnapshot.account.kind === 'signed-in'
-      ? storedSnapshot
-      : { ...storedSnapshot, ownedAmbients: [], workspace: null },
-    [storedSnapshot],
+    () => sourceSnapshot.account.kind === 'signed-in'
+      ? sourceSnapshot
+      : { ...sourceSnapshot, ownedAmbients: [], workspace: null },
+    [sourceSnapshot],
   )
   const savedDefinitions = useMemo(
     () => snapshot.ownedAmbients.flatMap((ambient) => {
@@ -59,5 +115,12 @@ export function useAmbientWorkspace(providedService?: AmbientWorkspaceService) {
     [savedDefinitions],
   )
 
-  return { definitions, draftDefinitions, workspaceDefinition, service, snapshot }
+  return {
+    definitions,
+    draftDefinitions,
+    workspaceDefinition,
+    service,
+    snapshot,
+    workspaceLoadState: providedService ? injectedLoadState : hosted.workspaceLoadState,
+  }
 }

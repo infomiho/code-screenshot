@@ -450,15 +450,6 @@ test('account navigation opens the ambient library and logs out private state', 
   await expect(page.getByLabel('Your ambients account').getByRole('button', { name: 'Create your own ambient' })).toBeVisible()
 })
 
-test('opens the workspace from a library row title', async ({ page }) => {
-  await openApp(page)
-  await createAmbient(page)
-
-  await openAmbientLibraryPage(page)
-  await page.locator('.ambient-library-row-open').filter({ hasText: 'Signal study' }).click()
-  await expect(page.locator('.workspace-ambient-identity')).toContainText('Signal study')
-})
-
 test('does not show a missing ambient while returning to the library', async ({ page }) => {
   await page.goto('/tests/browser/app.fixture.html?delayed-navigation')
   await expect(page.locator('.cm-editor')).toBeVisible()

@@ -1,6 +1,7 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter } from 'react-router'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { App } from '../../src/app'
 import { loadAmbientDefinition } from '../../src/ambient-registry'
 import { AgentPreviewCanvas } from '../../src/ambient-workspace/agent-preview-page'
@@ -13,6 +14,7 @@ import { swissPosterDocument } from '../../src/swiss-poster'
 const root = document.querySelector<HTMLElement>('#root')
 if (!root) throw new Error('Missing app root')
 const ambientWorkspaceService = new MockAmbientService({ agentUpdate: 0, save: 0 })
+const queryClient = new QueryClient()
 const previewResult = loadAmbientDefinition({
   id: 'agent-preview',
   version: 1,
@@ -82,11 +84,13 @@ function FixtureApp() {
 
 createRoot(root).render(
   <StrictMode>
-    <MemoryRouter>
-      {isAgentPreview
-        ? <AgentPreviewCanvas definition={previewResult.definition} />
-        : <FixtureApp />}
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        {isAgentPreview
+          ? <AgentPreviewCanvas definition={previewResult.definition} />
+          : <FixtureApp />}
+      </MemoryRouter>
+    </QueryClientProvider>
   </StrictMode>,
 )
 

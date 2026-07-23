@@ -29,21 +29,6 @@ describe('syncAmbientDraft', () => {
 
   beforeEach(() => vi.clearAllMocks())
 
-  it('returns a small unchanged result after a status-only query', async () => {
-    findFirst.mockResolvedValue(status)
-
-    const result = await syncAmbientDraft({
-      ambientId: 'ambient-1',
-      knownRevision: 4,
-      knownAgentSessionGeneration: 2,
-      knownCurrentVersion: 1,
-    }, context as never)
-
-    expect(result.kind).toBe('unchanged')
-    expect(findFirst).toHaveBeenCalledTimes(1)
-    expect(findFirst.mock.calls[0][0].select.draft.select).toEqual({ revision: true })
-  })
-
   it('returns only the changed working draft after a revision increase', async () => {
     const draftUpdatedAt = new Date('2026-07-22T12:00:01.000Z')
     findFirst

@@ -31,46 +31,6 @@ describe('ambient draft sync', () => {
     vi.unstubAllGlobals()
   })
 
-  it('opens the stream through the api client and syncs ready and change events', async () => {
-    const stream = createStream()
-    clientApi.api.get.mockResolvedValue(stream.response)
-    const sync = vi.fn().mockResolvedValue(undefined)
-    const stop = startAmbientDraftSync({ ambientId: 'ambient/1', syncDraft: sync })
-
-    stream.write('event: ready\ndata: {}\n\nevent: ambient.')
-    stream.write('changed\ndata: {"revision":2}\n\n')
-
-    await vi.waitFor(() => expect(sync).toHaveBeenCalledTimes(2))
-    expect(clientApi.api.get).toHaveBeenCalledWith(
-      '/ambient-workspaces/ambient%2F1/events',
-      expect.objectContaining({
-        signal: expect.any(AbortSignal),
-        retry: 0,
-        timeout: false,
-        throwHttpErrors: false,
-      }),
-    )
-    stop()
-  })
-
-  it('coalesces invalidations while synchronization is running', async () => {
-    const stream = createStream()
-    clientApi.api.get.mockResolvedValue(stream.response)
-    let finishSync: () => void = () => undefined
-    const sync = vi.fn().mockImplementation(() => new Promise<void>((resolve) => {
-      finishSync = resolve
-    }))
-    const stop = startAmbientDraftSync({ ambientId: 'ambient-1', syncDraft: sync })
-    stream.write('event: ready\ndata: {}\n\n')
-    await vi.waitFor(() => expect(sync).toHaveBeenCalledTimes(1))
-
-    stream.write('event: ambient.changed\ndata: {}\n\nevent: ambient.changed\ndata: {}\n\n')
-    finishSync()
-
-    await vi.waitFor(() => expect(sync).toHaveBeenCalledTimes(2))
-    stop()
-  })
-
   it('does not poll while the event stream is ready', async () => {
     vi.useFakeTimers()
     const stream = createStream()

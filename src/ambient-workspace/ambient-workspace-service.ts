@@ -78,7 +78,7 @@ export interface AmbientWorkspaceService {
   openWorkspace: (ambientId: string) => Promise<boolean>
   closeWorkspace: () => void
   createAmbient: (ambientName: string) => Promise<string | null>
-  createAgentAccess: () => Promise<boolean>
+  createAgentAccess: (ambientId?: string) => Promise<boolean>
   discardAgentAccess: () => Promise<boolean>
   copyPrompt: () => void
   saveAmbientVersion: () => Promise<SavedAmbientRecord | null>

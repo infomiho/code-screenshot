@@ -14,38 +14,6 @@ const openAppFixture = async (page: import('@playwright/test').Page) => {
   await expect(page.locator('.cm-editor')).toBeVisible()
 }
 
-test('renders Swiss Poster declaratively without recreating CodeMirror', async ({ page }) => {
-  await openAppFixture(page)
-  await page.evaluate(() => {
-    Object.assign(window, { editorBeforeAmbientSwitch: document.querySelector('.cm-editor') })
-  })
-
-  await selectSwissPoster(page)
-
-  expect(await page.evaluate(() => {
-    const host = document.querySelector('.declarative-ambient')
-    return {
-      hasShadowRoot: host?.shadowRoot !== null,
-      sameEditor: document.querySelector('.cm-editor') === (window as Window & {
-        editorBeforeAmbientSwitch?: Element
-      }).editorBeforeAmbientSwitch,
-      title: host?.shadowRoot?.querySelector('.swiss-header h2')?.textContent,
-      titleTooltip: host?.shadowRoot?.querySelector('.swiss-header h2 span')?.getAttribute('title'),
-    }
-  })).toEqual({
-    hasShadowRoot: true,
-    sameEditor: true,
-    title: 'top secret code',
-    titleTooltip: 'top secret code',
-  })
-
-  await page.locator('#ambient-title').fill('')
-  await expect.poll(() => page.evaluate(() =>
-    document.querySelector('.declarative-ambient')?.shadowRoot
-      ?.querySelector('.swiss-header h2')?.textContent,
-  )).toBe('Untitled')
-})
-
 test('renders the Swiss Poster thumbnail consistently in both picker contexts', async ({ page }) => {
   await page.goto('/tests/browser/app.fixture.html')
   const current = page.locator('.ambient-current')

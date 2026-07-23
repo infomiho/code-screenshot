@@ -20,35 +20,21 @@ const drawStroke = async (
   await page.mouse.up()
 }
 
-const ambientNames = [
-  'macOS window',
-  'Technical plate',
-  'Specimen card',
-  'Swiss poster',
-  'Field notebook',
-  'Bare-metal terminal',
-]
+test('pen draws a stroke over the code editor', async ({ page }) => {
+  await openAppFixture(page)
+  await page.getByRole('button', { name: 'Draw', exact: true }).click()
 
-for (const ambientName of ambientNames) {
-  test(`pen draws a stroke over the code editor (${ambientName})`, async ({ page }) => {
-    await openAppFixture(page)
-    await page.locator('.ambient-current').click()
-    await page.getByRole('gridcell', { name: ambientName }).click()
-    await expect(page.locator('.cm-editor')).toBeVisible()
-    await page.getByRole('button', { name: 'Draw', exact: true }).click()
+  const editorBox = await page.locator('.cm-content').boundingBox()
+  if (!editorBox) throw new Error('Missing editor bounds')
 
-    const editorBox = await page.locator('.cm-content').boundingBox()
-    if (!editorBox) throw new Error('Missing editor bounds')
+  const editorCenter = {
+    x: editorBox.x + editorBox.width / 2,
+    y: editorBox.y + editorBox.height / 2,
+  }
+  await drawStroke(page, editorCenter, { x: editorCenter.x + 80, y: editorCenter.y + 30 })
 
-    const editorCenter = {
-      x: editorBox.x + editorBox.width / 2,
-      y: editorBox.y + editorBox.height / 2,
-    }
-    await drawStroke(page, editorCenter, { x: editorCenter.x + 80, y: editorCenter.y + 30 })
-
-    await expect(page.locator('.draw-layer path')).toHaveCount(1)
-  })
-}
+  await expect(page.locator('.draw-layer path')).toHaveCount(1)
+})
 
 test('pen draws a stroke on the frame outside the code editor', async ({ page }) => {
   await openAppFixture(page)

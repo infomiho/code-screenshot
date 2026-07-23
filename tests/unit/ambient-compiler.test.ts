@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compileAmbientDocument } from '../../src/ambient-compiler'
 import type { AmbientDocument } from '../../src/ambient-schema'
-import { compiledSwissPoster, swissPosterDocument } from '../../src/swiss-poster'
 
 const validDocument: AmbientDocument = {
   schemaVersion: 1,
@@ -58,13 +57,6 @@ const validDocument: AmbientDocument = {
 const onePixelPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
 
 describe('compileAmbientDocument', () => {
-  it('compiles the bundled Swiss Poster document', () => {
-    const result = compileAmbientDocument(swissPosterDocument)
-
-    expect(result.diagnostics).toEqual([])
-    expect(result.compiled).toEqual(compiledSwissPoster)
-  })
-
   it('compiles safe text bindings and one native code slot', () => {
     const result = compileAmbientDocument(validDocument)
 

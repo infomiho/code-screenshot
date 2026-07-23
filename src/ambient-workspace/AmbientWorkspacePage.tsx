@@ -24,8 +24,6 @@ type AmbientWorkspacePageProps = {
   onClose?: () => void
 }
 
-type LoadState = 'loading' | 'setup' | 'ready' | 'not-found' | 'error'
-
 export function AmbientWorkspacePage({
   ambientId: providedAmbientId,
   ambientWorkspaceService,
@@ -34,12 +32,14 @@ export function AmbientWorkspacePage({
   const navigate = useNavigate()
   const routeParams = useParams<'ambientId'>()
   const requestedAmbientId = providedAmbientId ?? routeParams.ambientId
-  const { service, snapshot, workspaceDefinition } = useAmbientWorkspace(ambientWorkspaceService)
+  const {
+    service,
+    snapshot,
+    workspaceDefinition,
+    workspaceLoadState,
+  } = useAmbientWorkspace(ambientWorkspaceService, requestedAmbientId)
   const workflow = useAgentWorkflow(snapshot)
   const [createdAmbientId, setCreatedAmbientId] = useState<string | null>(null)
-  const [loadState, setLoadState] = useState<LoadState>(
-    requestedAmbientId === 'new' ? 'setup' : 'loading',
-  )
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [isComparing, setIsComparing] = useState(false)
@@ -49,6 +49,7 @@ export function AmbientWorkspacePage({
   const previousWorkspaceIdRef = useRef<string | null>(null)
   const sidebar = useWorkspaceSidebar()
   const workspace = snapshot.workspace
+  const loadState = createdAmbientId && workspace ? 'ready' : workspaceLoadState
 
   useEffect(() => {
     if (!snapshot.isHydrated || loadState === 'loading') {
@@ -65,29 +66,6 @@ export function AmbientWorkspacePage({
       document.title = `${workspace.ambient.name} workspace | codeshot.dev`
     }
   }, [loadState, snapshot.isHydrated, workspace])
-
-  useEffect(() => {
-    if (!snapshot.isHydrated || requestedAmbientId === 'new' || createdAmbientId) return
-    if (!requestedAmbientId) {
-      setLoadState('not-found')
-      return
-    }
-    if (snapshot.account.kind !== 'signed-in' && snapshot.libraryStatus === 'ready') {
-      setLoadState('error')
-      return
-    }
-
-    let active = true
-    setLoadState('loading')
-    service.openWorkspace(requestedAmbientId).then((opened) => {
-      if (active) setLoadState(opened ? 'ready' : 'not-found')
-    }).catch(() => {
-      if (active) setLoadState('error')
-    })
-    return () => {
-      active = false
-    }
-  }, [createdAmbientId, requestedAmbientId, service, snapshot.account.kind, snapshot.isHydrated, snapshot.libraryStatus])
 
   useEffect(() => {
     if (!workspace) return
@@ -151,10 +129,8 @@ export function AmbientWorkspacePage({
     if (!requestedAmbientId) {
       return
     }
-    setLoadState('loading')
     void service.openWorkspace(requestedAmbientId)
-      .then((opened) => setLoadState(opened ? 'ready' : 'not-found'))
-      .catch(() => setLoadState('error'))
+      .catch(() => undefined)
   }
 
   const createAmbient = async (ambientName: string) => {
@@ -163,9 +139,8 @@ export function AmbientWorkspacePage({
       if (!id) {
         return false
       }
-      const accessCreated = await service.createAgentAccess()
+      const accessCreated = await service.createAgentAccess(id)
       setCreatedAmbientId(id)
-      setLoadState('ready')
       setStatusMessage(
         accessCreated
           ? `${ambientName} created. Agent prompt is ready.`

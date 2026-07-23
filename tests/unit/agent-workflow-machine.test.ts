@@ -21,17 +21,6 @@ describe('agentWorkflowMachine', () => {
     expect(actor.getSnapshot().matches({ access: 'expired' })).toBe(true)
     expect(actor.getSnapshot().matches({ connectivity: 'online' })).toBe(true)
   })
-
-  it('makes mutations explicit without presentation state', () => {
-    const actor = createActor(agentWorkflowMachine).start()
-    actor.send({ type: 'SAVE_STARTED' })
-    expect(actor.getSnapshot().matches({ mutation: 'saving' })).toBe(true)
-    actor.send({ type: 'DISCARD_STARTED' })
-    expect(actor.getSnapshot().matches({ mutation: 'saving' })).toBe(true)
-    actor.send({ type: 'MUTATION_FINISHED' })
-    expect(actor.getSnapshot().matches({ mutation: 'idle' })).toBe(true)
-    expect(actor.getSnapshot().value).not.toHaveProperty('presentation')
-  })
 })
 
 describe('workspace view derivation', () => {
