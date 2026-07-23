@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Tabs } from '@base-ui/react/tabs'
+import { IconLayoutSidebarRight } from '@tabler/icons-react'
 import type { WorkspaceSidebarTab } from './use-workspace-sidebar'
 
 type WorkspaceSidebarProps = {
@@ -14,12 +15,7 @@ type WorkspaceSidebarProps = {
 }
 
 function SidebarPanelIcon() {
-  return (
-    <svg className="workspace-panel-icon" viewBox="0 0 16 16" aria-hidden="true">
-      <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="0.5" />
-      <path d="M10.25 2.75v10.5" />
-    </svg>
-  )
+  return <IconLayoutSidebarRight className="workspace-panel-icon" aria-hidden="true" />
 }
 
 export function WorkspaceSidebar({

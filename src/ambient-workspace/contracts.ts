@@ -43,7 +43,7 @@ export const deriveDraftStatus = (
 export type OwnedAmbientSummaryDto = {
   id: string
   name: string
-  visibility: 'private'
+  visibility: 'private' | 'link'
   currentVersion: SavedAmbientVersionDto | null
   draft: OwnedAmbientDraftSummaryDto | null
 }
@@ -72,12 +72,28 @@ export type AgentAccessSummaryDto =
   | { status: 'expired'; generation: number; expiresAt: string }
 
 export type AmbientWorkspaceDto = {
-  ambient: { id: string; name: string }
+  ambient: {
+    id: string
+    name: string
+    slug: string
+    linkSharing: AmbientLinkSharingDto
+  }
   syncToken: AmbientSyncTokenDto
   workingDraft: WorkingDraftDto | null
   versionInUse: SavedAmbientVersionDto | null
   versions: AmbientVersionSummaryDto[]
   agentAccess: AgentAccessSummaryDto
+}
+
+export type AmbientLinkSharingDto = {
+  enabled: boolean
+  shareId: string | null
+}
+
+export type SharedAmbientDto = {
+  id: string
+  slug: string
+  version: SavedAmbientVersionDto
 }
 
 export type WorkspaceDraftRevisionDto = {
@@ -111,6 +127,14 @@ export type SyncAmbientDraftResult =
 
 export const ambientIdInputSchema = z.strictObject({
   ambientId: z.string().min(1).max(128),
+})
+
+export const sharedAmbientInputSchema = z.strictObject({
+  shareId: z.string().min(20).max(64),
+})
+
+export const setAmbientLinkSharingInputSchema = ambientIdInputSchema.extend({
+  enabled: z.boolean(),
 })
 
 export const capabilityParamsSchema = z.strictObject({
@@ -150,6 +174,8 @@ export type SaveAmbientVersionInput = z.infer<typeof saveAmbientVersionInputSche
 export type CreateDraftFromVersionInput = z.infer<typeof createDraftFromVersionInputSchema>
 export type SyncAmbientDraftInput = z.infer<typeof syncAmbientDraftInputSchema>
 export type AmbientIdInput = z.infer<typeof ambientIdInputSchema>
+export type SharedAmbientInput = z.infer<typeof sharedAmbientInputSchema>
+export type SetAmbientLinkSharingInput = z.infer<typeof setAmbientLinkSharingInputSchema>
 export type CreateAgentAccessInput = AmbientIdInput
 export type DiscardAgentAccessInput = AmbientIdInput
 export type DiscardAmbientDraftInput = AmbientIdInput

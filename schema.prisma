@@ -36,6 +36,8 @@ model Ambient {
   name             String
   status           AmbientStatus         @default(DRAFT)
   currentVersion   Int?
+  shareId          String?                @unique
+  linkSharingEnabled Boolean              @default(false)
   agentSessionGeneration Int             @default(0)
   draft            AmbientDraft?
   versions         AmbientVersion[]

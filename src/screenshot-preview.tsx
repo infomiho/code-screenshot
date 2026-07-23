@@ -8,11 +8,13 @@ import {
   type RefCallback,
 } from 'react'
 import { getStroke } from 'perfect-freehand'
+import { IconArrowBackUp, IconPencil, IconX } from '@tabler/icons-react'
 import { AmbientSelector, type YourAmbientsState } from './ambient-selector'
 import { AmbientSkeleton } from './ambient-skeleton'
 import { DeclarativeAmbient } from './declarative-ambient'
 import { EditorSkeleton } from './editor-skeleton'
 import { renderScreenshotBlob } from './screenshot-export'
+import { toastManager } from './toast'
 import { type AmbientDefinition, type ScreenshotContent } from './ambient-themes'
 
 type ExportAction = 'copy' | 'download' | null
@@ -24,6 +26,7 @@ type ScreenshotPreviewProps = {
   yourAmbients: YourAmbientsState
   onAmbientPickerOpenChange: (isOpen: boolean) => void
   onAmbientChange: (ambientKey: string) => void
+  onExitSharedAmbient?: () => void
   selectedAmbient: AmbientDefinition
   screenshotContent: ScreenshotContent
   ambientVariables: CSSProperties
@@ -155,6 +158,7 @@ export function ScreenshotPreview({
   yourAmbients,
   onAmbientPickerOpenChange,
   onAmbientChange,
+  onExitSharedAmbient,
   selectedAmbient,
   screenshotContent,
   ambientVariables,
@@ -176,7 +180,6 @@ export function ScreenshotPreview({
   const [previewScale, setPreviewScale] = useState(1)
   const [previewMode, setPreviewMode] = useState<PreviewMode>('fit')
   const [exportAction, setExportAction] = useState<ExportAction>(null)
-  const [message, setMessage] = useState('')
   const [isPenActive, setIsPenActive] = useState(false)
   const [penStrokes, setPenStrokes] = useState<number[][][]>(storedPreviewState?.penStrokes ?? [])
   const [, setPenTick] = useState(0)
@@ -232,13 +235,6 @@ export function ScreenshotPreview({
     const timer = window.setTimeout(() => setIsFrameRevealed(true), frameRevealDurationMs)
     return () => window.clearTimeout(timer)
   }, [isFrameReady])
-
-  useEffect(() => {
-    if (!message) return
-
-    const timer = window.setTimeout(() => setMessage(''), 4000)
-    return () => window.clearTimeout(timer)
-  }, [message])
 
   useEffect(() => {
     try {
@@ -353,21 +349,20 @@ export function ScreenshotPreview({
 
   const copyPng = async () => {
     setExportAction('copy')
-    setMessage('')
 
     try {
       const blob = await renderPngBlob()
       if (!blob) return
 
       if (!navigator.clipboard || !window.ClipboardItem) {
-        setMessage('Clipboard unavailable. Use Download PNG.')
+        toastManager.add({ description: 'Clipboard unavailable. Use Download PNG.' })
         return
       }
 
       await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })])
-      setMessage('Copied PNG to clipboard.')
+      toastManager.add({ description: 'Copied PNG to clipboard.' })
     } catch {
-      setMessage('Copy failed. Use Download PNG.')
+      toastManager.add({ description: 'Copy failed. Use Download PNG.', priority: 'high' })
     } finally {
       setExportAction(null)
     }
@@ -375,16 +370,15 @@ export function ScreenshotPreview({
 
   const downloadPng = async () => {
     setExportAction('download')
-    setMessage('')
 
     try {
       const blob = await renderPngBlob()
       if (!blob) return
 
       downloadBlob(blob)
-      setMessage('Downloaded PNG.')
+      toastManager.add({ description: 'Downloaded PNG.' })
     } catch {
-      setMessage('Download failed.')
+      toastManager.add({ description: 'Download failed.', priority: 'high' })
     } finally {
       setExportAction(null)
     }
@@ -419,6 +413,7 @@ export function ScreenshotPreview({
               yourAmbients={yourAmbients}
               onOpenChange={onAmbientPickerOpenChange}
               onSelect={onAmbientChange}
+              onExitSharedAmbient={onExitSharedAmbient}
             />
             <div className="toolbar-group toolbar-draw">
               {penStrokes.length > 0 && (
@@ -428,17 +423,11 @@ export function ScreenshotPreview({
                     type="button"
                     onClick={() => setPenStrokes((previousStrokes) => previousStrokes.slice(0, -1))}
                   >
-                    <svg className="pen-icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M9 14 4 9l5-5" />
-                      <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
-                    </svg>
+                    <IconArrowBackUp className="pen-icon" aria-hidden="true" />
                     Undo
                   </button>
                   <button className="ui-button toolbar-button" type="button" onClick={() => setPenStrokes([])}>
-                    <svg className="pen-icon" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M18 6 6 18" />
-                      <path d="m6 6 12 12" />
-                    </svg>
+                    <IconX className="pen-icon" aria-hidden="true" />
                     Clear
                   </button>
                 </>
@@ -449,10 +438,7 @@ export function ScreenshotPreview({
                 aria-pressed={isPenActive}
                 onClick={() => setIsPenActive((active) => !active)}
               >
-                <svg className="pen-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
+                <IconPencil className="pen-icon" aria-hidden="true" />
                 {isPenActive ? 'Drawing' : 'Draw'}
               </button>
             </div>
@@ -474,9 +460,6 @@ export function ScreenshotPreview({
                 Edit
               </button>
             </div>
-            <span id="export-status" className="export-status" role="status" aria-live="polite">
-              {message}
-            </span>
           </div>
           <div style={renderedPreviewScale < 1 ? { zoom: renderedPreviewScale } : undefined}>
             <div

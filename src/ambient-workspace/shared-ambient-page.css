@@ -1,0 +1,51 @@
+.shared-ambient-loading,
+.shared-ambient-state {
+  min-width: var(--page-min-width);
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
+.shared-ambient-loading {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8);
+}
+
+.shared-ambient-loading .ambient-skeleton {
+  width: min(860px, 100%);
+}
+
+.shared-ambient-state {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-5);
+  padding: clamp(24px, 6vw, 72px);
+}
+
+.shared-ambient-state > span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.shared-ambient-state h1,
+.shared-ambient-state p {
+  margin: 0;
+}
+
+.shared-ambient-state p {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+}
+
+.shared-ambient-state > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}

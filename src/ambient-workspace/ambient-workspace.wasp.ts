@@ -1,6 +1,7 @@
 import { action, api, apiNamespace, page, query, route, type Spec } from "@wasp.sh/spec";
 
 import { AgentPreviewPage } from "./agent-preview-page" with { type: "ref" };
+import { SharedAmbientPage } from "./SharedAmbientPage" with { type: "ref" };
 import { AmbientWorkspacePage } from "./AmbientWorkspacePage" with { type: "ref" };
 import { YourAmbientsPage } from "./YourAmbientsPage" with { type: "ref" };
 import {
@@ -20,8 +21,10 @@ import {
   discardAgentAccess,
   discardAmbientDraft,
   getAmbientWorkspace,
+  getSharedAmbient,
   listOwnedAmbients,
   saveAmbientVersion,
+  setAmbientLinkSharing,
   syncAmbientDraft,
 } from "./ambient-operations" with { type: "ref" };
 
@@ -37,10 +40,12 @@ export const ambientWorkspaceSpec: Spec = [
     page(AmbientWorkspacePage, { authRequired: true }),
   ),
   route("AgentPreviewRoute", "/agent-preview/:capability", page(AgentPreviewPage), { lazy: false }),
+  route("SharedAmbientRoute", "/a/:shareId/:slug", page(SharedAmbientPage), { lazy: false }),
   query(listOwnedAmbients, { entities: ["Ambient", "AmbientDraft", "AmbientVersion"] }),
   query(getAmbientWorkspace, {
     entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
   }),
+  query(getSharedAmbient, { entities: ["Ambient", "AmbientVersion"] }),
   query(syncAmbientDraft, { entities: ["Ambient", "AmbientDraft"] }),
   action(createAmbient, { entities: ["Ambient", "AmbientDraft"] }),
   action(createAgentAccess, {
@@ -54,6 +59,7 @@ export const ambientWorkspaceSpec: Spec = [
     entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
   }),
   action(saveAmbientVersion, { entities: ["Ambient", "AmbientDraft", "AmbientVersion"] }),
+  action(setAmbientLinkSharing, { entities: ["Ambient"] }),
   action(deleteAmbient, {
     entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
   }),

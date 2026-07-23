@@ -27,7 +27,7 @@ type AmbientShellProps = {
 type AmbientDefinitionBase = {
   id: string
   version: number
-  source: 'built-in' | 'draft' | 'saved'
+  source: 'built-in' | 'draft' | 'saved' | 'shared'
   manifest: AmbientManifest
   editorExtension: Extension
 }

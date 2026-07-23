@@ -23,6 +23,8 @@ const previewResult = loadAmbientDefinition({
 const isAgentPreview = new URLSearchParams(window.location.search).has('agent-preview')
 const hasExistingDraft = new URLSearchParams(window.location.search).has('existing-draft')
 const hasDelayedNavigation = new URLSearchParams(window.location.search).has('delayed-navigation')
+const hasSharedAmbient = new URLSearchParams(window.location.search).has('shared-ambient')
+const hasUnavailableShare = new URLSearchParams(window.location.search).has('unavailable-share')
 
 if (hasExistingDraft) {
   ambientWorkspaceService.signIn()
@@ -76,6 +78,11 @@ function FixtureApp() {
   return (
     <App
       ambientWorkspaceService={ambientWorkspaceService}
+      sharedAmbient={hasSharedAmbient ? {
+        id: 'shared-swiss-poster',
+        version: 1,
+        document: swissPosterDocument,
+      } : undefined}
       onOpenLibrary={() => setView({ name: 'library' })}
       onOpenWorkspace={(ambientId) => setView({ name: 'workspace', ambientId })}
     />
@@ -85,7 +92,7 @@ function FixtureApp() {
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={hasUnavailableShare ? [{ pathname: '/', state: { toast: 'This shared ambient is no longer available.' } }] : undefined}>
         {isAgentPreview
           ? <AgentPreviewCanvas definition={previewResult.definition} />
           : <FixtureApp />}

@@ -6,6 +6,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import { Popover } from '@base-ui/react/popover'
+import { IconArrowLeft } from '@tabler/icons-react'
 import { AmbientIdentity } from './ambient-identity'
 import {
   AmbientPicker,
@@ -21,6 +22,7 @@ type AmbientSelectorProps = {
   yourAmbients: YourAmbientsState
   onOpenChange?: (isOpen: boolean) => void
   onSelect: (key: string) => void
+  onExitSharedAmbient?: () => void
 }
 
 const padIndex = (index: number) => String(index).padStart(2, '0')
@@ -62,6 +64,7 @@ export function AmbientSelector({
   yourAmbients,
   onOpenChange,
   onSelect,
+  onExitSharedAmbient,
 }: AmbientSelectorProps) {
   const pickerId = `${useId()}-ambient-picker`
   const selectedIndex = Math.max(
@@ -145,6 +148,25 @@ export function AmbientSelector({
 
     event.preventDefault()
     setActiveIndex((nextIndex + definitions.length) % definitions.length)
+  }
+
+  if (onExitSharedAmbient) {
+    return (
+      <div className="ambient-selector ambient-selector-shared">
+        <button
+          className="ambient-shared-exit"
+          type="button"
+          aria-label="Exit shared ambient and open editor"
+          onClick={onExitSharedAmbient}
+        >
+          <IconArrowLeft aria-hidden="true" />
+          <span>Exit</span>
+        </button>
+        <div className="ambient-shared-current">
+          <AmbientIdentity definition={selected} meta="Shared ambient" />
+        </div>
+      </div>
+    )
   }
 
   return (

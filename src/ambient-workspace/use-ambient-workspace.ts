@@ -29,6 +29,7 @@ const emptyService: AmbientWorkspaceService = {
   discardAmbientDraft: async () => false,
   createDraftFromVersion: async () => false,
   deleteAmbient: async () => false,
+  setLinkSharing: async () => false,
 }
 
 export function useAmbientWorkspace(providedService?: AmbientWorkspaceService, ambientId?: string) {

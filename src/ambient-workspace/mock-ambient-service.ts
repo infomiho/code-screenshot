@@ -123,7 +123,12 @@ export class MockAmbientService implements AmbientWorkspaceService {
     const id = `ambient-mock-${this.nextAmbientId++}`
     const document = createMinimalDraftDocument(ambientName)
     const workspace: OpenAmbientWorkspace = {
-      ambient: { id, name: ambientName },
+      ambient: {
+        id,
+        name: ambientName,
+        slug: `${ambientName.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}-mock`,
+        linkSharing: { enabled: false, shareId: null },
+      },
       syncToken: createSyncToken(0),
       workingDraft: {
         revision: 0,
@@ -393,6 +398,23 @@ export class MockAmbientService implements AmbientWorkspaceService {
       promptCopied: false,
       mutation: 'idle',
     })
+    return true
+  }
+
+  setLinkSharing = async (enabled: boolean) => {
+    const workspace = this.snapshot.workspace
+    if (!workspace || (enabled && !workspace.versionInUse)) return false
+    const shareId = workspace.ambient.linkSharing.shareId ?? `share-${workspace.ambient.id}-token`
+    const ambient = this.ambients.get(workspace.ambient.id)
+    if (!ambient) return false
+    ambient.summary = { ...ambient.summary, visibility: enabled ? 'link' : 'private' }
+    this.updateWorkspace((current) => ({
+      ...current,
+      ambient: {
+        ...current.ambient,
+        linkSharing: { enabled, shareId },
+      },
+    }))
     return true
   }
 }

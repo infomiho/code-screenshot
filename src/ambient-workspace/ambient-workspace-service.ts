@@ -2,6 +2,7 @@ import type { AmbientDocument } from '../ambient-schema'
 import type {
   AgentAccessSummaryDto,
   AmbientAccountDto,
+  AmbientLinkSharingDto,
   AmbientSyncTokenDto,
   OwnedAmbientDraftSummaryDto,
 } from './contracts'
@@ -26,7 +27,7 @@ export type CurrentAmbientVersion = SavedAmbientRecord & {
 export type OwnedAmbientSummary = {
   id: string
   name: string
-  visibility: 'private'
+  visibility: 'private' | 'link'
   currentVersion: CurrentAmbientVersion | null
   draft: OwnedAmbientDraftSummary | null
 }
@@ -48,7 +49,12 @@ export type AmbientVersion = CurrentAmbientVersion & {
 }
 
 export type OpenAmbientWorkspace = {
-  ambient: { id: string; name: string }
+  ambient: {
+    id: string
+    name: string
+    slug: string
+    linkSharing: AmbientLinkSharingDto
+  }
   syncToken: AmbientSyncTokenDto
   workingDraft: WorkingDraft | null
   versionInUse: CurrentAmbientVersion | null
@@ -85,4 +91,5 @@ export interface AmbientWorkspaceService {
   discardAmbientDraft: () => Promise<boolean>
   createDraftFromVersion: (versionId: string) => Promise<boolean>
   deleteAmbient: (ambientId: string) => Promise<boolean>
+  setLinkSharing: (enabled: boolean) => Promise<boolean>
 }

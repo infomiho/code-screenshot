@@ -17,9 +17,6 @@
   --workspace-subtle: color-mix(in oklch, var(--muted), transparent 84%);
   --workspace-tab-selected-bg: color-mix(in oklch, var(--control), var(--text) 14%);
   --workspace-tab-selected-count-bg: color-mix(in oklch, var(--text), transparent 88%);
-  --workspace-tab-selected-shadow:
-    0 0 0 1px var(--button-border-hover) inset,
-    0 1px 0 rgb(247 245 240 / 7%) inset;
   --workspace-danger: oklch(0.69 0.18 25);
   --workspace-success: oklch(0.76 0.12 145);
   --workspace-radius: 2px;
@@ -394,9 +391,9 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--workspace-tab-inset);
-  border: 1px solid var(--button-border);
-  background: var(--control);
-  box-shadow: var(--control-inset);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   padding: var(--workspace-tab-inset);
 }
 
@@ -425,7 +422,7 @@
 
 .workspace-sidebar-tablist button[aria-selected='true'] {
   background: var(--workspace-tab-selected-bg);
-  box-shadow: var(--workspace-tab-selected-shadow);
+  box-shadow: inset 0 -2px color-mix(in oklch, var(--wasp-yellow), transparent 24%);
   color: var(--text);
 }
 

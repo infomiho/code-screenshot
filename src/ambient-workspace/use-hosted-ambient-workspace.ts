@@ -10,6 +10,7 @@ import {
   getAmbientWorkspace,
   listOwnedAmbients,
   saveAmbientVersion as saveAmbientVersionOperation,
+  setAmbientLinkSharing as setAmbientLinkSharingOperation,
   useQuery,
 } from 'wasp/client/operations'
 import { cacheAgentSession, clearAgentSessions, readAgentSession } from './agent-session-cache'
@@ -20,6 +21,7 @@ import type {
   SavedAmbientRecord,
 } from './ambient-workspace-service'
 import type { AmbientWorkspaceDto } from './contracts'
+import type { AmbientLinkSharingDto } from './contracts'
 import { startAmbientDraftSync } from './ambient-draft-sync'
 
 export type WorkspaceLoadState = 'loading' | 'setup' | 'ready' | 'not-found' | 'error'
@@ -55,6 +57,10 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
   )
   const [mutation, setMutation] = useState<OpenAmbientWorkspace['mutation']>('idle')
   const [promptCopiedFor, setPromptCopiedFor] = useState<string | null>(null)
+  const [linkSharingOverride, setLinkSharingOverride] = useState<{
+    ambientId: string
+    value: AmbientLinkSharingDto
+  } | null>(null)
   const [, setSessionRevision] = useState(0)
 
   const workspaceDto = workspaceQuery.data as AmbientWorkspaceDto | undefined
@@ -66,6 +72,12 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
   )
   const workspace: OpenAmbientWorkspace | null = workspaceDto ? {
     ...workspaceDto,
+    ambient: {
+      ...workspaceDto.ambient,
+      linkSharing: linkSharingOverride?.ambientId === workspaceDto.ambient.id
+        ? linkSharingOverride.value
+        : workspaceDto.ambient.linkSharing,
+    },
     agentAccessUrl: sessionMatches ? cachedSession!.url : null,
     promptCopied: promptCopiedFor === workspaceDto.ambient.id,
     connectivity: getConnectivity(workspaceQuery.error),
@@ -106,6 +118,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
   useEffect(() => {
     setMutation('idle')
     setPromptCopiedFor(null)
+    setLinkSharingOverride(null)
   }, [ambientId])
 
   useEffect(() => {
@@ -241,6 +254,24 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
         await deleteAmbientOperation({ ambientId: targetAmbientId })
         cacheAgentSession(null, targetAmbientId)
         setSessionRevision((revision) => revision + 1)
+        return true
+      } catch {
+        return false
+      }
+    },
+    setLinkSharing: async (enabled) => {
+      const targetAmbientId = currentAmbientId()
+      if (!targetAmbientId || mutation !== 'idle') return false
+      try {
+        const value = await setAmbientLinkSharingOperation({ ambientId: targetAmbientId, enabled })
+        setLinkSharingOverride({ ambientId: targetAmbientId, value })
+        const [workspaceRefresh] = await Promise.allSettled([
+          workspaceQuery.refetch(),
+          libraryQuery.refetch(),
+        ])
+        if (workspaceRefresh.status === 'fulfilled' && !workspaceRefresh.value.error) {
+          setLinkSharingOverride(null)
+        }
         return true
       } catch {
         return false

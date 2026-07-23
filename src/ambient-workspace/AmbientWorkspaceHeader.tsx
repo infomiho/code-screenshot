@@ -1,20 +1,28 @@
 import { AccountMenu } from '../account-menu'
 import type { AmbientAccountDto } from './contracts'
+import type { AmbientLinkSharingDto } from './contracts'
+import { AmbientSharePopover } from './AmbientSharePopover'
 
 type AmbientWorkspaceHeaderProps = {
   account: AmbientAccountDto
   draftCount: number
   versionInUse: number | null
+  linkSharing?: AmbientLinkSharingDto
+  slug?: string
   onClose: () => void
   onSignOut: () => void
+  onSharingChange?: (enabled: boolean) => Promise<boolean>
 }
 
 export function AmbientWorkspaceHeader({
   account,
   draftCount,
   versionInUse,
+  linkSharing,
+  slug,
   onClose,
   onSignOut,
+  onSharingChange,
 }: AmbientWorkspaceHeaderProps) {
   return (
     <header className="subpage-header">
@@ -27,6 +35,14 @@ export function AmbientWorkspaceHeader({
           <div className="subpage-header-meta" aria-label="Version in use">
             Version {versionInUse} in use
           </div>
+        )}
+        {linkSharing && slug && onSharingChange && (
+          <AmbientSharePopover
+            linkSharing={linkSharing}
+            slug={slug}
+            versionInUse={versionInUse}
+            onSharingChange={onSharingChange}
+          />
         )}
         {account.kind === 'signed-in' && (
           <AccountMenu

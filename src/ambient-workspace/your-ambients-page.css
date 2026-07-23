@@ -249,26 +249,6 @@
   height: 40px;
 }
 
-.ambient-library-status {
-  position: fixed;
-  z-index: 40;
-  top: max(var(--space-7), env(safe-area-inset-top));
-  left: 50%;
-  display: flex;
-  max-width: calc(100vw - var(--space-10));
-  min-height: 32px;
-  align-items: center;
-  border: 1px solid var(--button-border);
-  background: var(--panel);
-  box-shadow: var(--surface-shadow);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: var(--font-size-control);
-  padding-inline: var(--space-4);
-  pointer-events: none;
-  translate: -50% 0;
-}
-
 @media (max-width: 560px) {
   .ambient-library-row {
     grid-template-columns: minmax(0, 1fr);

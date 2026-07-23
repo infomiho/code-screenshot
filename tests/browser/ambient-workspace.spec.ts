@@ -13,6 +13,16 @@ const createAmbient = async (page: Page, name = 'Signal study') => page.evaluate
   return id
 }, name)
 
+const createSavedAmbient = async (page: Page, name = 'Signal study') => page.evaluate(async (ambientName) => {
+  window.ambientWorkspaceService.signIn()
+  const id = await window.ambientWorkspaceService.createAmbient(ambientName)
+  if (!id) throw new Error('Ambient was not created')
+  const version = await window.ambientWorkspaceService.saveAmbientVersion()
+  if (!version) throw new Error('Ambient version was not saved')
+  window.ambientWorkspaceService.closeWorkspace()
+  return id
+}, name)
+
 const openAmbientPicker = async (page: Page) => {
   await page.locator('.ambient-current').click()
   await expect(page.getByRole('grid', { name: 'Choose ambient' })).toBeVisible()
@@ -75,6 +85,57 @@ test('keeps an unsaved working draft out of the screenshot editor', async ({ pag
   await expect(row).toContainText('Not saved yet')
   await expect(row).toContainText('Working draft')
   await expect(row.getByRole('button', { name: 'Edit' })).toBeVisible()
+})
+
+test('opens a shared ambient directly in the editor', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html?shared-ambient')
+  await expect(page.locator('.cm-editor')).toBeVisible()
+  await expect(page.locator('.ambient-shared-current')).toContainText('Swiss poster')
+  await expect(page.getByText('Shared ambient', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Exit shared ambient and open editor' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Swiss poster/ })).toHaveCount(0)
+})
+
+test('shows a toast after an unavailable shared ambient returns to the editor', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html?unavailable-share')
+  await expect(page.locator('.cm-editor')).toBeVisible()
+  await expect(page.getByText('This shared ambient is no longer available.')).toBeVisible()
+})
+
+test('keeps link sharing disabled until an ambient has a saved version', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  await page.getByRole('button', { name: 'Share' }).click()
+  await expect(page.getByRole('heading', { name: 'Share ambient' })).toBeVisible()
+  await expect(page.getByText('Private', { exact: true })).toBeVisible()
+  await expect(page.getByText('Save a version before sharing this ambient.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enable link sharing' })).toBeDisabled()
+})
+
+test('reuses the same link after link sharing is turned off and on', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await openApp(page)
+  await createSavedAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  await page.getByRole('button', { name: 'Share' }).click()
+  await page.getByRole('button', { name: 'Enable link sharing' }).click()
+  await expect(page.getByText('Anyone with the link', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy link' })).toBeFocused()
+  await page.getByRole('button', { name: 'Copy link' }).click()
+  const firstLink = await page.evaluate(() => navigator.clipboard.readText())
+
+  await page.getByRole('button', { name: 'Turn off link sharing' }).click()
+  await expect(page.getByText('Private', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enable link sharing' })).toBeFocused()
+  await page.getByRole('button', { name: 'Enable link sharing' }).click()
+  await page.getByRole('button', { name: 'Copy link' }).click()
+  const secondLink = await page.evaluate(() => navigator.clipboard.readText())
+
+  expect(secondLink).toBe(firstLink)
+  expect(secondLink).toContain('/a/share-ambient-mock-1-token/signal-study-mock')
 })
 
 test('restores the screenshot composition after a full-page authentication redirect', async ({ page }) => {
@@ -525,7 +586,7 @@ test('mobile export feedback stays visible without resizing the toolbar', async 
   const toolbar = page.locator('.shot-toolbar')
   const toolbarBefore = await toolbar.boundingBox()
   await page.getByRole('button', { name: 'Copy PNG' }).click()
-  const status = page.locator('#export-status')
+  const status = page.locator('.app-toast').filter({ hasText: /Copied PNG to clipboard|Copy failed/ })
   await expect(status).toHaveText(/Copied PNG to clipboard|Copy failed/)
   const [statusBox, toolbarAfter] = await Promise.all([status.boundingBox(), toolbar.boundingBox()])
 

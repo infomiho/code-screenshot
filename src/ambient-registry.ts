@@ -6,7 +6,7 @@ import {
 } from './ambient-themes'
 import type { SavedAmbientRecord } from './ambient-workspace/ambient-workspace-service'
 
-export type AmbientRecordSource = 'draft' | 'saved'
+export type AmbientRecordSource = 'draft' | 'saved' | 'shared'
 
 export type AmbientLoadResult =
   | { definition: AmbientDefinition; diagnostics: readonly [] }

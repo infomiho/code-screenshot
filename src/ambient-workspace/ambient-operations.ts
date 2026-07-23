@@ -8,8 +8,10 @@ import type {
   DiscardAgentAccess,
   DiscardAmbientDraft,
   GetAmbientWorkspace,
+  GetSharedAmbient,
   ListOwnedAmbients,
   SaveAmbientVersion,
+  SetAmbientLinkSharing,
   SyncAmbientDraft,
 } from 'wasp/server/operations'
 import type { ZodType } from 'zod'
@@ -25,6 +27,8 @@ import {
   deriveDraftStatus,
   documentsEqual,
   saveAmbientVersionInputSchema,
+  setAmbientLinkSharingInputSchema,
+  sharedAmbientInputSchema,
   syncAmbientDraftInputSchema,
 } from './contracts'
 import type {
@@ -32,6 +36,7 @@ import type {
   AmbientIdInput,
   AmbientSyncTokenDto,
   AmbientLibraryDto,
+  AmbientLinkSharingDto,
   DeleteAmbientInput,
   AmbientVersionSummaryDto,
   AmbientWorkspaceDto,
@@ -45,6 +50,9 @@ import type {
   OwnedAmbientDraftSummaryDto,
   SaveAmbientVersionInput,
   SavedAmbientVersionDto,
+  SetAmbientLinkSharingInput,
+  SharedAmbientDto,
+  SharedAmbientInput,
   SyncAmbientDraftInput,
   SyncAmbientDraftResult,
   WorkingDraftDto,
@@ -149,7 +157,7 @@ export const listOwnedAmbients: ListOwnedAmbients<void, AmbientLibraryDto> = asy
       return {
         id: ambient.id,
         name: ambient.name,
-        visibility: 'private',
+        visibility: ambient.linkSharingEnabled ? 'link' : 'private',
         currentVersion: currentVersion ? toVersionDto(currentVersion) : null,
         draft: toDraftSummary(ambient.draft, currentVersion ?? null),
       }
@@ -195,7 +203,15 @@ export const getAmbientWorkspace: GetAmbientWorkspace<AmbientIdInput, AmbientWor
         }
 
   return {
-    ambient: { id: ambient.id, name: ambient.name },
+    ambient: {
+      id: ambient.id,
+      name: ambient.name,
+      slug: ambient.slug,
+      linkSharing: {
+        enabled: ambient.linkSharingEnabled,
+        shareId: ambient.shareId,
+      },
+    },
     syncToken: createSyncToken(
       ambient.draft?.revision ?? null,
       ambient.agentSessionGeneration,
@@ -206,6 +222,57 @@ export const getAmbientWorkspace: GetAmbientWorkspace<AmbientIdInput, AmbientWor
     versions,
     agentAccess,
   }
+}
+
+export const getSharedAmbient: GetSharedAmbient<SharedAmbientInput, SharedAmbientDto> = async (
+  args,
+  context,
+) => {
+  const { shareId } = parseInput(sharedAmbientInputSchema, args)
+  const ambient = await context.entities.Ambient.findFirst({
+    where: { shareId, linkSharingEnabled: true, currentVersion: { not: null } },
+    select: { id: true, slug: true, currentVersion: true },
+  })
+  if (!ambient?.currentVersion) throw new HttpError(404, 'Shared ambient not found.')
+
+  const version = await context.entities.AmbientVersion.findUnique({
+    where: { ambientId_version: { ambientId: ambient.id, version: ambient.currentVersion } },
+  })
+  if (!version) throw new HttpError(404, 'Shared ambient not found.')
+
+  return { id: ambient.id, slug: ambient.slug, version: toVersionDto(version) }
+}
+
+export const setAmbientLinkSharing: SetAmbientLinkSharing<
+  SetAmbientLinkSharingInput,
+  AmbientLinkSharingDto
+> = async (args, context) => {
+  const user = requireUser(context.user)
+  const input = parseInput(setAmbientLinkSharingInputSchema, args)
+  const ambient = await context.entities.Ambient.findFirst({
+    where: { id: input.ambientId, ownerId: user.id },
+    select: { id: true, currentVersion: true, shareId: true },
+  })
+  if (!ambient) throw new HttpError(404, 'Ambient not found.')
+  if (input.enabled && ambient.currentVersion === null) {
+    throw new HttpError(409, 'Save a version before enabling link sharing.')
+  }
+
+  if (input.enabled && ambient.shareId === null) {
+    const shareId = randomBytes(16).toString('base64url')
+    const claimed = await context.entities.Ambient.updateMany({
+      where: { id: ambient.id, shareId: null },
+      data: { linkSharingEnabled: true, shareId },
+    })
+    if (claimed.count > 0) return { enabled: true, shareId }
+  }
+
+  const updated = await context.entities.Ambient.update({
+    where: { id: ambient.id },
+    data: { linkSharingEnabled: input.enabled },
+    select: { linkSharingEnabled: true, shareId: true },
+  })
+  return { enabled: updated.linkSharingEnabled, shareId: updated.shareId }
 }
 
 export const createAmbient: CreateAmbient<CreateAmbientInput, CreateAmbientResult> = async (args, context) => {

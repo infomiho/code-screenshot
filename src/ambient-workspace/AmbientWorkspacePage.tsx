@@ -15,6 +15,7 @@ import { WorkspaceWorkPanel } from './WorkspaceWorkPanel'
 import { useAgentWorkflow } from './use-agent-workflow'
 import { useAmbientWorkspace } from './use-ambient-workspace'
 import { useWorkspaceSidebar } from './use-workspace-sidebar'
+import { Toaster } from '../toast'
 import '../index.css'
 import './ambient-workspace-page.css'
 
@@ -294,8 +295,11 @@ export function AmbientWorkspacePage({
         account={snapshot.account}
         draftCount={draftCount}
         versionInUse={workspace.versionInUse?.version ?? null}
+        linkSharing={workspace.ambient.linkSharing}
+        slug={workspace.ambient.slug}
         onClose={closeWorkspace}
         onSignOut={signOut}
+        onSharingChange={service.setLinkSharing}
       />
 
       <div className="workspace-layout" data-sidebar={sidebar.isCollapsed ? 'collapsed' : 'expanded'}>
@@ -380,6 +384,7 @@ export function AmbientWorkspacePage({
         onConfirm={discardDraft}
         versionInUse={workspace.versionInUse?.version ?? null}
       />
+      <Toaster />
     </main>
   )
 }

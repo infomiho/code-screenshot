@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import './index.css'
 import type { YourAmbientsState } from './ambient-picker'
 import {
@@ -16,12 +16,16 @@ import { useAmbientWorkspace } from './ambient-workspace/use-ambient-workspace'
 import { ScreenshotControls } from './screenshot-controls'
 import { ScreenshotPreview } from './screenshot-preview'
 import { SiteHeader } from './site-header'
+import { Toaster, toastManager } from './toast'
 import { useCodeEditor } from './use-code-editor'
+import { loadAmbientDefinition } from './ambient-registry'
+import type { SavedAmbientRecord } from './ambient-workspace/ambient-workspace-service'
 
 type AppProps = {
   ambientWorkspaceService?: AmbientWorkspaceService
   onOpenLibrary?: () => void
   onOpenWorkspace?: (ambientId: string) => void
+  sharedAmbient?: SavedAmbientRecord
 }
 
 const getAmbientIdFromKey = (key: string) => key.slice(0, key.lastIndexOf('@'))
@@ -45,19 +49,35 @@ const readStoredComposition = (): StoredComposition | null => {
   }
 }
 
-export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }: AppProps = {}) {
+export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, sharedAmbient }: AppProps = {}) {
   const navigate = useNavigate()
+  const location = useLocation()
   const editorHelpId = `${useId()}-editor-help`
   const highlightStatusId = `${useId()}-highlight-status`
   const [storedComposition] = useState(readStoredComposition)
   const [languageId, setLanguageId] = useState(storedComposition?.languageId ?? 'typescript')
-  const [ambientKey, setAmbientKey] = useState(storedComposition?.ambientKey ?? defaultAmbientKey)
+  const sharedDefinition = useMemo(
+    () => sharedAmbient ? loadAmbientDefinition(sharedAmbient, 'shared').definition : null,
+    [sharedAmbient],
+  )
+  const [ambientKey, setAmbientKey] = useState(
+    sharedDefinition ? getAmbientKey(sharedDefinition) : storedComposition?.ambientKey ?? defaultAmbientKey,
+  )
   const [title, setTitle] = useState(storedComposition?.title ?? 'top secret code')
   const [ambientCustomizations, setAmbientCustomizations] = useState<AmbientCustomizationState>(
     storedComposition?.ambientCustomizations ?? {},
   )
   const [hasMounted, setHasMounted] = useState(false)
-  const { definitions, service, snapshot } = useAmbientWorkspace(ambientWorkspaceService)
+  const workspace = useAmbientWorkspace(ambientWorkspaceService)
+  const { service, snapshot } = workspace
+  const definitions = useMemo(() => {
+    if (!sharedDefinition) return workspace.definitions
+    const sharedKey = getAmbientKey(sharedDefinition)
+    if (workspace.definitions.some((definition) => getAmbientKey(definition) === sharedKey)) {
+      return workspace.definitions
+    }
+    return [...workspace.definitions, sharedDefinition]
+  }, [sharedDefinition, workspace.definitions])
   const selectedAmbient = definitions.find(
     (definition) => getAmbientKey(definition) === ambientKey,
   ) ?? definitions.find(
@@ -104,6 +124,16 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
   }, [])
 
   useEffect(() => setHasMounted(true), [])
+
+  useEffect(() => {
+    const state = location.state as { toast?: unknown } | null
+    if (typeof state?.toast !== 'string') return
+    toastManager.add({ id: 'navigation-toast', description: state.toast })
+    navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, {
+      replace: true,
+      state: null,
+    })
+  }, [location.hash, location.pathname, location.search, location.state, navigate])
 
   useEffect(() => {
     if (!snapshot.isHydrated || snapshot.account.kind !== 'signed-in') return
@@ -188,6 +218,20 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
     setAmbientKey(defaultAmbientKey)
   }
 
+  const exitSharedAmbient = () => {
+    try {
+      globalThis.localStorage?.setItem(compositionStorageKey, JSON.stringify({
+        ambientCustomizations,
+        ambientKey: defaultAmbientKey,
+        languageId,
+        title,
+      } satisfies StoredComposition))
+    } catch {
+      // The default ambient still loads when local persistence is unavailable.
+    }
+    navigate('/')
+  }
+
   return (
     <main className="app-shell">
       <h1 className="sr-only">codeshot.dev code screenshot tool</h1>
@@ -206,6 +250,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
           yourAmbients={yourAmbients}
           onAmbientPickerOpenChange={() => undefined}
           onAmbientChange={setAmbientKey}
+          onExitSharedAmbient={sharedDefinition ? exitSharedAmbient : undefined}
           selectedAmbient={selectedAmbient}
           screenshotContent={screenshotContent}
           ambientVariables={ambientVariables}
@@ -236,6 +281,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace }:
         <span aria-hidden="true">/</span>
         <a href="https://github.com/infomiho/code-screenshot">View the source</a>
       </footer>
+      <Toaster />
     </main>
   )
 }

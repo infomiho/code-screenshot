@@ -31,6 +31,7 @@
   /* State accents */
   --highlight-bg: rgb(245 200 66 / 20%);
   --selection-bg: rgb(245 200 66 / 35%);
+  --share-active: oklch(0.76 0.095 145);
 
   /* Fonts */
   --mono: 'JetBrains Mono', 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;

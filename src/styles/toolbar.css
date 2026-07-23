@@ -61,31 +61,6 @@
   }
 }
 
-.export-status {
-  position: fixed;
-  z-index: 40;
-  top: max(var(--space-7), env(safe-area-inset-top));
-  left: 50%;
-  display: flex;
-  max-width: calc(100vw - var(--space-10));
-  min-height: 32px;
-  align-items: center;
-  border: 1px solid var(--button-border);
-  background: var(--panel);
-  box-shadow: var(--surface-shadow);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: var(--font-size-control);
-  padding-inline: var(--space-4);
-  pointer-events: none;
-  text-align: center;
-  translate: -50% 0;
-
-  &:empty {
-    display: none;
-  }
-}
-
 .draw-layer {
   position: absolute;
   /* Above ambient decor layers, which use z-index up to 3 in ambient-themes.css */

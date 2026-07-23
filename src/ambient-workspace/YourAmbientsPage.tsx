@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AccountMenu } from '../account-menu'
 import { AmbientMark } from '../ambient-mark'
+import { Toaster, toastManager } from '../toast'
 import { ConfirmDialog } from '../confirm-dialog'
 import type { AmbientDefinition } from '../ambient-themes'
 import { countDraftAmbients, type AmbientWorkspaceService, type OwnedAmbientSummary } from './ambient-workspace-service'
@@ -80,17 +81,10 @@ export function YourAmbientsPage({
   const { definitions, draftDefinitions, service, snapshot } = useAmbientWorkspace(ambientWorkspaceService)
   const [pendingDelete, setPendingDelete] = useState<OwnedAmbientSummary | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [statusMessage, setStatusMessage] = useState('')
 
   useEffect(() => {
     document.title = 'Your ambients | codeshot.dev'
   }, [])
-
-  useEffect(() => {
-    if (!statusMessage) return
-    const timer = window.setTimeout(() => setStatusMessage(''), 4500)
-    return () => window.clearTimeout(timer)
-  }, [statusMessage])
 
   const openEditor = () => {
     if (onOpenEditor) {
@@ -118,7 +112,10 @@ export function YourAmbientsPage({
     setIsDeleting(true)
     const deleted = await service.deleteAmbient(pendingDelete.id)
     setIsDeleting(false)
-    setStatusMessage(deleted ? `${pendingDelete.name} deleted.` : `Could not delete ${pendingDelete.name}.`)
+    toastManager.add({
+      description: deleted ? `${pendingDelete.name} deleted.` : `Could not delete ${pendingDelete.name}.`,
+      priority: deleted ? 'low' : 'high',
+    })
     if (deleted) setPendingDelete(null)
   }
 
@@ -181,7 +178,7 @@ export function YourAmbientsPage({
                   <span className="ambient-library-row-meta">
                     <span>{ambient.currentVersion ? `Version ${ambient.currentVersion.version}` : 'Not saved yet'}</span>
                     <span aria-hidden="true">·</span>
-                    <span>Private</span>
+                    <span>{ambient.visibility === 'link' ? 'Shared' : 'Private'}</span>
                     {ambient.draft && (
                       <>
                         <span aria-hidden="true">·</span>
@@ -247,8 +244,7 @@ export function YourAmbientsPage({
         {renderLibrary()}
       </section>
 
-      <span className="sr-only" role="status" aria-live="polite">{statusMessage}</span>
-      {statusMessage && <div className="ambient-library-status">{statusMessage}</div>}
+      <Toaster />
 
       {pendingDelete && (
         <DeleteAmbientDialog
