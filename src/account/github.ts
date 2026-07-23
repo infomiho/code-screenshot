@@ -1,22 +1,26 @@
 import { defineUserSignupFields } from 'wasp/server/auth'
+import { z } from 'zod'
 
-type GitHubProfile = {
-  login?: unknown
-  avatar_url?: unknown
+const githubLoginSchema = z.object({
+  profile: z.object({
+    login: z.string().min(1),
+  }),
+})
+
+const githubAvatarSchema = z.object({
+  profile: z.object({
+    avatar_url: z.string().url().nullish(),
+  }),
+})
+
+const parseGitHubData = <T>(schema: z.ZodType<T>, data: unknown) => {
+  const result = schema.safeParse(data)
+  if (!result.success) throw new Error('GitHub returned an invalid profile.')
+  return result.data
 }
 
-const getProfile = (data: unknown) => (data as { profile?: GitHubProfile }).profile
-
 export const userSignupFields = defineUserSignupFields({
-  githubLogin: (data: unknown) => {
-    const login = getProfile(data)?.login
-    if (typeof login !== 'string' || login.length === 0) {
-      throw new Error('GitHub did not provide a login.')
-    }
-    return login
-  },
-  githubAvatarUrl: (data: unknown) => {
-    const avatarUrl = getProfile(data)?.avatar_url
-    return typeof avatarUrl === 'string' ? avatarUrl : null
-  },
+  githubLogin: (data: unknown) => parseGitHubData(githubLoginSchema, data).profile.login,
+  githubAvatarUrl: (data: unknown) =>
+    parseGitHubData(githubAvatarSchema, data).profile.avatar_url ?? null,
 })
