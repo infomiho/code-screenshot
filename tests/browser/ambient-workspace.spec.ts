@@ -459,6 +459,33 @@ test('opens the workspace from a library row title', async ({ page }) => {
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Signal study')
 })
 
+test('does not show a missing ambient while returning to the library', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html?delayed-navigation')
+  await expect(page.locator('.cm-editor')).toBeVisible()
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  await page.evaluate(() => {
+    window.ambientNotFoundSeen = false
+    const observer = new MutationObserver(() => {
+      if (document.body.textContent?.includes('Ambient not found')) {
+        window.ambientNotFoundSeen = true
+      }
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+  })
+  await page.getByRole('button', { name: 'Your ambients' }).click()
+  await expect(page.getByRole('heading', { name: 'Your ambients' })).toBeVisible()
+
+  expect(await page.evaluate(() => window.ambientNotFoundSeen)).toBe(false)
+})
+
+test('shows not found after a workspace load confirms the ambient is missing', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html?workspace=missing&existing-draft')
+
+  await expect(page.getByRole('heading', { name: 'Ambient not found' })).toBeVisible()
+})
+
 test('manages ambients from the library page', async ({ page }) => {
   await openApp(page)
   await createAmbient(page)

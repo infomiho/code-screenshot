@@ -20,6 +20,7 @@ const previewResult = loadAmbientDefinition({
 }, 'draft')
 const isAgentPreview = new URLSearchParams(window.location.search).has('agent-preview')
 const hasExistingDraft = new URLSearchParams(window.location.search).has('existing-draft')
+const hasDelayedNavigation = new URLSearchParams(window.location.search).has('delayed-navigation')
 
 if (hasExistingDraft) {
   ambientWorkspaceService.signIn()
@@ -42,13 +43,20 @@ const readInitialView = (): FixtureView => {
 
 function FixtureApp() {
   const [view, setView] = useState<FixtureView>(readInitialView)
+  const closeWorkspace = () => {
+    if (hasDelayedNavigation) {
+      window.setTimeout(() => setView({ name: 'library' }), 500)
+    } else {
+      setView({ name: 'library' })
+    }
+  }
 
   if (view.name === 'workspace') {
     return (
       <AmbientWorkspacePage
         ambientId={view.ambientId}
         ambientWorkspaceService={ambientWorkspaceService}
-        onClose={() => setView({ name: 'library' })}
+        onClose={closeWorkspace}
       />
     )
   }
@@ -159,6 +167,7 @@ async function exportCurrentFrame(width: number) {
 
 declare global {
   interface Window {
+    ambientNotFoundSeen: boolean
     ambientWorkspaceService: MockAmbientService
     exportCurrentFrame: typeof exportCurrentFrame
   }

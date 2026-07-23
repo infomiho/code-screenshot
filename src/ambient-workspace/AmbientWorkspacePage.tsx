@@ -57,8 +57,10 @@ export function AmbientWorkspacePage({
       document.title = 'Create ambient | codeshot.dev'
     } else if (loadState === 'error') {
       document.title = 'Workspace unavailable | codeshot.dev'
-    } else if (loadState === 'not-found' || !workspace) {
+    } else if (loadState === 'not-found') {
       document.title = 'Ambient not found | codeshot.dev'
+    } else if (!workspace) {
+      document.title = 'Loading ambient workspace | codeshot.dev'
     } else {
       document.title = `${workspace.ambient.name} workspace | codeshot.dev`
     }
@@ -267,7 +269,7 @@ export function AmbientWorkspacePage({
     )
   }
 
-  if (loadState === 'not-found' || !workspace) {
+  if (loadState === 'not-found' || loadState === 'error') {
     const isError = loadState === 'error'
     return (
       <main className="workspace-route-state" role={isError ? 'alert' : undefined}>
@@ -293,6 +295,10 @@ export function AmbientWorkspacePage({
         )}
       </main>
     )
+  }
+
+  if (!workspace) {
+    return <WorkspaceLoadingSkeleton />
   }
 
   const draftMatchesVersion = workflow.draftSafety.status === 'matches-version'
