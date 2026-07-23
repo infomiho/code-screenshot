@@ -178,7 +178,9 @@ export function YourAmbientsPage({
                   <span className="ambient-library-row-meta">
                     <span>{ambient.currentVersion ? `Version ${ambient.currentVersion.version}` : 'Not saved yet'}</span>
                     <span aria-hidden="true">·</span>
-                    <span>{ambient.visibility === 'link' ? 'Shared' : 'Private'}</span>
+                    <span data-visibility={ambient.visibility}>
+                      {ambient.visibility === 'link' ? 'Shared' : 'Private'}
+                    </span>
                     {ambient.draft && (
                       <>
                         <span aria-hidden="true">·</span>

@@ -48,7 +48,6 @@ export function WorkspaceSetupState({
       <AmbientWorkspaceHeader
         account={account}
         draftCount={draftCount}
-        versionInUse={null}
         onClose={onCancel}
         onSignOut={onSignOut}
       />

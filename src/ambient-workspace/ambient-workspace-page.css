@@ -3,8 +3,8 @@
   --workspace-rail-width: clamp(320px, 27vw, 380px);
   --workspace-collapsed-rail-width: 48px;
   --workspace-sidebar-toggle-size: 40px;
-  --workspace-sidebar-icon-size: var(--icon-size);
-  --workspace-sidebar-icon-stroke: 1.25;
+  --workspace-sidebar-icon-size: calc(var(--icon-size) + 2px);
+  --workspace-sidebar-icon-stroke: 1.5;
   --workspace-tab-inset: 2px;
   --workspace-tab-count-size: calc(var(--icon-size) + var(--space-1));
   --workspace-tab-count-font-size: 10px;
@@ -17,6 +17,9 @@
   --workspace-subtle: color-mix(in oklch, var(--muted), transparent 84%);
   --workspace-tab-selected-bg: color-mix(in oklch, var(--control), var(--text) 14%);
   --workspace-tab-selected-count-bg: color-mix(in oklch, var(--text), transparent 88%);
+  --workspace-tab-selected-shadow:
+    0 0 0 1px var(--button-border-hover) inset,
+    0 1px 0 rgb(247 245 240 / 7%) inset;
   --workspace-danger: oklch(0.69 0.18 25);
   --workspace-success: oklch(0.76 0.12 145);
   --workspace-radius: 2px;
@@ -391,9 +394,9 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--workspace-tab-inset);
-  border: 0;
-  background: transparent;
-  box-shadow: none;
+  border: 1px solid var(--button-border);
+  background: var(--control);
+  box-shadow: var(--control-inset);
   padding: var(--workspace-tab-inset);
 }
 
@@ -422,7 +425,7 @@
 
 .workspace-sidebar-tablist button[aria-selected='true'] {
   background: var(--workspace-tab-selected-bg);
-  box-shadow: inset 0 -2px color-mix(in oklch, var(--wasp-yellow), transparent 24%);
+  box-shadow: var(--workspace-tab-selected-shadow);
   color: var(--text);
 }
 

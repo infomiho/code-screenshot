@@ -294,7 +294,7 @@ export function AmbientWorkspacePage({
       <AmbientWorkspaceHeader
         account={snapshot.account}
         draftCount={draftCount}
-        versionInUse={workspace.versionInUse?.version ?? null}
+        hasSavedVersion={workspace.versionInUse !== null}
         linkSharing={workspace.ambient.linkSharing}
         slug={workspace.ambient.slug}
         onClose={closeWorkspace}

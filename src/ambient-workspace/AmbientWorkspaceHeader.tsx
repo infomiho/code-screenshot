@@ -6,7 +6,7 @@ import { AmbientSharePopover } from './AmbientSharePopover'
 type AmbientWorkspaceHeaderProps = {
   account: AmbientAccountDto
   draftCount: number
-  versionInUse: number | null
+  hasSavedVersion?: boolean
   linkSharing?: AmbientLinkSharingDto
   slug?: string
   onClose: () => void
@@ -17,7 +17,7 @@ type AmbientWorkspaceHeaderProps = {
 export function AmbientWorkspaceHeader({
   account,
   draftCount,
-  versionInUse,
+  hasSavedVersion,
   linkSharing,
   slug,
   onClose,
@@ -31,16 +31,11 @@ export function AmbientWorkspaceHeader({
         <span className="subpage-back-label">Your ambients</span>
       </button>
       <div className="subpage-header-end">
-        {versionInUse !== null && (
-          <div className="subpage-header-meta" aria-label="Version in use">
-            Version {versionInUse} in use
-          </div>
-        )}
         {linkSharing && slug && onSharingChange && (
           <AmbientSharePopover
+            hasSavedVersion={Boolean(hasSavedVersion)}
             linkSharing={linkSharing}
             slug={slug}
-            versionInUse={versionInUse}
             onSharingChange={onSharingChange}
           />
         )}

@@ -8,7 +8,7 @@ import './ambient-share-popover.css'
 type AmbientSharePopoverProps = {
   linkSharing: AmbientLinkSharingDto
   slug: string
-  versionInUse: number | null
+  hasSavedVersion: boolean
   onSharingChange: (enabled: boolean) => Promise<boolean>
 }
 
@@ -20,7 +20,7 @@ function AccessIcon({ enabled }: { enabled: boolean }) {
 export function AmbientSharePopover({
   linkSharing,
   slug,
-  versionInUse,
+  hasSavedVersion,
   onSharingChange,
 }: AmbientSharePopoverProps) {
   const headingId = `${useId()}-share-heading`
@@ -99,7 +99,7 @@ export function AmbientSharePopover({
                   </span>
                 </span>
               </div>
-              {!linkSharing.enabled && versionInUse === null && (
+              {!linkSharing.enabled && !hasSavedVersion && (
                 <p className="ambient-share-version">Save a version before sharing this ambient.</p>
               )}
             </section>
@@ -131,7 +131,7 @@ export function AmbientSharePopover({
                   ref={enableButtonRef}
                   className="ui-button ui-button-primary ambient-share-enable"
                   type="button"
-                  disabled={versionInUse === null || isUpdating}
+                  disabled={!hasSavedVersion || isUpdating}
                   onClick={() => void updateSharing(true)}
                 >
                   {isUpdating ? 'Enabling…' : 'Enable link sharing'}
