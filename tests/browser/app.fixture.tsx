@@ -29,6 +29,8 @@ const hasSharedAmbient = new URLSearchParams(window.location.search).has('shared
 const hasUnavailableShare = new URLSearchParams(window.location.search).has('unavailable-share')
 const hasAdminDashboard = new URLSearchParams(window.location.search).has('admin-dashboard')
 const hasAdminLoading = new URLSearchParams(window.location.search).has('admin-loading')
+const hasSparseAdminDashboard = new URLSearchParams(window.location.search).has('admin-sparse')
+const hasEmptyAdminDashboard = new URLSearchParams(window.location.search).has('admin-empty')
 
 const adminDashboard: AdminDashboardDto = {
   userCount: 3,
@@ -42,7 +44,7 @@ const adminDashboard: AdminDashboardDto = {
 }
 
 const plausibleSnapshot: PlausibleSnapshotDto = {
-  fetchedAt: '2026-07-24T10:30:00.000Z',
+  fetchedAt: '2026-07-30T10:30:00.000Z',
   overview: { visitors: 1240, visits: 1582, pageviews: 4310, bounceRate: 31, visitDuration: 142 },
   daily: Array.from({ length: 30 }, (_, index) => ({
     date: `2026-07-${String(index + 1).padStart(2, '0')}`,
@@ -60,6 +62,31 @@ const plausibleSnapshot: PlausibleSnapshotDto = {
     { name: 'Agent Prompt Copied', conversions: 34 },
   ],
 }
+
+const sparsePlausibleSnapshot: PlausibleSnapshotDto = {
+  fetchedAt: '2026-07-30T10:30:00.000Z',
+  overview: { visitors: 1, visits: 1, pageviews: 0, bounceRate: 100, visitDuration: 0 },
+  daily: Array.from({ length: 30 }, (_, index) => ({
+    date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+    visitors: index === 23 ? 1 : 0,
+    pageviews: 0,
+  })),
+  events: plausibleSnapshot.events.map((event) => ({
+    name: event.name,
+    conversions: event.name === 'Screenshot Downloaded' ? 1 : 0,
+  })),
+}
+
+const emptyPlausibleSnapshot: PlausibleSnapshotDto = {
+  ...sparsePlausibleSnapshot,
+  overview: { visitors: 0, visits: 0, pageviews: 0, bounceRate: 0, visitDuration: 0 },
+  daily: sparsePlausibleSnapshot.daily.map((day) => ({ ...day, visitors: 0 })),
+  events: sparsePlausibleSnapshot.events.map((event) => ({ ...event, conversions: 0 })),
+}
+
+const fixturePlausibleSnapshot = hasSparseAdminDashboard
+  ? sparsePlausibleSnapshot
+  : hasEmptyAdminDashboard ? emptyPlausibleSnapshot : plausibleSnapshot
 
 if (hasExistingDraft) {
   ambientWorkspaceService.signIn()
@@ -130,13 +157,13 @@ createRoot(root).render(
       <MemoryRouter initialEntries={hasUnavailableShare ? [{ pathname: '/', state: { toast: 'This shared ambient is no longer available.' } }] : undefined}>
         {isAgentPreview
           ? <AgentPreviewCanvas definition={previewResult.definition} />
-          : hasAdminDashboard || hasAdminLoading
+          : hasAdminDashboard || hasAdminLoading || hasSparseAdminDashboard || hasEmptyAdminDashboard
             ? <AdminDashboardView
                 account={{ username: 'codeshot-user', avatarUrl: null, onSignOut: () => undefined }}
                 dashboard={hasAdminLoading ? undefined : adminDashboard}
                 isDashboardLoading={hasAdminLoading}
                 dashboardHasError={false}
-                plausibleSnapshot={hasAdminLoading ? undefined : plausibleSnapshot}
+                plausibleSnapshot={hasAdminLoading ? undefined : fixturePlausibleSnapshot}
                 isPlausibleLoading={hasAdminLoading}
                 isPlausibleRefreshing={false}
                 plausibleRefreshFailed={false}

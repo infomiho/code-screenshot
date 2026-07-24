@@ -58,18 +58,18 @@ export function AdminDashboardView({
       <div className="admin-heading">
         <h1>Admin</h1>
       </div>
-      <DatabaseSection
-        dashboard={dashboard}
-        isLoading={isDashboardLoading}
-        hasError={dashboardHasError}
-        onRetry={onDashboardRetry}
-      />
       <PlausibleSection
         snapshot={plausibleSnapshot}
         isLoading={isPlausibleLoading}
         isRefreshing={isPlausibleRefreshing}
         refreshFailed={plausibleRefreshFailed}
         onRefresh={onPlausibleRefresh}
+      />
+      <DatabaseSection
+        dashboard={dashboard}
+        isLoading={isDashboardLoading}
+        hasError={dashboardHasError}
+        onRetry={onDashboardRetry}
       />
     </AdminPageFrame>
   )

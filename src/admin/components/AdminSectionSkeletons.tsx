@@ -1,8 +1,7 @@
 import { AdminPageFrame } from './AdminPageFrame'
 
-const metricCount = 5
 const userRowCount = 3
-const eventRowCount = 8
+const actionGroupSizes = [2, 2, 3, 1]
 
 export function AdminPageSkeleton() {
   return (
@@ -20,13 +19,13 @@ export function AdminPageSkeleton() {
             <div className="admin-section-heading">
               <span className="admin-skeleton admin-skeleton-heading" />
             </div>
-            <DatabaseSectionSkeleton />
+            <PlausibleSectionSkeleton />
           </section>
           <section className="admin-section">
             <div className="admin-section-heading">
               <span className="admin-skeleton admin-skeleton-heading" />
             </div>
-            <PlausibleSectionSkeleton />
+            <DatabaseSectionSkeleton />
           </section>
         </div>
       </AdminPageFrame>
@@ -34,10 +33,10 @@ export function AdminPageSkeleton() {
   )
 }
 
-function MetricGridSkeleton() {
+function MetricGridSkeleton({ count, className = 'admin-metric-grid' }: { count: number; className?: string }) {
   return (
-    <div className="admin-metric-grid">
-      {Array.from({ length: metricCount }, (_, index) => (
+    <div className={className}>
+      {Array.from({ length: count }, (_, index) => (
         <article className="admin-metric-card admin-skeleton-metric" key={index}>
           <span className="admin-skeleton admin-skeleton-label" />
           <span className="admin-skeleton admin-skeleton-value" />
@@ -50,7 +49,13 @@ function MetricGridSkeleton() {
 export function DatabaseSectionSkeleton() {
   return (
     <div className="admin-skeleton-content" aria-hidden="true">
-      <MetricGridSkeleton />
+      <div className="admin-inventory-summary">
+        <MetricGridSkeleton count={2} className="admin-inventory-metrics" />
+        <div className="admin-status-breakdown">
+          <span className="admin-skeleton admin-skeleton-label" />
+          <span className="admin-skeleton admin-skeleton-status" />
+        </div>
+      </div>
       <div className="admin-user-panel">
         <div className="admin-subheading">
           <span className="admin-skeleton admin-skeleton-heading" />
@@ -77,27 +82,38 @@ export function DatabaseSectionSkeleton() {
 export function PlausibleSectionSkeleton() {
   return (
     <div className="admin-skeleton-content" aria-hidden="true">
-      <MetricGridSkeleton />
-      <div className="admin-chart admin-skeleton-chart">
-        <div className="admin-chart-header">
-          <span className="admin-skeleton admin-skeleton-heading" />
-          <div className="admin-chart-legend">
-            <span className="admin-skeleton admin-skeleton-legend" />
-            <span className="admin-skeleton admin-skeleton-legend" />
-          </div>
-        </div>
-        <span className="admin-skeleton admin-skeleton-chart-plot" />
+      <div className="admin-pulse-summary admin-skeleton-summary-shell">
+        <span className="admin-skeleton admin-skeleton-summary" />
       </div>
-      <div className="admin-event-panel">
+      <MetricGridSkeleton count={3} className="admin-pulse-grid" />
+      <div className="admin-traffic-layout">
+        <div className="admin-chart admin-skeleton-chart">
+          <div className="admin-chart-header">
+            <span className="admin-skeleton admin-skeleton-heading" />
+          </div>
+          <span className="admin-skeleton admin-skeleton-chart-plot" />
+        </div>
+        <div className="admin-traffic-details">
+          <div className="admin-subheading"><span className="admin-skeleton admin-skeleton-heading" /></div>
+          <span className="admin-skeleton admin-skeleton-details" />
+        </div>
+      </div>
+      <div className="admin-actions-panel">
         <div className="admin-subheading">
           <span className="admin-skeleton admin-skeleton-heading" />
         </div>
-        <div className="admin-event-grid">
-          {Array.from({ length: eventRowCount }, (_, index) => (
-            <div className="admin-event-row" key={index}>
-              <span className="admin-skeleton admin-skeleton-event-name" />
-              <span className="admin-skeleton admin-skeleton-count" />
-            </div>
+        <div className="admin-action-groups">
+          {actionGroupSizes.map((rowCount, groupIndex) => (
+            <section className="admin-action-group" key={groupIndex}>
+              <span className="admin-skeleton admin-skeleton-action-heading" />
+              {Array.from({ length: rowCount }, (_, rowIndex) => (
+                <div className="admin-action-row" key={rowIndex}>
+                  <span className="admin-skeleton admin-skeleton-event-name" />
+                  <span className="admin-skeleton admin-skeleton-action-track" />
+                  <span className="admin-skeleton admin-skeleton-count" />
+                </div>
+              ))}
+            </section>
           ))}
         </div>
       </div>

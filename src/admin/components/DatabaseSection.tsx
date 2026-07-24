@@ -15,7 +15,7 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
   return (
     <section className="admin-section" aria-labelledby="database-heading">
       <div className="admin-section-heading">
-        <h2 id="database-heading">Database</h2>
+        <h2 id="database-heading">Workspace inventory</h2>
       </div>
       {isLoading ? (
         <>
@@ -29,12 +29,17 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
         </div>
       ) : (
         <>
-          <div className="admin-metric-grid">
+          <div className="admin-inventory-summary">
             <MetricCard label="Users" value={dashboard.userCount} />
             <MetricCard label="Ambients" value={dashboard.ambientCount} />
-            <MetricCard label="Draft" value={dashboard.ambientCountsByStatus.draft} />
-            <MetricCard label="Published" value={dashboard.ambientCountsByStatus.published} />
-            <MetricCard label="Archived" value={dashboard.ambientCountsByStatus.archived} />
+            <div className="admin-status-breakdown">
+              <span>Ambient status</span>
+              <div>
+                <strong>{numberFormatter.format(dashboard.ambientCountsByStatus.draft)}</strong> Draft
+                <strong>{numberFormatter.format(dashboard.ambientCountsByStatus.published)}</strong> Published
+                <strong>{numberFormatter.format(dashboard.ambientCountsByStatus.archived)}</strong> Archived
+              </div>
+            </div>
           </div>
 
           <div className="admin-user-panel">
