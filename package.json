@@ -13,8 +13,7 @@
     "test:unit": "vitest run --config vitest.config.ts",
     "test:unit:watch": "vitest --config vitest.config.ts",
     "test:browser": "playwright test",
-    "preview": "vite preview",
-    "deploy": "wasp deploy railway deploy code-screenshot"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

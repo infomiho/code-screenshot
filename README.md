@@ -14,12 +14,13 @@ npm run preview
 
 ## Deployment
 
-Provision the Railway project once, then use the regular deploy command for updates:
+Provision the Railway project once:
 
 ```bash
 wasp deploy railway launch code-screenshot
-npm run deploy
 ```
+
+After launch, push `main` to deploy updates through `.github/workflows/deploy.yml`. Do not deploy updates locally.
 
 GitHub Actions requires `RAILWAY_API_TOKEN` and `RAILWAY_PROJECT_ID` repository secrets.
 
