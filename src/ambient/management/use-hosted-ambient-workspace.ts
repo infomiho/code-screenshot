@@ -102,6 +102,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
       kind: 'signed-in',
       username: user.githubLogin,
       avatarUrl: user.githubAvatarUrl ?? null,
+      isAdmin: libraryQuery.data?.account.kind === 'signed-in' && libraryQuery.data.account.isAdmin,
     },
     ownedAmbients: libraryQuery.data?.ownedAmbients ?? [],
     workspace,

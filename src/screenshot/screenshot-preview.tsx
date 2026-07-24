@@ -16,6 +16,8 @@ import { type AmbientDefinition, type ScreenshotContent } from '../ambient/rende
 import { usePenDrawing } from './use-pen-drawing'
 import { usePreviewFrame } from './use-preview-frame'
 import './preview-frame.css'
+import { trackProductEvent } from '../product-metrics/events'
+import { getAnalyticsSurface } from '../product-metrics/plausible'
 
 type ExportAction = 'copy' | 'download' | null
 
@@ -155,6 +157,10 @@ export function ScreenshotPreview({
       }
 
       await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })])
+      trackProductEvent('Screenshot Copied', {
+        surface: getAnalyticsSurface(),
+        ambient_source: selectedAmbient.source,
+      })
       toastManager.add({ description: 'Copied PNG to clipboard.' })
     } catch {
       toastManager.add({ description: 'Copy failed. Use Download PNG.', priority: 'high' })
@@ -171,6 +177,10 @@ export function ScreenshotPreview({
       if (!blob) return
 
       downloadBlob(blob)
+      trackProductEvent('Screenshot Downloaded', {
+        surface: getAnalyticsSurface(),
+        ambient_source: selectedAmbient.source,
+      })
       toastManager.add({ description: 'Downloaded PNG.' })
     } catch {
       toastManager.add({ description: 'Download failed.', priority: 'high' })

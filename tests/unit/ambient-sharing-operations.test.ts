@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
 
 vi.mock('wasp/server', () => ({
+  env: { ADMIN_GITHUB_IDS: '' },
   HttpError: class HttpError extends Error {
     constructor(public statusCode: number, message: string) {
       super(message)

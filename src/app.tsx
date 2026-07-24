@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { routes } from 'wasp/client/router'
 import './index.css'
 import type { YourAmbientsState } from './ambient/selection/ambient-picker'
 import {
@@ -178,6 +179,8 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
     }
   }
 
+  const openAdmin = () => navigate(routes.AdminRoute.to)
+
   const createAmbient = () => {
     if (snapshot.account.kind === 'signed-out') {
       try {
@@ -240,6 +243,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
         isHydrated={snapshot.isHydrated}
         draftCount={draftCount}
         onOpenLibrary={openLibrary}
+        onOpenAdmin={openAdmin}
         onSignIn={service.signIn}
         onSignOut={signOut}
       />

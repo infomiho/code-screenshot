@@ -10,6 +10,8 @@ import { MockAmbientService } from '../../src/ambient/management/mock-ambient-se
 import { YourAmbientsPage } from '../../src/ambient/management/library/YourAmbientsPage'
 import { renderScreenshotBlob } from '../../src/screenshot/screenshot-export'
 import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
+import { AdminDashboardView } from '../../src/admin/components/AdminDashboardView'
+import type { AdminDashboardDto, PlausibleSnapshotDto } from '../../src/admin/contracts'
 
 const root = document.querySelector<HTMLElement>('#root')
 if (!root) throw new Error('Missing app root')
@@ -25,6 +27,38 @@ const hasExistingDraft = new URLSearchParams(window.location.search).has('existi
 const hasDelayedNavigation = new URLSearchParams(window.location.search).has('delayed-navigation')
 const hasSharedAmbient = new URLSearchParams(window.location.search).has('shared-ambient')
 const hasUnavailableShare = new URLSearchParams(window.location.search).has('unavailable-share')
+const hasAdminDashboard = new URLSearchParams(window.location.search).has('admin-dashboard')
+
+const adminDashboard: AdminDashboardDto = {
+  userCount: 3,
+  ambientCount: 8,
+  ambientCountsByStatus: { draft: 5, published: 2, archived: 1 },
+  users: [
+    { id: 'user-1', githubLogin: 'codeshot-user', githubAvatarUrl: null, ambientCount: 5 },
+    { id: 'user-2', githubLogin: 'octocat', githubAvatarUrl: null, ambientCount: 2 },
+    { id: 'user-3', githubLogin: 'monalisa', githubAvatarUrl: null, ambientCount: 1 },
+  ],
+}
+
+const plausibleSnapshot: PlausibleSnapshotDto = {
+  fetchedAt: '2026-07-24T10:30:00.000Z',
+  overview: { visitors: 1240, visits: 1582, pageviews: 4310, bounceRate: 31, visitDuration: 142 },
+  daily: Array.from({ length: 30 }, (_, index) => ({
+    date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+    visitors: 20 + (index * 17) % 52,
+    pageviews: 48 + (index * 29) % 110,
+  })),
+  events: [
+    { name: 'Screenshot Copied', conversions: 320 },
+    { name: 'Screenshot Downloaded', conversions: 186 },
+    { name: 'Ambient Created', conversions: 28 },
+    { name: 'Ambient Version Saved', conversions: 41 },
+    { name: 'Ambient Sharing Enabled', conversions: 17 },
+    { name: 'Share Link Copied', conversions: 22 },
+    { name: 'Shared Ambient Viewed', conversions: 96 },
+    { name: 'Agent Prompt Copied', conversions: 34 },
+  ],
+}
 
 if (hasExistingDraft) {
   ambientWorkspaceService.signIn()
@@ -95,6 +129,19 @@ createRoot(root).render(
       <MemoryRouter initialEntries={hasUnavailableShare ? [{ pathname: '/', state: { toast: 'This shared ambient is no longer available.' } }] : undefined}>
         {isAgentPreview
           ? <AgentPreviewCanvas definition={previewResult.definition} />
+          : hasAdminDashboard
+            ? <AdminDashboardView
+                account={{ username: 'codeshot-user', avatarUrl: null, onSignOut: () => undefined }}
+                dashboard={adminDashboard}
+                isDashboardLoading={false}
+                dashboardHasError={false}
+                plausibleSnapshot={plausibleSnapshot}
+                isPlausibleLoading={false}
+                isPlausibleRefreshing={false}
+                plausibleRefreshFailed={false}
+                onDashboardRetry={() => undefined}
+                onPlausibleRefresh={() => undefined}
+              />
           : <FixtureApp />}
       </MemoryRouter>
     </QueryClientProvider>

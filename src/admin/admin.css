@@ -1,0 +1,413 @@
+.admin-page {
+  min-height: 100dvh;
+}
+
+.admin-body {
+  display: grid;
+  width: min(100%, var(--admin-page-width));
+  gap: var(--space-10);
+  margin-inline: auto;
+  padding: var(--space-9) var(--space-5) 64px;
+}
+
+.admin-heading,
+.admin-section-heading,
+.admin-subheading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-7);
+}
+
+.admin-heading h1 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.admin-period,
+.admin-refresh-control,
+.admin-subheading span {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.admin-section {
+  display: grid;
+  gap: var(--space-7);
+}
+
+.admin-section-heading {
+  min-height: 40px;
+  align-items: center;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: var(--space-5);
+}
+
+.admin-section-heading h2,
+.admin-subheading h3 {
+  margin: 0;
+  font-family: var(--mono);
+}
+
+.admin-section-heading h2 {
+  font-size: var(--font-size-code);
+}
+
+.admin-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-5);
+}
+
+.admin-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.admin-metric-card {
+  display: grid;
+  min-height: 112px;
+  align-content: space-between;
+  border: var(--border-panel);
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+  padding: var(--space-7);
+}
+
+.admin-metric-card span,
+.admin-metric-card small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+  text-transform: uppercase;
+}
+
+.admin-metric-card strong {
+  font-family: var(--mono);
+  font-size: clamp(22px, 3vw, 32px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+}
+
+.admin-user-panel,
+.admin-event-panel,
+.admin-chart {
+  border: var(--border-panel);
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+}
+
+.admin-subheading {
+  min-height: 52px;
+  align-items: center;
+  border-bottom: var(--border-panel);
+  padding: 0 var(--space-7);
+}
+
+.admin-subheading h3 {
+  font-size: var(--font-size-control);
+}
+
+.admin-user-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-user-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-user-table th,
+.admin-user-table td {
+  height: 52px;
+  border-bottom: 1px solid color-mix(in oklch, var(--panel-border), transparent 28%);
+  padding: 0 var(--space-7);
+  text-align: left;
+}
+
+.admin-user-table th {
+  height: 38px;
+  color: var(--muted);
+  font-size: var(--font-size-label);
+  font-weight: 700;
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.admin-user-table th:last-child,
+.admin-user-table td:last-child {
+  width: 120px;
+  text-align: right;
+}
+
+.admin-user-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-user-table td:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.admin-user-avatar {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: oklch(0.7 0.075 240);
+  color: oklch(0.14 0.008 250);
+  font-family: var(--sans);
+  font-weight: var(--font-weight-heavy);
+  outline: 1px solid oklch(1 0 0 / 10%);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.admin-refresh-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.admin-chart {
+  position: relative;
+  padding: var(--space-7);
+}
+
+.admin-chart svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.admin-chart line {
+  stroke: var(--panel-border);
+  vector-effect: non-scaling-stroke;
+}
+
+.admin-chart polyline {
+  fill: none;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.admin-chart-visitors {
+  stroke: var(--wasp-yellow);
+}
+
+.admin-chart-pageviews {
+  stroke: color-mix(in oklch, var(--share-active), white 15%);
+  stroke-dasharray: 5 4;
+}
+
+.admin-chart-scale {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-chart-scale-max {
+  top: var(--space-4);
+}
+
+.admin-chart-scale-min {
+  bottom: 53px;
+}
+
+.admin-chart-dates,
+.admin-chart-legend {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-label);
+}
+
+.admin-chart-dates {
+  margin-top: var(--space-3);
+}
+
+.admin-chart-legend {
+  justify-content: end;
+  gap: var(--space-7);
+  margin-top: var(--space-5);
+}
+
+.admin-chart-legend span::before {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  margin-right: var(--space-3);
+  background: var(--wasp-yellow);
+  content: '';
+  vertical-align: middle;
+}
+
+.admin-chart-legend [data-series='pageviews']::before {
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--share-active), white 15%) 0 5px,
+    transparent 5px 8px
+  );
+}
+
+.admin-event-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-event-row {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  border-bottom: 1px solid color-mix(in oklch, var(--panel-border), transparent 28%);
+  padding: 0 var(--space-7);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+}
+
+.admin-event-row:nth-child(odd) {
+  border-right: 1px solid color-mix(in oklch, var(--panel-border), transparent 28%);
+}
+
+.admin-event-row:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.admin-event-row strong {
+  color: var(--wasp-yellow);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-state-copy,
+.admin-empty-copy,
+.admin-inline-error,
+.admin-stale-warning,
+.admin-access-state {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+}
+
+.admin-state-copy {
+  min-height: 112px;
+  margin: 0;
+  border: var(--border-panel);
+  padding: var(--space-7);
+}
+
+.admin-inline-error {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-7);
+  border: var(--border-panel);
+  padding: var(--space-7);
+}
+
+.admin-inline-error p,
+.admin-empty-copy {
+  margin: 0;
+}
+
+.admin-empty-copy {
+  padding: var(--space-7);
+}
+
+.admin-stale-warning {
+  margin: 0;
+  border-left: 2px solid var(--wasp-yellow);
+  background: var(--ambient-selected-bg);
+  padding: var(--space-4) var(--space-6);
+}
+
+.admin-access-state {
+  display: grid;
+  min-height: 100dvh;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+}
+
+.admin-access-state p {
+  margin: 0;
+}
+
+@media (max-width: 820px) {
+  .admin-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .admin-body {
+    padding-inline: var(--space-4);
+  }
+
+  .admin-heading,
+  .admin-section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .admin-section-heading {
+    min-height: auto;
+  }
+
+  .admin-refresh-control {
+    width: 100%;
+    align-items: start;
+    justify-content: space-between;
+  }
+
+  .admin-refresh-control span {
+    max-width: 22ch;
+  }
+
+  .admin-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-metric-card {
+    min-height: 96px;
+  }
+
+  .admin-event-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-event-row:nth-child(odd) {
+    border-right: 0;
+  }
+
+  .admin-event-row:nth-last-child(2) {
+    border-bottom: 1px solid color-mix(in oklch, var(--panel-border), transparent 28%);
+  }
+}

@@ -1,3 +1,5 @@
+import { trackProductEvent } from '../../../product-metrics/events'
+
 const buildAgentPrompt = (ambientName: string, agentAccessUrl: string, hasSavedVersion: boolean) => {
   const intro = hasSavedVersion
     ? `Update the codeshot.dev ambient "${ambientName}".`
@@ -38,6 +40,7 @@ export function AgentPromptCard({
     try {
       if (!navigator.clipboard) throw new Error('Clipboard unavailable')
       await navigator.clipboard.writeText(prompt)
+      trackProductEvent('Agent Prompt Copied', { surface: 'workspace' })
       onCopied()
       onStatus('Agent prompt copied. Waiting for agent changes.')
     } catch {

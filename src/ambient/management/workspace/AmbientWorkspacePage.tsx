@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { routes } from 'wasp/client/router'
 import { loadAmbientDefinition } from '../../rendering/ambient-registry'
 import { countDraftAmbients, type AmbientWorkspaceService } from '../ambient-workspace-service'
 import { AmbientWorkspaceHeader } from './AmbientWorkspaceHeader'
@@ -18,6 +19,7 @@ import { useWorkspaceSidebar } from './use-workspace-sidebar'
 import { Toaster } from '../../../ui/toast'
 import '../../../index.css'
 import './ambient-workspace-page.css'
+import { trackProductEvent } from '../../../product-metrics/events'
 
 type AmbientWorkspacePageProps = {
   ambientId?: string
@@ -140,6 +142,7 @@ export function AmbientWorkspacePage({
       if (!id) {
         return false
       }
+      trackProductEvent('Ambient Created', { surface: 'workspace' })
       const accessCreated = await service.createAgentAccess(id)
       setCreatedAmbientId(id)
       setStatusMessage(
@@ -178,6 +181,7 @@ export function AmbientWorkspacePage({
     const saved = await service.saveAmbientVersion()
     workflow.send({ type: 'MUTATION_FINISHED' })
     if (saved) {
+      trackProductEvent('Ambient Version Saved', { surface: 'workspace' })
       setSelectedVersionId(saved.id)
       setStatusMessage(`Version ${saved.version} saved and now in use.`)
     } else {
@@ -298,6 +302,7 @@ export function AmbientWorkspacePage({
         linkSharing={workspace.ambient.linkSharing}
         slug={workspace.ambient.slug}
         onClose={closeWorkspace}
+        onOpenAdmin={() => navigate(routes.AdminRoute.to)}
         onSignOut={signOut}
         onSharingChange={service.setLinkSharing}
       />

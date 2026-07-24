@@ -4,6 +4,7 @@ import { IconLink, IconLock, IconX } from '@tabler/icons-react'
 import type { AmbientLinkSharingDto } from '../contracts'
 import { toastManager } from '../../../ui/toast'
 import './ambient-share-popover.css'
+import { trackProductEvent } from '../../../product-metrics/events'
 
 type AmbientSharePopoverProps = {
   linkSharing: AmbientLinkSharingDto
@@ -42,6 +43,7 @@ export function AmbientSharePopover({
       priority: updated ? 'low' : 'high',
     })
     if (updated) {
+      if (enabled) trackProductEvent('Ambient Sharing Enabled', { surface: 'workspace' })
       requestAnimationFrame(() => {
         if (enabled) copyButtonRef.current?.focus()
         else enableButtonRef.current?.focus()
@@ -53,6 +55,7 @@ export function AmbientSharePopover({
     if (!shareUrl) return
     try {
       await navigator.clipboard.writeText(shareUrl)
+      trackProductEvent('Share Link Copied', { surface: 'workspace' })
       toastManager.add({ description: 'Share link copied.' })
     } catch {
       toastManager.add({ description: 'Could not copy the share link.', priority: 'high' })

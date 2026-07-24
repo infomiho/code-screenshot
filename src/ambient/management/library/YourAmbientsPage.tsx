@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { routes } from 'wasp/client/router'
 import { AccountMenu } from '../../../account/account-menu'
 import { AmbientMark } from '../../rendering/ambient-mark'
 import { Toaster, toastManager } from '../../../ui/toast'
@@ -224,6 +225,7 @@ export function YourAmbientsPage({
             avatarUrl={account.avatarUrl}
             draftCount={countDraftAmbients(snapshot.ownedAmbients)}
             onOpenLibrary={() => navigate('/ambients')}
+            onOpenAdmin={account.isAdmin ? () => navigate(routes.AdminRoute.to) : undefined}
             onSignOut={signOut}
           />
         )}

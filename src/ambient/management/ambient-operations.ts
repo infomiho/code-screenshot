@@ -60,6 +60,7 @@ import type {
   WorkspaceDraftRevisionDto,
 } from './contracts'
 import { createMinimalDraftDocument } from './minimal-draft'
+import { isAdmin } from '../../admin/admin-authorization'
 
 const requireUser = <T extends { id: string }>(user: T | undefined): T => {
   if (!user) throw new HttpError(401, 'Sign in with GitHub to manage ambients.')
@@ -151,7 +152,12 @@ export const listOwnedAmbients: ListOwnedAmbients<void, AmbientLibraryDto> = asy
   })
 
   return {
-    account: { kind: 'signed-in', username: user.githubLogin, avatarUrl: user.githubAvatarUrl ?? null },
+    account: {
+      kind: 'signed-in',
+      username: user.githubLogin,
+      avatarUrl: user.githubAvatarUrl ?? null,
+      isAdmin: isAdmin(user),
+    },
     ownedAmbients: ambients.map((ambient) => {
       const currentVersion = ambient.versions[0]
       return {

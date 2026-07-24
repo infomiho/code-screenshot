@@ -6,6 +6,7 @@ type AccountMenuProps = {
   avatarUrl?: string | null
   draftCount?: number
   onOpenLibrary?: () => void
+  onOpenAdmin?: () => void
   onSignOut: () => void
 }
 
@@ -14,7 +15,14 @@ const getAvatarInitial = (username: string) => username.trim().charAt(0).toLocal
 const formatLibraryLabel = (draftCount: number) =>
   draftCount > 0 ? `Your ambients (${draftCount} draft${draftCount === 1 ? '' : 's'})` : 'Your ambients'
 
-export function AccountMenu({ username, avatarUrl = null, draftCount = 0, onOpenLibrary, onSignOut }: AccountMenuProps) {
+export function AccountMenu({
+  username,
+  avatarUrl = null,
+  draftCount = 0,
+  onOpenLibrary,
+  onOpenAdmin,
+  onSignOut,
+}: AccountMenuProps) {
   return (
     <Menu.Root modal={false}>
       <Menu.Trigger className="account-menu-trigger">
@@ -31,6 +39,14 @@ export function AccountMenu({ username, avatarUrl = null, draftCount = 0, onOpen
               <>
                 <Menu.Item className="account-menu-item" onClick={onOpenLibrary}>
                   {formatLibraryLabel(draftCount)}
+                </Menu.Item>
+                <Menu.Separator className="account-menu-separator" />
+              </>
+            )}
+            {onOpenAdmin && (
+              <>
+                <Menu.Item className="account-menu-item" onClick={onOpenAdmin}>
+                  Admin
                 </Menu.Item>
                 <Menu.Separator className="account-menu-separator" />
               </>

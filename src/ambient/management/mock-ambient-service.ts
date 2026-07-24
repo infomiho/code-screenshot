@@ -14,7 +14,7 @@ import type {
 const defaultAgentUpdateDelay = 1800
 const defaultSaveDelay = 650
 const signedOutAccount = { kind: 'signed-out' } as const
-const signedInAccount = { kind: 'signed-in', username: 'codeshot-user', avatarUrl: null } as const
+const signedInAccount = { kind: 'signed-in', username: 'codeshot-user', avatarUrl: null, isAdmin: false } as const
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString()
 const now = () => new Date().toISOString()
 

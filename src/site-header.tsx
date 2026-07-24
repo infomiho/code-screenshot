@@ -7,6 +7,7 @@ type SiteHeaderProps = {
   isHydrated: boolean
   draftCount: number
   onOpenLibrary: () => void
+  onOpenAdmin: () => void
   onSignIn: () => void
   onSignOut: () => void
 }
@@ -16,6 +17,7 @@ export function SiteHeader({
   isHydrated,
   draftCount,
   onOpenLibrary,
+  onOpenAdmin,
   onSignIn,
   onSignOut,
 }: SiteHeaderProps) {
@@ -38,6 +40,7 @@ export function SiteHeader({
             avatarUrl={account.avatarUrl}
             draftCount={draftCount}
             onOpenLibrary={onOpenLibrary}
+            onOpenAdmin={account.isAdmin ? onOpenAdmin : undefined}
             onSignOut={onSignOut}
           />
         )}

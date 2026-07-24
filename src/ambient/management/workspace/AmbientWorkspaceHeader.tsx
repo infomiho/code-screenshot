@@ -10,6 +10,7 @@ type AmbientWorkspaceHeaderProps = {
   linkSharing?: AmbientLinkSharingDto
   slug?: string
   onClose: () => void
+  onOpenAdmin?: () => void
   onSignOut: () => void
   onSharingChange?: (enabled: boolean) => Promise<boolean>
 }
@@ -21,6 +22,7 @@ export function AmbientWorkspaceHeader({
   linkSharing,
   slug,
   onClose,
+  onOpenAdmin,
   onSignOut,
   onSharingChange,
 }: AmbientWorkspaceHeaderProps) {
@@ -45,6 +47,7 @@ export function AmbientWorkspaceHeader({
             avatarUrl={account.avatarUrl}
             draftCount={draftCount}
             onOpenLibrary={onClose}
+            onOpenAdmin={account.isAdmin ? onOpenAdmin : undefined}
             onSignOut={onSignOut}
           />
         )}
