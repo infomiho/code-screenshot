@@ -1,4 +1,5 @@
 import type { AdminDashboardDto } from '../contracts'
+import { DatabaseSectionSkeleton } from './AdminSectionSkeletons'
 import { MetricCard } from './MetricCard'
 
 const numberFormatter = new Intl.NumberFormat()
@@ -17,7 +18,10 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
         <h2 id="database-heading">Database</h2>
       </div>
       {isLoading ? (
-        <p className="admin-state-copy">Loading database totals...</p>
+        <>
+          <p className="sr-only" role="status">Loading database statistics</p>
+          <DatabaseSectionSkeleton />
+        </>
       ) : hasError || !dashboard ? (
         <div className="admin-inline-error">
           <p>Database statistics could not be loaded.</p>

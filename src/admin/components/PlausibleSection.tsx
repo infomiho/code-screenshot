@@ -1,4 +1,5 @@
 import type { PlausibleSnapshotDto } from '../contracts'
+import { PlausibleSectionSkeleton } from './AdminSectionSkeletons'
 import { MetricCard } from './MetricCard'
 import { TrafficChart } from './TrafficChart'
 
@@ -46,7 +47,10 @@ export function PlausibleSection({
       </div>
 
       {isLoading ? (
-        <p className="admin-state-copy">Loading Plausible snapshot...</p>
+        <>
+          <p className="sr-only" role="status">Loading Plausible statistics</p>
+          <PlausibleSectionSkeleton />
+        </>
       ) : !snapshot ? (
         <div className="admin-inline-error">
           <p>Plausible statistics are unavailable.</p>

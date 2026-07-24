@@ -28,6 +28,7 @@ const hasDelayedNavigation = new URLSearchParams(window.location.search).has('de
 const hasSharedAmbient = new URLSearchParams(window.location.search).has('shared-ambient')
 const hasUnavailableShare = new URLSearchParams(window.location.search).has('unavailable-share')
 const hasAdminDashboard = new URLSearchParams(window.location.search).has('admin-dashboard')
+const hasAdminLoading = new URLSearchParams(window.location.search).has('admin-loading')
 
 const adminDashboard: AdminDashboardDto = {
   userCount: 3,
@@ -129,14 +130,14 @@ createRoot(root).render(
       <MemoryRouter initialEntries={hasUnavailableShare ? [{ pathname: '/', state: { toast: 'This shared ambient is no longer available.' } }] : undefined}>
         {isAgentPreview
           ? <AgentPreviewCanvas definition={previewResult.definition} />
-          : hasAdminDashboard
+          : hasAdminDashboard || hasAdminLoading
             ? <AdminDashboardView
                 account={{ username: 'codeshot-user', avatarUrl: null, onSignOut: () => undefined }}
-                dashboard={adminDashboard}
-                isDashboardLoading={false}
+                dashboard={hasAdminLoading ? undefined : adminDashboard}
+                isDashboardLoading={hasAdminLoading}
                 dashboardHasError={false}
-                plausibleSnapshot={plausibleSnapshot}
-                isPlausibleLoading={false}
+                plausibleSnapshot={hasAdminLoading ? undefined : plausibleSnapshot}
+                isPlausibleLoading={hasAdminLoading}
                 isPlausibleRefreshing={false}
                 plausibleRefreshFailed={false}
                 onDashboardRetry={() => undefined}
