@@ -5,6 +5,8 @@ import type { PlausibleSnapshotDto } from './contracts'
 
 const plausibleQueryUrl = 'https://plausible.io/api/v2/query'
 const plausibleRequestTimeoutMs = 10_000
+const plausibleTimeZone = 'Europe/Zagreb'
+const snapshotDayCount = 30
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
 const overviewResponseSchema = z.object({
@@ -32,7 +34,7 @@ const eventResponseSchema = z.object({
 type PlausibleQuery = {
   site_id: string
   metrics: string[]
-  date_range: '30d'
+  date_range: [string, string]
   dimensions?: string[]
   include?: { time_labels: true }
 }
@@ -62,25 +64,44 @@ const queryPlausible = async <Schema extends z.ZodType>(query: PlausibleQuery, s
   return schema.parse(await response.json()) as z.infer<Schema>
 }
 
+const getSnapshotDateRange = (now = new Date()): [string, string] => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: plausibleTimeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value)
+  const year = value('year')
+  const month = value('month')
+  const day = value('day')
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const startDate = new Date(Date.UTC(year, month - 1, day - snapshotDayCount + 1))
+
+  return [startDate.toISOString().slice(0, 10), endDate]
+}
+
 const fetchPlausibleSnapshot = async (): Promise<PlausibleSnapshotDto> => {
   const { siteId } = getConfiguration()
+  const dateRange = getSnapshotDateRange()
   const [overviewResponse, dailyResponse, eventResponse] = await Promise.all([
     queryPlausible({
       site_id: siteId,
       metrics: ['visitors', 'visits', 'pageviews', 'bounce_rate', 'visit_duration'],
-      date_range: '30d',
+      date_range: dateRange,
     }, overviewResponseSchema),
     queryPlausible({
       site_id: siteId,
       metrics: ['visitors', 'pageviews'],
-      date_range: '30d',
+      date_range: dateRange,
       dimensions: ['time:day'],
       include: { time_labels: true },
     }, dailyResponseSchema),
     queryPlausible({
       site_id: siteId,
       metrics: ['events'],
-      date_range: '30d',
+      date_range: dateRange,
       dimensions: ['event:goal'],
     }, eventResponseSchema),
   ])

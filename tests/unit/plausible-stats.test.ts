@@ -28,6 +28,8 @@ const mockSuccessfulRequests = () => {
 
 describe('Plausible stats', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-07-23T22:30:00Z'))
     process.env.PLAUSIBLE_STATS_API_KEY = 'stats-key'
     process.env.PLAUSIBLE_SITE_ID = 'codeshot.dev'
     vi.stubGlobal('fetch', vi.fn())
@@ -35,6 +37,7 @@ describe('Plausible stats', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     if (originalApiKey === undefined) delete process.env.PLAUSIBLE_STATS_API_KEY
     else process.env.PLAUSIBLE_STATS_API_KEY = originalApiKey
@@ -62,7 +65,7 @@ describe('Plausible stats', () => {
         body: {
           site_id: 'codeshot.dev',
           metrics: ['visitors', 'visits', 'pageviews', 'bounce_rate', 'visit_duration'],
-          date_range: '30d',
+          date_range: ['2026-06-25', '2026-07-24'],
         },
         hasSignal: true,
       },
@@ -72,7 +75,7 @@ describe('Plausible stats', () => {
         body: {
           site_id: 'codeshot.dev',
           metrics: ['visitors', 'pageviews'],
-          date_range: '30d',
+          date_range: ['2026-06-25', '2026-07-24'],
           dimensions: ['time:day'],
           include: { time_labels: true },
         },
@@ -84,7 +87,7 @@ describe('Plausible stats', () => {
         body: {
           site_id: 'codeshot.dev',
           metrics: ['events'],
-          date_range: '30d',
+          date_range: ['2026-06-25', '2026-07-24'],
           dimensions: ['event:goal'],
         },
         hasSignal: true,
