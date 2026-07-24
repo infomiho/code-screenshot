@@ -4,11 +4,12 @@ import { isAnalyticsRoute } from './tracked-routes'
 import type { PlausibleEventName } from './event-names'
 
 const plausibleDomain = 'codeshot.dev'
+const plausibleEndpoint = 'https://api.codeshot.dev/pulse'
 
 export type PlausibleProperties = Record<string, string>
 export type PlausibleEventOptions = { interactive?: boolean }
 
-type PlausibleTracker = typeof import('@plausible-analytics/tracker/plausible.js')
+type PlausibleTracker = typeof import('./tracker-runtime')
 
 let trackerPromise: Promise<PlausibleTracker> | null = null
 
@@ -19,11 +20,11 @@ const canTrackCurrentPage = () =>
 
 const loadPlausible = () => {
   if (!trackerPromise) {
-    trackerPromise = import('@plausible-analytics/tracker/plausible.js').then((tracker) => {
+    trackerPromise = import('./tracker-runtime').then((tracker) => {
       tracker.init({
         domain: plausibleDomain,
+        endpoint: plausibleEndpoint,
         autoCapturePageviews: false,
-        captureOnLocalhost: false,
         logging: false,
       })
       return tracker

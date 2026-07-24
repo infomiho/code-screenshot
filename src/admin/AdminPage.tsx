@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { AdminDashboardView } from './components/AdminDashboardView'
+import { AdminPageSkeleton } from './components/AdminSectionSkeletons'
 import { useAdminDashboard } from './use-admin-dashboard'
 
 export function AdminPage() {
@@ -19,7 +20,7 @@ export function AdminPage() {
   }
 
   if (admin.isCheckingAccess || !admin.hasAccess || !admin.account) {
-    return <main className="admin-access-state" aria-busy="true">Checking access...</main>
+    return <AdminPageSkeleton />
   }
 
   return <AdminDashboardView

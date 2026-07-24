@@ -17,7 +17,7 @@ import { usePenDrawing } from './use-pen-drawing'
 import { usePreviewFrame } from './use-preview-frame'
 import './preview-frame.css'
 import { trackProductEvent } from '../product-metrics/events'
-import { getAnalyticsSurface } from '../product-metrics/plausible'
+import { getAnalyticsSurface } from '../product-metrics/metrics-client'
 
 type ExportAction = 'copy' | 'download' | null
 

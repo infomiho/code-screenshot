@@ -317,6 +317,30 @@
   gap: var(--space-7);
 }
 
+.admin-page-skeleton-back {
+  width: 148px;
+  height: 40px;
+}
+
+.admin-page-skeleton-header {
+  display: contents;
+}
+
+.admin-page-skeleton-body {
+  display: contents;
+}
+
+.admin-page-skeleton-account {
+  width: 148px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+}
+
+.admin-page-skeleton-title {
+  width: 88px;
+  height: 28px;
+}
+
 .admin-skeleton {
   display: block;
   border-radius: var(--skeleton-radius);
@@ -516,6 +540,19 @@
     border-bottom: 1px solid color-mix(in oklch, var(--panel-border), transparent 28%);
   }
 
+}
+
+@media (max-width: 760px) {
+  .admin-page-skeleton-back {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-page-skeleton-account {
+    height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

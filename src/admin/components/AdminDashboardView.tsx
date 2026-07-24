@@ -4,6 +4,7 @@ import type { AdminDashboardDto, PlausibleSnapshotDto } from '../contracts'
 import { DatabaseSection } from './DatabaseSection'
 import { PlausibleSection } from './PlausibleSection'
 import { AccountMenu } from '../../account/account-menu'
+import { AdminPageFrame } from './AdminPageFrame'
 import '../../index.css'
 import '../admin.css'
 
@@ -39,8 +40,8 @@ export function AdminDashboardView({
   const navigate = useNavigate()
 
   return (
-    <main className="admin-page">
-      <header className="subpage-header">
+    <AdminPageFrame header={(
+      <>
         <button className="subpage-back-button" type="button" aria-label="Back to editor" onClick={() => navigate(routes.RootRoute.to)}>
           <span className="subpage-back-arrow" aria-hidden="true">←</span>
           <span className="subpage-back-label">Back to editor</span>
@@ -52,26 +53,24 @@ export function AdminDashboardView({
           onOpenAdmin={() => navigate(routes.AdminRoute.to)}
           onSignOut={account.onSignOut}
         />
-      </header>
-
-      <div className="admin-body">
-        <div className="admin-heading">
-          <h1>Admin</h1>
-        </div>
-        <DatabaseSection
-          dashboard={dashboard}
-          isLoading={isDashboardLoading}
-          hasError={dashboardHasError}
-          onRetry={onDashboardRetry}
-        />
-        <PlausibleSection
-          snapshot={plausibleSnapshot}
-          isLoading={isPlausibleLoading}
-          isRefreshing={isPlausibleRefreshing}
-          refreshFailed={plausibleRefreshFailed}
-          onRefresh={onPlausibleRefresh}
-        />
+      </>
+    )}>
+      <div className="admin-heading">
+        <h1>Admin</h1>
       </div>
-    </main>
+      <DatabaseSection
+        dashboard={dashboard}
+        isLoading={isDashboardLoading}
+        hasError={dashboardHasError}
+        onRetry={onDashboardRetry}
+      />
+      <PlausibleSection
+        snapshot={plausibleSnapshot}
+        isLoading={isPlausibleLoading}
+        isRefreshing={isPlausibleRefreshing}
+        refreshFailed={plausibleRefreshFailed}
+        onRefresh={onPlausibleRefresh}
+      />
+    </AdminPageFrame>
   )
 }

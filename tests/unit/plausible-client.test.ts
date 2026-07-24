@@ -18,7 +18,7 @@ describe('Plausible client', () => {
   })
 
   it('initializes once and sends typed properties in production', async () => {
-    const { trackPlausibleEvent } = await import('../../src/product-metrics/plausible')
+    const { trackPlausibleEvent } = await import('../../src/product-metrics/metrics-client')
 
     await trackPlausibleEvent('Screenshot Copied', { surface: 'editor' })
     await trackPlausibleEvent('Screenshot Downloaded', { surface: 'editor' })
@@ -26,8 +26,8 @@ describe('Plausible client', () => {
     expect(tracker.init).toHaveBeenCalledOnce()
     expect(tracker.init).toHaveBeenCalledWith({
       domain: 'codeshot.dev',
+      endpoint: 'https://api.codeshot.dev/pulse',
       autoCapturePageviews: false,
-      captureOnLocalhost: false,
       logging: false,
     })
     expect(tracker.track).toHaveBeenNthCalledWith(1, 'Screenshot Copied', {
@@ -42,7 +42,7 @@ describe('Plausible client', () => {
 
   it('does not initialize on excluded routes', async () => {
     vi.stubGlobal('location', { hostname: 'codeshot.dev', pathname: '/admin', href: 'https://codeshot.dev/admin' })
-    const { trackPlausibleEvent } = await import('../../src/product-metrics/plausible')
+    const { trackPlausibleEvent } = await import('../../src/product-metrics/metrics-client')
 
     await trackPlausibleEvent('Screenshot Copied')
 
@@ -52,7 +52,7 @@ describe('Plausible client', () => {
 
   it('does not initialize outside production', async () => {
     vi.stubEnv('PROD', false)
-    const { trackPlausibleEvent } = await import('../../src/product-metrics/plausible')
+    const { trackPlausibleEvent } = await import('../../src/product-metrics/metrics-client')
 
     await trackPlausibleEvent('Screenshot Copied')
 
@@ -60,7 +60,7 @@ describe('Plausible client', () => {
   })
 
   it('supports non-interactive events', async () => {
-    const { trackPlausibleEvent } = await import('../../src/product-metrics/plausible')
+    const { trackPlausibleEvent } = await import('../../src/product-metrics/metrics-client')
 
     await trackPlausibleEvent('Shared Ambient Viewed', { surface: 'shared' }, { interactive: false })
 

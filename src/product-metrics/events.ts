@@ -2,7 +2,7 @@ import {
   trackPlausibleEvent,
   type PlausibleEventOptions,
   type PlausibleProperties,
-} from './plausible'
+} from './metrics-client'
 import type { PlausibleEventName } from './event-names'
 
 export const trackProductEvent = (

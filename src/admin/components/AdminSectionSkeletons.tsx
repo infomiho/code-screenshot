@@ -1,6 +1,38 @@
+import { AdminPageFrame } from './AdminPageFrame'
+
 const metricCount = 5
 const userRowCount = 3
 const eventRowCount = 8
+
+export function AdminPageSkeleton() {
+  return (
+    <>
+      <p className="sr-only" role="status">Loading admin dashboard</p>
+      <AdminPageFrame isBusy header={(
+        <div className="admin-page-skeleton-header" aria-hidden="true">
+          <span className="admin-skeleton admin-page-skeleton-back" />
+          <span className="admin-skeleton admin-page-skeleton-account" />
+        </div>
+      )}>
+        <div className="admin-page-skeleton-body" aria-hidden="true">
+          <span className="admin-skeleton admin-page-skeleton-title" />
+          <section className="admin-section">
+            <div className="admin-section-heading">
+              <span className="admin-skeleton admin-skeleton-heading" />
+            </div>
+            <DatabaseSectionSkeleton />
+          </section>
+          <section className="admin-section">
+            <div className="admin-section-heading">
+              <span className="admin-skeleton admin-skeleton-heading" />
+            </div>
+            <PlausibleSectionSkeleton />
+          </section>
+        </div>
+      </AdminPageFrame>
+    </>
+  )
+}
 
 function MetricGridSkeleton() {
   return (

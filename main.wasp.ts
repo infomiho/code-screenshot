@@ -10,6 +10,7 @@ import { adminSpec } from "./src/admin/admin.wasp";
 import { head } from "./src/head.wasp";
 import { ClientRoot } from "./src/client-root" with { type: "ref" };
 import { serverEnvSchema } from "./src/env" with { type: "ref" };
+import { productMetricsSpec } from "./src/product-metrics/product-metrics.wasp";
 
 export default app({
   name: "codeshotDev",
@@ -26,5 +27,6 @@ export default app({
     sharingSpec,
     agentSpec,
     adminSpec,
+    productMetricsSpec,
   ],
 });
