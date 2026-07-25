@@ -22,7 +22,6 @@ type AmbientWorkspaceHeaderProps = {
   onSharingChange?: (enabled: boolean) => Promise<boolean>
 }
 
-// A guest has no library to go back to, so the exit leads to the editor instead.
 const backLabel = (ownership: AmbientOwnership) =>
   ownership === 'guest' ? 'codeshot.dev' : 'Your themes'
 

@@ -32,7 +32,6 @@ const withAgentWork = (id: string, slug: string) => ({
   agentSessions: [{ lastUsedAt: new Date('2026-07-25T12:00:00.000Z') }],
 })
 
-// Freshly created: a session is waiting but the agent never fetched it, and nothing was renamed.
 const untouched = (id: string, slug: string) => ({
   id,
   name: 'amber drift',

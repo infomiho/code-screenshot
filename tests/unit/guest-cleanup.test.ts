@@ -33,7 +33,6 @@ describe('guest retention', () => {
   })
 
   it('treats a session the agent never fetched as untouched', () => {
-    // Every theme is created with a session ready, so its existence proves nothing.
     expect(retentionFor(candidate({ agentSessions: [{ lastUsedAt: null }] })))
       .toBe(guestRetention.untouched)
   })

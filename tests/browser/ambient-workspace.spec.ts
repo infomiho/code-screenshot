@@ -173,7 +173,6 @@ test('creates a theme without an account and opens it straight away', async ({ p
   await openAmbientPicker(page)
   await page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' }).click()
 
-  // No naming form and no sign in: the theme already exists with a generated name.
   const nameField = page.getByLabel('Theme name')
   await expect(nameField).toBeVisible()
   const generatedName = await nameField.inputValue()
@@ -182,11 +181,9 @@ test('creates a theme without an account and opens it straight away', async ({ p
   await expect(page).toHaveTitle(`${generatedName} workspace | codeshot.dev`)
   await expect(page.locator('.workspace-preview-frame .cm-editor')).toBeVisible()
 
-  // Anonymous work is marked as unsaved and the exit leads back to the editor, not to a library.
   await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
   await expect(page.getByRole('button', { name: 'codeshot.dev' })).toBeVisible()
 
-  // The session is created with the theme, so the prompt is waiting rather than a step away.
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
   await expect(page.locator('.agent-dock')).toHaveCount(0)
 
@@ -228,12 +225,10 @@ test('asks a guest to sign in only once the agent has delivered work', async ({ 
   await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
   await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
 
-  // Claiming adopts the anonymous work, and the theme stops being marked unsaved.
   await page.evaluate(async () => {
     window.ambientWorkspaceService.signIn()
     await window.ambientWorkspaceService.claimGuestWork()
   })
-  // Claimed but never versioned, so there is no saved state to have changed away from.
   await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Unsaved')
   await expect(page.getByRole('button', { name: 'Save version' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sign in to save' })).toHaveCount(0)
@@ -252,7 +247,6 @@ test('renames a theme from the workspace header', async ({ page }) => {
   await nameField.press('Enter')
 
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Launch frame')
-  // Renaming advances both revision counters, so it never reads as an accepted agent change.
   expect(await page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(0)

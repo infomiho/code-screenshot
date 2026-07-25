@@ -47,8 +47,7 @@ const getConnectivity = (error: unknown): OpenAmbientWorkspace['connectivity'] =
   return getStatusCode(error) === null ? 'offline' : 'request-error'
 }
 
-// Two fast clicks would otherwise mint two anonymous sessions and strand the first theme. A call
-// joining one already in flight gets that theme back, not one named after its own argument.
+// Two fast clicks would otherwise mint two anonymous sessions and strand the first theme.
 let pendingAmbientCreation: Promise<CreateAmbientResult> | null = null
 
 const createAmbientOnce = (name: string, guestToken: string | null) => {
@@ -67,7 +66,6 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
   const libraryQuery = useQuery(listOwnedAmbients, undefined, {
     enabled: enabled && Boolean(authQuery.data),
   })
-  // A guest reaches the workspace with the anonymous session token instead of an account.
   const canOpenWorkspace = Boolean(authQuery.data) || guestToken !== null
   const workspaceQuery = useQuery(
     getAmbientWorkspace,

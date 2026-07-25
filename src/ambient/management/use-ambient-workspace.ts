@@ -70,7 +70,6 @@ export function useAmbientWorkspace(providedService?: AmbientWorkspaceService, a
     }
   }, [ambientId, injectedService, providedService])
 
-  // A guest has no library, but the workspace they are working in has to survive.
   const snapshot = useMemo(
     () => sourceSnapshot.account.kind === 'signed-in'
       ? sourceSnapshot

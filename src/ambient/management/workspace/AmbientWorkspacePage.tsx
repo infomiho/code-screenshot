@@ -129,7 +129,6 @@ export function AmbientWorkspacePage({
       setStatusMessage(
         `${acceptedChangeCount - previousCount} agent ${acceptedChangeCount - previousCount === 1 ? 'change' : 'changes'} accepted. Ready to review.`,
       )
-      // The first delivered change is the one moment a guest is nudged, and it never repeats.
       if (isGuest && previousCount === 0 && workspaceId && nudgedAmbientIdRef.current !== workspaceId) {
         nudgedAmbientIdRef.current = workspaceId
         toastManager.add({
@@ -141,7 +140,6 @@ export function AmbientWorkspacePage({
     previousAcceptedChangeCountRef.current = acceptedChangeCount
   }, [acceptedChangeCount, isGuest, workspace?.ambient.id])
 
-  // Unclaimed agent work exists only on this browser, so leaving is worth one interruption.
   useEffect(() => {
     if (!isGuest || acceptedChangeCount === 0) return
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => event.preventDefault()
@@ -237,7 +235,13 @@ export function AmbientWorkspacePage({
 
   const renameAmbient = async (name: string) => {
     const renamed = await service.renameAmbient(name)
-    if (!renamed) setStatusMessage('Could not rename this theme.')
+    if (!renamed) {
+      toastManager.add({
+        id: 'rename-failed',
+        description: 'Could not rename this theme.',
+        priority: 'high',
+      })
+    }
     return renamed
   }
 

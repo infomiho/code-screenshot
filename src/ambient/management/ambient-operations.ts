@@ -330,7 +330,10 @@ export const renameAmbient: RenameAmbient<RenameAmbientInput, RenameAmbientResul
       select: { id: true, draft: { select: { document: true } } },
     })
     if (!ambient) throw new HttpError(404, 'Theme not found.')
-    if (!ambient.draft) throw new HttpError(409, 'Start a draft before renaming this theme.')
+
+    await transaction.ambient.update({ where: { id: input.ambientId }, data: { name: input.name } })
+    // With no draft there is nothing for an agent to overwrite the name from, so the row is enough.
+    if (!ambient.draft) return null
 
     const renamed = compileAmbientDocument({ ...readDocument(ambient.draft.document), name: input.name })
     if (!renamed.compiled) throw new HttpError(500, 'Stored theme is invalid.')
@@ -347,7 +350,6 @@ export const renameAmbient: RenameAmbient<RenameAmbientInput, RenameAmbientResul
       },
       select: { revision: true },
     })
-    await transaction.ambient.update({ where: { id: input.ambientId }, data: { name: input.name } })
     return draft.revision
   }, { isolationLevel: 'Serializable' })
 

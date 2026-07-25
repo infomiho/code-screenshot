@@ -67,8 +67,6 @@ export const deriveAgentAccessView = (input: {
 }): AgentAccessView => {
   if (input.state === 'creating') return { status: 'creating' }
   if (input.state === 'available' && input.expiresAt) {
-    // The agent fetching the draft is the first sign it picked the prompt up, and the only one the
-    // workspace gets before it writes anything back.
     return { status: 'available', expiresAt: input.expiresAt, hasReadDraft: input.lastUsedAt !== null }
   }
   if (input.state === 'expired') return { status: 'expired' }

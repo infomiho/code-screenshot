@@ -218,7 +218,7 @@ export type ClaimGuestAmbientsResult = {
 
 export type RenameAmbientResult = {
   name: string
-  revision: number
+  revision: number | null
 }
 
 export type DiscardAmbientDraftResult = {

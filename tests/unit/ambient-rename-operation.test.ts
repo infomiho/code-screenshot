@@ -82,10 +82,16 @@ describe('renameAmbient', () => {
     }))
   })
 
-  it('refuses a theme with no working draft', async () => {
+  it('renames a theme with no working draft', async () => {
     transaction.ambient.findFirst.mockResolvedValue({ id: 'ambient-1', draft: null })
 
-    await expect(renameAmbient(args, context as never)).rejects.toMatchObject({ statusCode: 409 })
+    const result = await renameAmbient(args, context as never)
+
+    expect(result).toEqual({ name: 'quiet thistle', revision: null })
+    expect(transaction.ambient.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { name: 'quiet thistle' },
+    }))
+    expect(transaction.ambientDraft.update).not.toHaveBeenCalled()
   })
 
   it('refuses a theme the caller cannot reach', async () => {
