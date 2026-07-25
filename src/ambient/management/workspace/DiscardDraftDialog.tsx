@@ -20,15 +20,15 @@ export function DiscardDraftDialog({
   const neverSaved = versionInUse === null
   const closingSyncedDraft = !neverSaved && draftMatchesVersion
   const heading = neverSaved
-    ? 'Discard this ambient?'
+    ? 'Discard this theme?'
     : closingSyncedDraft ? 'Close the working draft?' : 'Discard draft changes?'
   const description = neverSaved
-    ? 'This ambient has never been saved. Discarding permanently removes it and ends agent access.'
+    ? 'This theme has never been saved. Discarding permanently removes it and ends agent access.'
     : closingSyncedDraft
       ? `The draft matches Version ${versionInUse}, so nothing is lost. Agent access ends; you can start a new draft anytime.`
       : `Return to Version ${versionInUse} and end current agent access. Version ${versionInUse} will remain available.`
   const confirmLabel = neverSaved
-    ? 'Discard ambient'
+    ? 'Discard theme'
     : closingSyncedDraft ? 'Close draft' : 'Discard changes'
   const busyLabel = closingSyncedDraft ? 'Closing...' : 'Discarding...'
 

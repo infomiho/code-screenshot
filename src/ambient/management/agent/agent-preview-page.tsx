@@ -101,7 +101,7 @@ export function AgentPreviewCanvas({
       const ambientReady = Boolean(previewRef.current?.querySelector('.declarative-ambient')?.shadowRoot)
       const thumbnailReady = Boolean(previewRef.current?.querySelector('.ambient-mark')?.shadowRoot)
       if (ambientReady && thumbnailReady) onReady?.()
-      else onError?.('The ambient or thumbnail renderer did not initialize.')
+      else onError?.('The theme or thumbnail renderer did not initialize.')
     })
     return () => window.cancelAnimationFrame(frame)
   }, [isEditorReady, onError, onReady])
@@ -109,7 +109,7 @@ export function AgentPreviewCanvas({
   return (
     <main className="agent-preview-page" ref={previewRef}>
       <section className="agent-preview-section" aria-labelledby="full-preview-title">
-        <h1 id="full-preview-title">Full ambient</h1>
+        <h1 id="full-preview-title">Full theme</h1>
         <div className="agent-preview-frame-wrap">
           <div
             className="shot-frame agent-preview-frame"
@@ -225,7 +225,7 @@ export function AgentPreviewPage() {
 
   return (
     <>
-      <title>Ambient preview | codeshot.dev</title>
+      <title>Theme preview | codeshot.dev</title>
       <meta name="robots" content="noindex, nofollow" />
       <meta name="referrer" content="no-referrer" />
       {content}

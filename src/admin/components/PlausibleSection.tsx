@@ -45,7 +45,7 @@ const formatCount = (value: number, singular: string, plural = `${singular}s`) =
 const formatPulseSummary = (snapshot: PlausibleSnapshotDto) => {
   const visitors = formatCount(snapshot.overview.visitors, 'visitor')
   const outputActions = formatCount(eventCount(snapshot, actionGroups[0].events), 'screenshot output action')
-  const ambientActions = formatCount(eventCount(snapshot, actionGroups[1].events), 'ambient action')
+  const ambientActions = formatCount(eventCount(snapshot, actionGroups[1].events), 'theme action')
   const sharingEvents = formatCount(eventCount(snapshot, actionGroups[2].events), 'sharing event')
   return `${visitors} reached codeshot.dev; ${outputActions}, ${ambientActions}, and ${sharingEvents} were recorded.`
 }
@@ -153,7 +153,7 @@ export function PlausibleSection({
           <div className="admin-pulse-grid">
             <MetricCard label="Visitors" value={snapshot.overview.visitors} />
             <MetricCard label="Screenshot output actions" value={eventCount(snapshot, actionGroups[0].events)} />
-            <MetricCard label="Ambient activity" value={eventCount(snapshot, actionGroups[1].events)} />
+            <MetricCard label="Theme activity" value={eventCount(snapshot, actionGroups[1].events)} />
           </div>
           <div className="admin-traffic-layout">
             <TrafficTrend snapshot={snapshot} />

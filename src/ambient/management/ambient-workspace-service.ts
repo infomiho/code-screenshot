@@ -3,7 +3,9 @@ import type {
   AgentAccessSummaryDto,
   AmbientAccountDto,
   AmbientLinkSharingDto,
+  AmbientOwnership,
   AmbientSyncTokenDto,
+  ClaimGuestAmbientsResult,
   OwnedAmbientDraftSummaryDto,
 } from './contracts'
 
@@ -53,6 +55,7 @@ export type OpenAmbientWorkspace = {
     id: string
     name: string
     slug: string
+    ownership: AmbientOwnership
     linkSharing: AmbientLinkSharingDto
   }
   syncToken: AmbientSyncTokenDto
@@ -84,6 +87,8 @@ export interface AmbientWorkspaceService {
   openWorkspace: (ambientId: string) => Promise<boolean>
   closeWorkspace: () => void
   createAmbient: (ambientName: string) => Promise<string | null>
+  renameAmbient: (name: string) => Promise<boolean>
+  claimGuestWork: () => Promise<ClaimGuestAmbientsResult | null>
   createAgentAccess: (ambientId?: string) => Promise<boolean>
   discardAgentAccess: () => Promise<boolean>
   copyPrompt: () => void

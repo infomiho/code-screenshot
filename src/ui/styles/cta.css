@@ -1,0 +1,60 @@
+/* The primary call to action keeps the standard yellow slab, so the label contrast is the one we
+   already validated. Only the halo behind it moves. */
+@property --cta-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.ui-button-signal {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    position: absolute;
+    z-index: -1;
+    content: '';
+    background: conic-gradient(
+      from var(--cta-angle),
+      var(--cta-halo-edge),
+      var(--wasp-yellow),
+      var(--cta-halo-peak),
+      var(--wasp-yellow),
+      var(--cta-halo-edge)
+    );
+    inset: calc(-1 * var(--cta-halo-width));
+    opacity: var(--cta-halo-opacity);
+    transition: opacity var(--ambient-motion-duration) var(--ambient-motion-ease);
+  }
+
+  &:hover::before {
+    opacity: 1;
+  }
+
+  /* The halo shares the button's yellow, so the default focus ring would disappear into it. */
+  &:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-button-signal::before {
+    animation: cta-halo-sweep var(--cta-halo-duration) linear infinite;
+  }
+}
+
+@keyframes cta-halo-sweep {
+  to {
+    --cta-angle: 360deg;
+  }
+}
+
+/* Without @property the angle cannot interpolate, so the halo stays a static ring rather than
+   jumping between whole turns. */
+@supports not (background: conic-gradient(from var(--cta-angle), red, blue)) {
+  .ui-button-signal::before {
+    animation: none;
+    background: var(--wasp-yellow);
+  }
+}

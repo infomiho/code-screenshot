@@ -157,14 +157,14 @@ export function AmbientSelector({
         <button
           className="ambient-shared-exit"
           type="button"
-          aria-label="Exit shared ambient and open editor"
+          aria-label="Exit shared theme and open editor"
           onClick={onExitSharedAmbient}
         >
           <IconArrowLeft aria-hidden="true" />
           <span>Exit</span>
         </button>
         <div className="ambient-shared-current">
-          <AmbientIdentity definition={selected} meta="Shared ambient" />
+          <AmbientIdentity definition={selected} meta="Shared theme" />
         </div>
       </div>
     )
@@ -175,7 +175,7 @@ export function AmbientSelector({
       className="ambient-selector"
       data-picker-open={isOpen || undefined}
       role="group"
-      aria-label="Ambient"
+      aria-label="Theme"
     >
       <button
         className="ambient-step ambient-step-previous"

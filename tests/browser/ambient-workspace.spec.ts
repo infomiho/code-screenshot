@@ -25,13 +25,13 @@ const createSavedAmbient = async (page: Page, name = 'Signal study') => page.eva
 
 const openAmbientPicker = async (page: Page) => {
   await page.locator('.ambient-current').click()
-  await expect(page.getByRole('grid', { name: 'Choose ambient' })).toBeVisible()
+  await expect(page.getByRole('grid', { name: 'Choose theme' })).toBeVisible()
 }
 
 const openAmbientLibraryPage = async (page: Page) => {
   await page.locator('.account-menu-trigger').click()
-  await page.getByRole('menuitem', { name: /Your ambients/ }).click()
-  await expect(page.getByRole('heading', { name: 'Your ambients' })).toBeVisible()
+  await page.getByRole('menuitem', { name: /Your themes/ }).click()
+  await expect(page.getByRole('heading', { name: 'Your themes' })).toBeVisible()
 }
 
 const openWorkspaceFromLibrary = async (page: Page, ambientName: string) => {
@@ -65,8 +65,8 @@ test('keeps included ambients in a two-column grid', async ({ page }) => {
 test('moves vertically between included grid rows', async ({ page }) => {
   await openApp(page)
   await openAmbientPicker(page)
-  await page.getByRole('grid', { name: 'Choose ambient' }).press('ArrowDown')
-  await page.getByRole('grid', { name: 'Choose ambient' }).press('Enter')
+  await page.getByRole('grid', { name: 'Choose theme' }).press('ArrowDown')
+  await page.getByRole('grid', { name: 'Choose theme' }).press('Enter')
 
   await expect(page.locator('.ambient-current')).toContainText('Specimen card')
 })
@@ -87,16 +87,16 @@ test('keeps an unsaved working draft out of the screenshot editor', async ({ pag
   await expect(row.getByRole('button', { name: 'Edit' })).toBeVisible()
 })
 
-test('opens a shared ambient directly in the editor', async ({ page }) => {
+test('opens a shared theme directly in the editor', async ({ page }) => {
   await page.goto('/tests/browser/app.fixture.html?shared-ambient')
   await expect(page.locator('.cm-editor')).toBeVisible()
   await expect(page.locator('.ambient-shared-current')).toContainText('Swiss poster')
-  await expect(page.getByText('Shared ambient', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Exit shared ambient and open editor' })).toBeVisible()
+  await expect(page.getByText('Shared theme', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Exit shared theme and open editor' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Swiss poster/ })).toHaveCount(0)
 })
 
-test('shows a toast after an unavailable shared ambient returns to the editor', async ({ page }) => {
+test('shows a toast after an unavailable shared theme returns to the editor', async ({ page }) => {
   await page.goto('/tests/browser/app.fixture.html?unavailable-share')
   await expect(page.locator('.cm-editor')).toBeVisible()
   await expect(page.getByText('This shared ambient is no longer available.')).toBeVisible()
@@ -108,9 +108,9 @@ test('keeps link sharing disabled until an ambient has a saved version', async (
   await openWorkspaceFromLibrary(page, 'Signal study')
 
   await page.getByRole('button', { name: 'Share' }).click()
-  await expect(page.getByRole('heading', { name: 'Share ambient' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Share theme' })).toBeVisible()
   await expect(page.getByText('Private', { exact: true })).toBeVisible()
-  await expect(page.getByText('Save a version before sharing this ambient.')).toBeVisible()
+  await expect(page.getByText('Save a version before sharing this theme.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Enable link sharing' })).toBeDisabled()
 })
 
@@ -168,24 +168,31 @@ test('restores the screenshot composition after a full-page authentication redir
   await expect(page.locator('.draw-layer path')).toHaveCount(1)
 })
 
-test('creates an ambient in a dedicated workspace', async ({ page }) => {
+test('creates a theme without an account and opens it straight away', async ({ page }) => {
   await openApp(page)
   await openAmbientPicker(page)
-  await page.getByLabel('Your ambients account').getByRole('button', { name: 'Create your own ambient' }).click()
+  await page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Name your ambient' })).toBeVisible()
-  await page.getByLabel('Ambient name').fill('Launch frame')
-  await page.getByRole('button', { name: 'Create ambient' }).click()
-
-  await expect(page.locator('.workspace-ambient-identity')).toContainText('Launch frame')
-  await expect(page).toHaveTitle('Launch frame workspace | codeshot.dev')
+  // No naming form and no sign in: the theme already exists with a generated name.
+  const nameField = page.getByLabel('Theme name')
+  await expect(nameField).toBeVisible()
+  const generatedName = await nameField.inputValue()
+  expect(generatedName).not.toBe('')
+  await expect(page.locator('.workspace-ambient-identity')).toContainText(generatedName)
+  await expect(page).toHaveTitle(`${generatedName} workspace | codeshot.dev`)
   await expect(page.locator('.workspace-preview-frame .cm-editor')).toBeVisible()
+
+  // Anonymous work is marked as unsaved and the exit leads back to the editor, not to a library.
+  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
+  await expect(page.getByRole('button', { name: 'codeshot.dev' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Create agent access' }).click()
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
   await expect(page.locator('.agent-dock')).toHaveCount(0)
 
   await page.getByText('Show prompt', { exact: true }).click()
   await expect(page.locator('.workspace-prompt-disclosure pre'))
-    .toContainText('Create a codeshot.dev ambient for "Launch frame"')
+    .toContainText(`Create a codeshot.dev theme for "${generatedName}"`)
   const promptContainment = await page.evaluate(() => {
     const sidebar = document.querySelector('.workspace-sidebar')?.getBoundingClientRect()
     const card = document.querySelector('.workspace-prompt-card')?.getBoundingClientRect()
@@ -200,6 +207,43 @@ test('creates an ambient in a dedicated workspace', async ({ page }) => {
   expect(promptContainment.cardRight).toBeLessThanOrEqual(promptContainment.sidebarRight + 1)
   expect(promptContainment.promptRight).toBeLessThanOrEqual(promptContainment.sidebarRight + 1)
   expect(promptContainment.pageOverflow).toBe(0)
+})
+
+test('asks a guest to sign in only once the agent has delivered work', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await openApp(page)
+  await openAmbientPicker(page)
+  await page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' }).click()
+  await expect(page.getByLabel('Theme name')).toBeVisible()
+
+  // Nothing asks for an account while the agent is being connected.
+  await expect(page.getByRole('button', { name: /Sign in to save/ })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Create agent access' }).click()
+  await page.getByRole('button', { name: 'Copy prompt' }).click()
+  await expect.poll(() => page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(1)
+
+  // Saving is the first and only moment signing in is required.
+  await expect(page.getByRole('button', { name: 'Sign in to save' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
+  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
+})
+
+test('renames a theme from the workspace header', async ({ page }) => {
+  await openApp(page)
+  await createAmbient(page)
+  await openWorkspaceFromLibrary(page, 'Signal study')
+
+  const nameField = page.getByLabel('Theme name')
+  await nameField.fill('Launch frame')
+  await nameField.press('Enter')
+
+  await expect(page.locator('.workspace-ambient-identity')).toContainText('Launch frame')
+  // Renaming advances both revision counters, so it never reads as an accepted agent change.
+  expect(await page.evaluate(
+    () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
+  )).toBe(0)
 })
 
 test('reviews an agent change and saves an immutable version', async ({ page, context }) => {
@@ -230,8 +274,8 @@ test('reviews an agent change and saves an immutable version', async ({ page, co
   await expect(page.getByRole('heading', { name: 'Draft and Version 1' })).toHaveCount(0)
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Working draft')
 
-  await page.getByRole('button', { name: 'Your ambients' }).click()
-  await expect(page.getByRole('heading', { name: 'Your ambients' })).toBeVisible()
+  await page.getByRole('button', { name: 'Your themes' }).click()
+  await expect(page.getByRole('heading', { name: 'Your themes' })).toBeVisible()
   await page.getByRole('button', { name: 'Back to editor' }).click()
   await expect(page.locator('.cm-editor')).toBeVisible()
   await openAmbientPicker(page)
@@ -268,16 +312,16 @@ test('ends agent access without discarding the draft', async ({ page }) => {
   )).toBe(true)
 })
 
-test('uses context-specific discard copy for a never-saved ambient', async ({ page }) => {
+test('uses context-specific discard copy for a never-saved theme', async ({ page }) => {
   await openApp(page)
   await createAmbient(page)
   await openWorkspaceFromLibrary(page, 'Signal study')
-  await page.getByRole('button', { name: 'Discard ambient' }).click()
+  await page.getByRole('button', { name: 'Discard theme' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Discard this ambient?' })).toBeVisible()
-  await expect(page.getByRole('alertdialog')).toContainText('This ambient has never been saved')
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard ambient' }).click()
-  await expect(page.getByRole('heading', { name: 'No ambients yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Discard this theme?' })).toBeVisible()
+  await expect(page.getByRole('alertdialog')).toContainText('This theme has never been saved')
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard theme' }).click()
+  await expect(page.getByRole('heading', { name: 'No themes yet' })).toBeVisible()
   expect(await page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().ownedAmbients.length,
   )).toBe(0)
@@ -342,7 +386,7 @@ test('starts a new draft from the version in use after discarding changes', asyn
 
   await page.getByText('Show prompt', { exact: true }).click()
   await expect(page.locator('.workspace-prompt-disclosure pre'))
-    .toContainText('Update the codeshot.dev ambient "Signal study"')
+    .toContainText('Update the codeshot.dev theme "Signal study"')
 })
 
 test('previews customization options without persisting them', async ({ page }) => {
@@ -507,8 +551,8 @@ test('account navigation opens the ambient library and logs out private state', 
   await page.getByRole('menuitem', { name: 'Log out' }).click()
 
   await openAmbientPicker(page)
-  await expect(page.getByRole('rowgroup', { name: 'Your ambients' })).toHaveCount(0)
-  await expect(page.getByLabel('Your ambients account').getByRole('button', { name: 'Create your own ambient' })).toBeVisible()
+  await expect(page.getByRole('rowgroup', { name: 'Your themes' })).toHaveCount(0)
+  await expect(page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' })).toBeVisible()
 })
 
 test('does not show a missing ambient while returning to the library', async ({ page }) => {
@@ -520,14 +564,14 @@ test('does not show a missing ambient while returning to the library', async ({ 
   await page.evaluate(() => {
     window.ambientNotFoundSeen = false
     const observer = new MutationObserver(() => {
-      if (document.body.textContent?.includes('Ambient not found')) {
+      if (document.body.textContent?.includes('Theme not found')) {
         window.ambientNotFoundSeen = true
       }
     })
     observer.observe(document.body, { childList: true, subtree: true })
   })
-  await page.getByRole('button', { name: 'Your ambients' }).click()
-  await expect(page.getByRole('heading', { name: 'Your ambients' })).toBeVisible()
+  await page.getByRole('button', { name: 'Your themes' }).click()
+  await expect(page.getByRole('heading', { name: 'Your themes' })).toBeVisible()
 
   expect(await page.evaluate(() => window.ambientNotFoundSeen)).toBe(false)
 })
@@ -535,29 +579,29 @@ test('does not show a missing ambient while returning to the library', async ({ 
 test('shows not found after a workspace load confirms the ambient is missing', async ({ page }) => {
   await page.goto('/tests/browser/app.fixture.html?workspace=missing&existing-draft')
 
-  await expect(page.getByRole('heading', { name: 'Ambient not found' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Theme not found' })).toBeVisible()
 })
 
-test('manages ambients from the library page', async ({ page }) => {
+test('manages themes from the library page', async ({ page }) => {
   await openApp(page)
   await createAmbient(page)
 
   await openAmbientPicker(page)
-  await page.getByRole('button', { name: 'Manage your ambients' }).click()
-  await expect(page.getByRole('heading', { name: 'Your ambients' })).toBeVisible()
+  await page.getByRole('button', { name: 'Manage your themes' }).click()
+  await expect(page.getByRole('heading', { name: 'Your themes' })).toBeVisible()
 
   const row = page.locator('.ambient-library-row').filter({ hasText: 'Signal study' })
   await row.getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByRole('heading', { name: 'Delete Signal study?' })).toBeVisible()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete ambient' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete theme' }).click()
 
-  await expect(page.getByRole('heading', { name: 'No ambients yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No themes yet' })).toBeVisible()
   expect(await page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().ownedAmbients.length,
   )).toBe(0)
 
-  await page.getByRole('button', { name: 'Create your first ambient' }).click()
-  await expect(page.getByRole('heading', { name: 'Name your ambient' })).toBeVisible()
+  await page.getByRole('button', { name: 'Create your first theme' }).click()
+  await expect(page.getByLabel('Theme name')).toBeVisible()
 })
 
 test('ambient picker closes from account controls', async ({ page }) => {
@@ -565,8 +609,8 @@ test('ambient picker closes from account controls', async ({ page }) => {
   const trigger = page.locator('.ambient-current')
 
   await trigger.click()
-  const createAmbient = page.getByRole('region', { name: 'Your ambients account' })
-    .getByRole('button', { name: 'Create your own ambient' })
+  const createAmbient = page.getByRole('region', { name: 'Your themes account' })
+    .getByRole('button', { name: 'Create your own theme' })
   await createAmbient.focus()
   await page.keyboard.press('Escape')
   await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)

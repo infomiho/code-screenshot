@@ -22,6 +22,8 @@ const emptyService: AmbientWorkspaceService = {
   openWorkspace: async () => false,
   closeWorkspace: () => undefined,
   createAmbient: async () => null,
+  renameAmbient: async () => false,
+  claimGuestWork: async () => null,
   createAgentAccess: async () => false,
   discardAgentAccess: async () => false,
   copyPrompt: () => undefined,
@@ -68,10 +70,12 @@ export function useAmbientWorkspace(providedService?: AmbientWorkspaceService, a
     }
   }, [ambientId, injectedService, providedService])
 
+  // A guest has no library to show, but the workspace they are working in has to survive, because
+  // anonymous work is the whole point of the first run.
   const snapshot = useMemo(
     () => sourceSnapshot.account.kind === 'signed-in'
       ? sourceSnapshot
-      : { ...sourceSnapshot, ownedAmbients: [], workspace: null },
+      : { ...sourceSnapshot, ownedAmbients: [] },
     [sourceSnapshot],
   )
   const savedDefinitions = useMemo(

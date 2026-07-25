@@ -71,11 +71,15 @@ export type AgentAccessSummaryDto =
   | { status: 'available'; generation: number; expiresAt: string; lastUsedAt: string | null }
   | { status: 'expired'; generation: number; expiresAt: string }
 
+// A guest workspace has no account behind it yet, so it hides sharing and asks for sign in to save.
+export type AmbientOwnership = 'guest' | 'owned'
+
 export type AmbientWorkspaceDto = {
   ambient: {
     id: string
     name: string
     slug: string
+    ownership: AmbientOwnership
     linkSharing: AmbientLinkSharingDto
   }
   syncToken: AmbientSyncTokenDto
@@ -125,8 +129,18 @@ export type SyncAmbientDraftResult =
     }
   | { kind: 'workspace-invalidated'; token: AmbientSyncTokenDto }
 
+// Anonymous callers prove who they are with a bearer token in the request body. It rides in the body
+// rather than the URL because the operations router logs every request line.
+export const guestTokenSchema = z.string().min(20).max(128)
+
+// The change stream is a GET, so its credential travels in a header for the same reason.
+export const guestTokenHeader = 'x-codeshot-guest-token'
+
+const guestCredentialShape = { guestToken: guestTokenSchema.optional() }
+
 export const ambientIdInputSchema = z.strictObject({
   ambientId: z.string().min(1).max(128),
+  ...guestCredentialShape,
 })
 
 export const sharedAmbientInputSchema = z.strictObject({
@@ -141,8 +155,19 @@ export const capabilityParamsSchema = z.strictObject({
   capability: z.string().min(32).max(128),
 })
 
+export const ambientNameSchema = z.string().trim().min(1).max(80)
+
 export const createAmbientInputSchema = z.strictObject({
-  name: z.string().trim().min(1).max(80),
+  name: ambientNameSchema,
+  ...guestCredentialShape,
+})
+
+export const renameAmbientInputSchema = ambientIdInputSchema.extend({
+  name: ambientNameSchema,
+})
+
+export const claimGuestAmbientsInputSchema = z.strictObject({
+  guestToken: guestTokenSchema,
 })
 
 export const saveAmbientVersionInputSchema = ambientIdInputSchema.extend({
@@ -170,6 +195,8 @@ export const patchAgentDraftInputSchema = z.strictObject({
 })
 
 export type CreateAmbientInput = z.infer<typeof createAmbientInputSchema>
+export type RenameAmbientInput = z.infer<typeof renameAmbientInputSchema>
+export type ClaimGuestAmbientsInput = z.infer<typeof claimGuestAmbientsInputSchema>
 export type SaveAmbientVersionInput = z.infer<typeof saveAmbientVersionInputSchema>
 export type CreateDraftFromVersionInput = z.infer<typeof createDraftFromVersionInputSchema>
 export type SyncAmbientDraftInput = z.infer<typeof syncAmbientDraftInputSchema>
@@ -183,6 +210,18 @@ export type DeleteAmbientInput = AmbientIdInput
 
 export type CreateAmbientResult = {
   ambientId: string
+  // Present only when this call started a new anonymous session, so the browser can store it once.
+  guestToken?: string
+}
+
+export type ClaimGuestAmbientsResult = {
+  claimedAmbientIds: string[]
+  discardedAmbientIds: string[]
+}
+
+export type RenameAmbientResult = {
+  name: string
+  revision: number
 }
 
 export type DiscardAmbientDraftResult = {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getMe, githubSignInUrl, logout } from 'wasp/client/auth'
 import {
+  claimGuestAmbients as claimGuestAmbientsOperation,
   createAgentAccess as createAgentAccessOperation,
   createAmbient as createAmbientOperation,
   createDraftFromVersion as createDraftFromVersionOperation,
@@ -9,10 +10,12 @@ import {
   discardAmbientDraft as discardAmbientDraftOperation,
   getAmbientWorkspace,
   listOwnedAmbients,
+  renameAmbient as renameAmbientOperation,
   saveAmbientVersion as saveAmbientVersionOperation,
   setAmbientLinkSharing as setAmbientLinkSharingOperation,
   useQuery,
 } from 'wasp/client/operations'
+import { clearGuestToken, readGuestToken, storeGuestToken } from '../../account/guest-session'
 import { cacheAgentSession, clearAgentSessions, readAgentSession } from './agent/agent-session-cache'
 import type {
   AmbientWorkspaceService,
@@ -20,7 +23,7 @@ import type {
   OpenAmbientWorkspace,
   SavedAmbientRecord,
 } from './ambient-workspace-service'
-import type { AmbientWorkspaceDto } from './contracts'
+import type { AmbientWorkspaceDto, CreateAmbientResult } from './contracts'
 import type { AmbientLinkSharingDto } from './contracts'
 import { startAmbientDraftSync } from './ambient-draft-sync'
 
@@ -44,16 +47,35 @@ const getConnectivity = (error: unknown): OpenAmbientWorkspace['connectivity'] =
   return getStatusCode(error) === null ? 'offline' : 'request-error'
 }
 
+// The landing call to action creates a theme on every click. Two fast clicks would otherwise mint two
+// anonymous sessions and strand the first theme, so concurrent creates share one request.
+let pendingAmbientCreation: Promise<CreateAmbientResult> | null = null
+
+const createAmbientOnce = (name: string, guestToken: string | null) => {
+  pendingAmbientCreation ??= createAmbientOperation(
+    guestToken ? { name, guestToken } : { name },
+  ).finally(() => {
+    pendingAmbientCreation = null
+  })
+  return pendingAmbientCreation
+}
+
 export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled: boolean) => {
   const isWorkspaceRoute = Boolean(ambientId && ambientId !== 'new')
+  const [guestToken, setGuestToken] = useState(readGuestToken)
   const authQuery = useQuery(getMe, undefined, { enabled, retry: false })
   const libraryQuery = useQuery(listOwnedAmbients, undefined, {
     enabled: enabled && Boolean(authQuery.data),
   })
+  // A guest reaches the workspace with the anonymous session token instead of an account.
+  const canOpenWorkspace = Boolean(authQuery.data) || guestToken !== null
   const workspaceQuery = useQuery(
     getAmbientWorkspace,
-    { ambientId: isWorkspaceRoute ? ambientId! : '' },
-    { enabled: enabled && Boolean(authQuery.data) && isWorkspaceRoute, retry: false },
+    {
+      ambientId: isWorkspaceRoute ? ambientId! : '',
+      ...(guestToken ? { guestToken } : {}),
+    },
+    { enabled: enabled && canOpenWorkspace && isWorkspaceRoute, retry: false },
   )
   const [mutation, setMutation] = useState<OpenAmbientWorkspace['mutation']>('idle')
   const [promptCopiedFor, setPromptCopiedFor] = useState<string | null>(null)
@@ -95,6 +117,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     ...signedOutSnapshot,
     isHydrated,
     libraryStatus: isHydrated ? 'ready' : 'loading',
+    workspace,
   } : {
     isHydrated: isHydrated && !libraryQuery.isLoading,
     libraryStatus,
@@ -112,9 +135,11 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     ? 'setup'
     : !isWorkspaceRoute || workspaceQuery.error
       ? getStatusCode(workspaceQuery.error) === 404 ? 'not-found' : 'error'
-      : workspaceQuery.isLoading || !workspace
-        ? 'loading'
-        : 'ready'
+      : !canOpenWorkspace
+        ? 'not-found'
+        : workspaceQuery.isLoading || !workspace
+          ? 'loading'
+          : 'ready'
 
   useEffect(() => {
     setMutation('idle')
@@ -126,12 +151,13 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     if (!enabled || !workspace || workspace.agentAccess.status !== 'available') return
     return startAmbientDraftSync({
       ambientId: workspace.ambient.id,
+      guestToken,
       syncDraft: async () => {
         const result = await workspaceQuery.refetch({ throwOnError: true })
         if (result.error) throw result.error
       },
     })
-  }, [enabled, workspace?.ambient.id, workspace?.agentAccess.status, workspace?.agentAccess.status === 'available' ? workspace.agentAccess.generation : null])
+  }, [enabled, guestToken, workspace?.ambient.id, workspace?.agentAccess.status, workspace?.agentAccess.status === 'available' ? workspace.agentAccess.generation : null])
 
   useEffect(() => {
     if (!enabled || !workspace || workspace.agentAccess.status !== 'available') return
@@ -141,6 +167,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
   }, [enabled, workspace?.ambient.id, workspace?.agentAccess.status, workspace?.agentAccess.status === 'available' ? workspace.agentAccess.expiresAt : null])
 
   const currentAmbientId = () => workspace?.ambient.id ?? null
+  const guestCredential = () => (guestToken ? { guestToken } : {})
   const service: AmbientWorkspaceService = {
     getSnapshot: () => snapshot,
     getServerSnapshot: () => signedOutSnapshot,
@@ -148,6 +175,8 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     signIn: () => globalThis.location.assign(githubSignInUrl),
     signOut: async () => {
       clearAgentSessions()
+      clearGuestToken()
+      setGuestToken(null)
       try {
         await logout()
       } catch {
@@ -165,9 +194,36 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     },
     closeWorkspace: () => undefined,
     createAmbient: async (name) => {
-      if (!user) return null
       try {
-        return (await createAmbientOperation({ name })).ambientId
+        const created = await createAmbientOnce(name, guestToken)
+        if (created.guestToken) {
+          storeGuestToken(created.guestToken)
+          setGuestToken(created.guestToken)
+        }
+        return created.ambientId
+      } catch {
+        return null
+      }
+    },
+    renameAmbient: async (name) => {
+      const targetAmbientId = currentAmbientId()
+      if (!targetAmbientId) return false
+      try {
+        await renameAmbientOperation({ ambientId: targetAmbientId, name, ...guestCredential() })
+        await workspaceQuery.refetch()
+        return true
+      } catch {
+        return false
+      }
+    },
+    claimGuestWork: async () => {
+      if (!guestToken) return null
+      try {
+        const result = await claimGuestAmbientsOperation({ guestToken })
+        clearGuestToken()
+        setGuestToken(null)
+        await Promise.allSettled([libraryQuery.refetch(), workspaceQuery.refetch()])
+        return result
       } catch {
         return null
       }
@@ -177,7 +233,10 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
       if (!targetAmbientId || mutation !== 'idle') return false
       setMutation('creating-access')
       try {
-        const session = await createAgentAccessOperation({ ambientId: targetAmbientId })
+        const session = await createAgentAccessOperation({
+          ambientId: targetAmbientId,
+          ...guestCredential(),
+        })
         const cached = cacheAgentSession(session, targetAmbientId)
         setSessionRevision((revision) => revision + 1)
         setPromptCopiedFor(null)
@@ -192,7 +251,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
       const targetAmbientId = currentAmbientId()
       if (!targetAmbientId) return false
       try {
-        await discardAgentAccessOperation({ ambientId: targetAmbientId })
+        await discardAgentAccessOperation({ ambientId: targetAmbientId, ...guestCredential() })
         cacheAgentSession(null, targetAmbientId)
         setSessionRevision((revision) => revision + 1)
         setPromptCopiedFor(null)
@@ -223,7 +282,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
       if (!targetAmbientId || mutation !== 'idle') return false
       setMutation('discarding')
       try {
-        await discardAmbientDraftOperation({ ambientId: targetAmbientId })
+        await discardAmbientDraftOperation({ ambientId: targetAmbientId, ...guestCredential() })
         cacheAgentSession(null, targetAmbientId)
         setSessionRevision((revision) => revision + 1)
         return true
@@ -250,9 +309,8 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
       }
     },
     deleteAmbient: async (targetAmbientId) => {
-      if (!user) return false
       try {
-        await deleteAmbientOperation({ ambientId: targetAmbientId })
+        await deleteAmbientOperation({ ambientId: targetAmbientId, ...guestCredential() })
         cacheAgentSession(null, targetAmbientId)
         setSessionRevision((revision) => revision + 1)
         return true

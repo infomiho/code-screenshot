@@ -1,12 +1,29 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const guestSessions = vi.hoisted(() => ({ findUnique: vi.fn().mockResolvedValue(null) }))
+
+vi.mock('wasp/server', () => ({
+  env: { ADMIN_GITHUB_IDS: '' },
+  HttpError: class HttpError extends Error {
+    constructor(public statusCode: number, message: string) {
+      super(message)
+    }
+  },
+  prisma: { guestSession: guestSessions },
+}))
+
 import {
   publishAmbientChange,
   streamAmbientChanges,
 } from '../../src/ambient/management/ambient-change-stream'
 
-const createRequest = () =>
-  Object.assign(new EventEmitter(), { aborted: false, params: { ambientId: 'ambient-1' } })
+const createRequest = (guestToken?: string) =>
+  Object.assign(new EventEmitter(), {
+    aborted: false,
+    params: { ambientId: 'ambient-1' },
+    get: (name: string) => (name === 'x-codeshot-guest-token' ? guestToken : undefined),
+  })
 
 const createResponse = () => {
   const response = Object.assign(new EventEmitter(), {
@@ -31,7 +48,10 @@ const createContext = (
   entities: { Ambient: { findFirst } },
 })
 
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  guestSessions.findUnique.mockResolvedValue(null)
+})
 
 describe('ambient change stream', () => {
   it('authorizes the owner and forwards change events', async () => {
@@ -54,11 +74,44 @@ describe('ambient change stream', () => {
     expect(response.write).not.toHaveBeenCalled()
   })
 
-  it('rejects a signed-out request with 401', async () => {
+  it('rejects a request with neither an account nor a guest session', async () => {
     const response = createResponse()
     const context = createContext(null)
 
     await streamAmbientChanges(createRequest() as never, response as never, context as never)
+
+    expect(response.status).toHaveBeenCalledWith(401)
+    expect(context.entities.Ambient.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('streams to a guest holding the anonymous session token', async () => {
+    guestSessions.findUnique.mockResolvedValue({ id: 'guest-1', claimedAt: null })
+    const response = createResponse()
+    const context = createContext(null)
+
+    await streamAmbientChanges(
+      createRequest('guest-token-value-long-enough') as never,
+      response as never,
+      context as never,
+    )
+
+    expect(context.entities.Ambient.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'ambient-1', guestSessionId: 'guest-1' },
+    }))
+    expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream; charset=utf-8')
+    response.emit('close')
+  })
+
+  it('refuses a guest session that has already been claimed', async () => {
+    guestSessions.findUnique.mockResolvedValue({ id: 'guest-1', claimedAt: new Date() })
+    const response = createResponse()
+    const context = createContext(null)
+
+    await streamAmbientChanges(
+      createRequest('guest-token-value-long-enough') as never,
+      response as never,
+      context as never,
+    )
 
     expect(response.status).toHaveBeenCalledWith(401)
     expect(context.entities.Ambient.findFirst).not.toHaveBeenCalled()

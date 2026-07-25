@@ -1,17 +1,21 @@
 type ReviewActionsProps = {
   canCompare: boolean
   canSave: boolean
+  isGuest: boolean
   isSaving: boolean
   onCompare: () => void
   onSave: () => void
+  onSignInToSave: () => void
 }
 
 export function ReviewActions({
   canCompare,
   canSave,
+  isGuest,
   isSaving,
   onCompare,
   onSave,
+  onSignInToSave,
 }: ReviewActionsProps) {
   if (!canSave && !isSaving && !canCompare) return null
 
@@ -19,16 +23,30 @@ export function ReviewActions({
     <section className="workspace-card workspace-review-actions" aria-labelledby="review-actions-heading">
       <span className="workspace-eyebrow">Next step</span>
       <h2 id="review-actions-heading">Review the working draft</h2>
-      <p>Save an immutable version when the preview is ready to use.</p>
+      <p>
+        {isGuest
+          ? 'This theme lives in this browser until you save it. Signing in keeps it for good.'
+          : 'Save an immutable version when the preview is ready to use.'}
+      </p>
       {(canSave || isSaving) && (
-        <button
-          className="ui-button ui-button-primary workspace-primary-action"
-          type="button"
-          disabled={!canSave || isSaving}
-          onClick={onSave}
-        >
-          {isSaving ? 'Saving version...' : 'Save version'}
-        </button>
+        isGuest ? (
+          <button
+            className="ui-button ui-button-primary workspace-primary-action"
+            type="button"
+            onClick={onSignInToSave}
+          >
+            Sign in to save
+          </button>
+        ) : (
+          <button
+            className="ui-button ui-button-primary workspace-primary-action"
+            type="button"
+            disabled={!canSave || isSaving}
+            onClick={onSave}
+          >
+            {isSaving ? 'Saving version...' : 'Save version'}
+          </button>
+        )
       )}
       {canCompare && (
         <button className="ui-button" type="button" onClick={onCompare}>

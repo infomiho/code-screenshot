@@ -69,7 +69,7 @@ export function AmbientSharePopover({
           <button
             className="ambient-share-trigger"
             type="button"
-            aria-label={linkSharing.enabled ? 'Shared ambient' : 'Share ambient'}
+            aria-label={linkSharing.enabled ? 'Shared theme' : 'Share theme'}
             data-enabled={linkSharing.enabled || undefined}
           >
             <span className="ambient-share-trigger-icon"><AccessIcon enabled={linkSharing.enabled} /></span>
@@ -81,7 +81,7 @@ export function AmbientSharePopover({
         <Popover.Positioner className="ambient-share-positioner" side="bottom" align="end" sideOffset={8} collisionPadding={12}>
           <Popover.Popup className="ambient-share-popup" aria-labelledby={headingId}>
             <div className="ambient-share-heading">
-              <h2 id={headingId}>Share ambient</h2>
+              <h2 id={headingId}>Share theme</h2>
               <Popover.Close className="ambient-share-close" aria-label="Close share panel">
                 <IconX aria-hidden="true" />
               </Popover.Close>
@@ -98,12 +98,12 @@ export function AmbientSharePopover({
                   <span>
                     {linkSharing.enabled
                       ? 'Can use the latest saved version'
-                      : 'Only you can access this ambient'}
+                      : 'Only you can access this theme'}
                   </span>
                 </span>
               </div>
               {!linkSharing.enabled && !hasSavedVersion && (
-                <p className="ambient-share-version">Save a version before sharing this ambient.</p>
+                <p className="ambient-share-version">Save a version before sharing this theme.</p>
               )}
             </section>
 

@@ -28,10 +28,23 @@ model User {
   updatedAt       DateTime  @updatedAt
 }
 
+// A browser working anonymously. Holds every ambient created before sign in,
+// so signing in can claim all of them at once.
+model GuestSession {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  ambients  Ambient[]
+  createdAt DateTime  @default(now())
+  claimedAt DateTime?
+  claimedBy String?
+}
+
 model Ambient {
   id               String                @id @default(cuid())
-  ownerId          String
-  owner            User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId          String?
+  owner            User?                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  guestSessionId   String?
+  guestSession     GuestSession?         @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
   slug             String
   name             String
   status           AmbientStatus         @default(DRAFT)
@@ -47,6 +60,7 @@ model Ambient {
 
   @@unique([ownerId, slug])
   @@index([ownerId, updatedAt])
+  @@index([guestSessionId, updatedAt])
 }
 
 model AmbientDraft {

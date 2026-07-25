@@ -110,6 +110,13 @@
   --button-primary-hover: color-mix(in oklch, var(--wasp-yellow), white 9%);
   --button-primary-pressed: color-mix(in oklch, var(--wasp-yellow), black 8%);
 
+  /* Signal call to action */
+  --cta-halo-width: 2px;
+  --cta-halo-duration: 7s;
+  --cta-halo-opacity: 0.85;
+  --cta-halo-edge: color-mix(in oklch, var(--wasp-yellow), transparent 65%);
+  --cta-halo-peak: color-mix(in oklch, var(--wasp-yellow), white 55%);
+
   /* Ambient selector & picker */
   --ambient-control-size: 44px;
   --ambient-mark-width: 40px;

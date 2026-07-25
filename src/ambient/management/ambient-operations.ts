@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { HttpError, prisma } from 'wasp/server'
 import type {
+  ClaimGuestAmbients,
   CreateAgentAccess,
   CreateAmbient,
   CreateDraftFromVersion,
@@ -10,6 +11,7 @@ import type {
   GetAmbientWorkspace,
   GetSharedAmbient,
   ListOwnedAmbients,
+  RenameAmbient,
   SaveAmbientVersion,
   SetAmbientLinkSharing,
   SyncAmbientDraft,
@@ -18,14 +20,18 @@ import type { ZodType } from 'zod'
 import { compileAmbientDocument } from '../compiler'
 import type { AmbientDocument } from '../schema'
 import { createAgentSessionAccess, hashAgentCapability } from './agent/agent-session-access'
+import { resolveAmbientAccess, resolveAmbientOwner } from './ambient-access'
+import { hashToken } from '../../account/token-hash'
 import { publishAmbientChange } from './ambient-change-stream'
 import {
   ambientIdInputSchema,
+  claimGuestAmbientsInputSchema,
   createAmbientInputSchema,
   createDraftFromVersionInputSchema,
   createSyncToken,
   deriveDraftStatus,
   documentsEqual,
+  renameAmbientInputSchema,
   saveAmbientVersionInputSchema,
   setAmbientLinkSharingInputSchema,
   sharedAmbientInputSchema,
@@ -40,6 +46,8 @@ import type {
   DeleteAmbientInput,
   AmbientVersionSummaryDto,
   AmbientWorkspaceDto,
+  ClaimGuestAmbientsInput,
+  ClaimGuestAmbientsResult,
   CreateAgentAccessInput,
   CreateAmbientInput,
   CreateAmbientResult,
@@ -48,6 +56,8 @@ import type {
   DiscardAmbientDraftInput,
   DiscardAmbientDraftResult,
   OwnedAmbientDraftSummaryDto,
+  RenameAmbientInput,
+  RenameAmbientResult,
   SaveAmbientVersionInput,
   SavedAmbientVersionDto,
   SetAmbientLinkSharingInput,
@@ -63,7 +73,7 @@ import { createMinimalDraftDocument } from './minimal-draft'
 import { isAdmin } from '../../admin/admin-authorization'
 
 const requireUser = <T extends { id: string }>(user: T | undefined): T => {
-  if (!user) throw new HttpError(401, 'Sign in with GitHub to manage ambients.')
+  if (!user) throw new HttpError(401, 'Sign in with GitHub to manage themes.')
   return user
 }
 
@@ -75,7 +85,7 @@ const parseInput = <Value>(schema: ZodType<Value>, value: unknown) => {
 
 const readDocument = (value: unknown): WorkspaceDocumentDto => {
   const result = compileAmbientDocument(value)
-  if (!result.compiled) throw new HttpError(500, 'Stored ambient is invalid.')
+  if (!result.compiled) throw new HttpError(500, 'Stored theme is invalid.')
   return JSON.parse(JSON.stringify(result.compiled.document))
 }
 
@@ -175,17 +185,17 @@ export const getAmbientWorkspace: GetAmbientWorkspace<AmbientIdInput, AmbientWor
   args,
   context,
 ) => {
-  const user = requireUser(context.user)
-  const { ambientId } = parseInput(ambientIdInputSchema, args)
+  const input = parseInput(ambientIdInputSchema, args)
+  const access = await resolveAmbientAccess(context, input)
   const ambient = await context.entities.Ambient.findFirst({
-    where: { id: ambientId, ownerId: user.id },
+    where: { id: input.ambientId, ...access.scope },
     include: {
       draft: true,
       versions: { orderBy: { version: 'desc' } },
       agentSessions: { orderBy: { generation: 'desc' }, take: 1 },
     },
   })
-  if (!ambient) throw new HttpError(404, 'Ambient not found.')
+  if (!ambient) throw new HttpError(404, 'Theme not found.')
 
   const versions: AmbientVersionSummaryDto[] = ambient.versions.map((version) => ({
     ...toVersionDto(version),
@@ -213,6 +223,7 @@ export const getAmbientWorkspace: GetAmbientWorkspace<AmbientIdInput, AmbientWor
       id: ambient.id,
       name: ambient.name,
       slug: ambient.slug,
+      ownership: access.kind === 'guest' ? 'guest' : 'owned',
       linkSharing: {
         enabled: ambient.linkSharingEnabled,
         shareId: ambient.shareId,
@@ -259,7 +270,7 @@ export const setAmbientLinkSharing: SetAmbientLinkSharing<
     where: { id: input.ambientId, ownerId: user.id },
     select: { id: true, currentVersion: true, shareId: true },
   })
-  if (!ambient) throw new HttpError(404, 'Ambient not found.')
+  if (!ambient) throw new HttpError(404, 'Theme not found.')
   if (input.enabled && ambient.currentVersion === null) {
     throw new HttpError(409, 'Save a version before enabling link sharing.')
   }
@@ -282,14 +293,14 @@ export const setAmbientLinkSharing: SetAmbientLinkSharing<
 }
 
 export const createAmbient: CreateAmbient<CreateAmbientInput, CreateAmbientResult> = async (args, context) => {
-  const user = requireUser(context.user)
-  const { name } = parseInput(createAmbientInputSchema, args)
-  const document = createMinimalDraftDocument(name)
+  const input = parseInput(createAmbientInputSchema, args)
+  const owner = await resolveAmbientOwner(context, input)
+  const document = createMinimalDraftDocument(input.name)
   const ambient = await context.entities.Ambient.create({
     data: {
-      ownerId: user.id,
-      slug: slugify(name),
-      name,
+      ...owner.scope,
+      slug: slugify(input.name),
+      name: input.name,
       draft: {
         create: {
           revision: 0,
@@ -297,35 +308,174 @@ export const createAmbient: CreateAmbient<CreateAmbientInput, CreateAmbientResul
           sourceVersion: null,
           schemaVersion: document.schemaVersion,
           document: serializeDocument(document),
-          updatedBy: user.id,
+          updatedBy: owner.actor,
         },
       },
     },
   })
-  return { ambientId: ambient.id }
+  return owner.mintedGuestToken
+    ? { ambientId: ambient.id, guestToken: owner.mintedGuestToken }
+    : { ambientId: ambient.id }
+}
+
+export const renameAmbient: RenameAmbient<RenameAmbientInput, RenameAmbientResult> = async (
+  args,
+  context,
+) => {
+  const input = parseInput(renameAmbientInputSchema, args)
+  const access = await resolveAmbientAccess(context, input)
+  const revision = await prisma.$transaction(async (transaction) => {
+    const ambient = await transaction.ambient.findFirst({
+      where: { id: input.ambientId, ...access.scope },
+      select: { id: true, draft: { select: { document: true } } },
+    })
+    if (!ambient) throw new HttpError(404, 'Theme not found.')
+    if (!ambient.draft) throw new HttpError(409, 'Start a draft before renaming this theme.')
+
+    const renamed = compileAmbientDocument({ ...readDocument(ambient.draft.document), name: input.name })
+    if (!renamed.compiled) throw new HttpError(500, 'Stored theme is invalid.')
+    // Both counters move together. `revision - baseRevision` is the accepted agent change count, so
+    // advancing revision alone would make renaming look like the agent had delivered work.
+    const draft = await transaction.ambientDraft.update({
+      where: { ambientId: input.ambientId },
+      data: {
+        revision: { increment: 1 },
+        baseRevision: { increment: 1 },
+        schemaVersion: renamed.compiled.document.schemaVersion,
+        document: serializeDocument(renamed.compiled.document),
+        updatedBy: access.actor,
+      },
+      select: { revision: true },
+    })
+    await transaction.ambient.update({ where: { id: input.ambientId }, data: { name: input.name } })
+    return draft.revision
+  }, { isolationLevel: 'Serializable' })
+
+  publishAmbientChange({ ambientId: input.ambientId })
+  return { name: input.name, revision }
+}
+
+type ClaimCandidate = {
+  id: string
+  name: string
+  slug: string
+  draft: { revision: number; baseRevision: number } | null
+  _count: { agentSessions: number }
+}
+
+// A theme nobody connected an agent to and that holds no agent work is an empty shell from a curious
+// click. Claiming it would only clutter the library, so the claim drops it instead.
+const holdsGuestWork = (ambient: ClaimCandidate) =>
+  ambient._count.agentSessions > 0
+  || (ambient.draft !== null && ambient.draft.revision > ambient.draft.baseRevision)
+
+// `@@unique([ownerId, slug])` never applied while the ambient was anonymous, so a slug can collide
+// with one the account already owns. Picking a free slug up front keeps the claim to a single UPDATE,
+// which the owner/guest CHECK constraint requires.
+const nextFreeSlug = (ambient: ClaimCandidate, taken: Set<string>) => {
+  let slug = ambient.slug
+  while (taken.has(slug)) slug = slugify(ambient.name)
+  taken.add(slug)
+  return slug
+}
+
+const isWriteConflict = (error: unknown) =>
+  typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034'
+
+export const claimGuestAmbients: ClaimGuestAmbients<
+  ClaimGuestAmbientsInput,
+  ClaimGuestAmbientsResult
+> = async (args, context) => {
+  const user = requireUser(context.user)
+  const { guestToken } = parseInput(claimGuestAmbientsInputSchema, args)
+
+  const claim = () => prisma.$transaction(async (transaction) => {
+    const session = await transaction.guestSession.findUnique({
+      where: { tokenHash: hashToken(guestToken) },
+      select: {
+        id: true,
+        claimedAt: true,
+        ambients: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            draft: { select: { revision: true, baseRevision: true } },
+            _count: { select: { agentSessions: true } },
+          },
+        },
+      },
+    })
+    if (!session || session.claimedAt !== null) {
+      return { claimedAmbientIds: [], discardedAmbientIds: [] }
+    }
+
+    const owned = await transaction.ambient.findMany({
+      where: { ownerId: user.id },
+      select: { slug: true },
+    })
+    const takenSlugs = new Set(owned.map((ambient) => ambient.slug))
+    const claimedAmbientIds: string[] = []
+    const discardedAmbientIds: string[] = []
+
+    for (const ambient of session.ambients) {
+      if (!holdsGuestWork(ambient)) {
+        discardedAmbientIds.push(ambient.id)
+        continue
+      }
+      await transaction.ambient.update({
+        where: { id: ambient.id },
+        data: {
+          ownerId: user.id,
+          guestSessionId: null,
+          slug: nextFreeSlug(ambient, takenSlugs),
+        },
+      })
+      claimedAmbientIds.push(ambient.id)
+    }
+
+    if (discardedAmbientIds.length > 0) {
+      await transaction.ambient.deleteMany({ where: { id: { in: discardedAmbientIds } } })
+    }
+    await transaction.guestSession.update({
+      where: { id: session.id },
+      data: { claimedAt: new Date(), claimedBy: user.id },
+    })
+    return { claimedAmbientIds, discardedAmbientIds }
+  }, { isolationLevel: 'Serializable' })
+
+  // Two tabs can both act on the same stored claim intent after sign in; the loser sees a write
+  // conflict even though the claim itself is fine to repeat.
+  try {
+    return await claim()
+  } catch (error) {
+    if (!isWriteConflict(error)) throw error
+    return await claim()
+  }
 }
 
 export const createAgentAccess: CreateAgentAccess<CreateAgentAccessInput, AgentSessionDto> = async (
   args,
   context,
 ) => {
-  const user = requireUser(context.user)
-  const { ambientId } = parseInput(ambientIdInputSchema, args)
+  const input = parseInput(ambientIdInputSchema, args)
+  const { ambientId } = input
+  const ambientAccess = await resolveAmbientAccess(context, input)
   const access = createAgentSessionAccess()
 
   const generation = await prisma.$transaction(async (transaction) => {
     const ambient = await transaction.ambient.findFirst({
-      where: { id: ambientId, ownerId: user.id },
+      where: { id: ambientId, ...ambientAccess.scope },
       include: { draft: true },
     })
-    if (!ambient) throw new HttpError(404, 'Ambient not found.')
+    if (!ambient) throw new HttpError(404, 'Theme not found.')
 
     if (!ambient.draft) {
-      if (ambient.currentVersion === null) throw new HttpError(404, 'Ambient draft not found.')
+      if (ambient.currentVersion === null) throw new HttpError(404, 'Theme draft not found.')
       const current = await transaction.ambientVersion.findUnique({
         where: { ambientId_version: { ambientId, version: ambient.currentVersion } },
       })
-      if (!current) throw new HttpError(404, 'Ambient version not found.')
+      if (!current) throw new HttpError(404, 'Theme version not found.')
       const maximum = await transaction.ambientVersion.aggregate({
         where: { ambientId },
         _max: { draftRevision: true },
@@ -339,7 +489,7 @@ export const createAgentAccess: CreateAgentAccess<CreateAgentAccessInput, AgentS
           sourceVersion: current.version,
           schemaVersion: current.schemaVersion,
           document: serializeDocument(readDocument(current.document)),
-          updatedBy: user.id,
+          updatedBy: ambientAccess.actor,
         },
       })
     }
@@ -358,7 +508,7 @@ export const createAgentAccess: CreateAgentAccess<CreateAgentAccessInput, AgentS
       data: {
         ambientId,
         capabilityHash: hashAgentCapability(access.capability),
-        createdBy: user.id,
+        createdBy: ambientAccess.actor,
         expiresAt: access.expiresAt,
         generation: updated.agentSessionGeneration,
       },
@@ -371,14 +521,15 @@ export const createAgentAccess: CreateAgentAccess<CreateAgentAccessInput, AgentS
 }
 
 export const discardAgentAccess: DiscardAgentAccess<DiscardAgentAccessInput, void> = async (args, context) => {
-  const user = requireUser(context.user)
-  const { ambientId } = parseInput(ambientIdInputSchema, args)
+  const input = parseInput(ambientIdInputSchema, args)
+  const { ambientId } = input
+  const access = await resolveAmbientAccess(context, input)
   await prisma.$transaction(async (transaction) => {
     const ambient = await transaction.ambient.updateMany({
-      where: { id: ambientId, ownerId: user.id },
+      where: { id: ambientId, ...access.scope },
       data: { agentSessionGeneration: { increment: 1 } },
     })
-    if (ambient.count === 0) throw new HttpError(404, 'Ambient not found.')
+    if (ambient.count === 0) throw new HttpError(404, 'Theme not found.')
     await transaction.ambientAgentSession.updateMany({
       where: { ambientId, expiresAt: { gt: new Date() } },
       data: { expiresAt: new Date() },
@@ -391,8 +542,8 @@ export const syncAmbientDraft: SyncAmbientDraft<SyncAmbientDraftInput, SyncAmbie
   args,
   context,
 ) => {
-  const user = requireUser(context.user)
   const input = parseInput(syncAmbientDraftInputSchema, args)
+  const access = await resolveAmbientAccess(context, input)
   const invalidatesWorkspace = (token: AmbientSyncTokenDto) =>
     token.agentSessionGeneration !== input.knownAgentSessionGeneration
     || token.currentVersion !== input.knownCurrentVersion
@@ -400,14 +551,14 @@ export const syncAmbientDraft: SyncAmbientDraft<SyncAmbientDraftInput, SyncAmbie
     || token.revision < (input.knownRevision ?? -1)
 
   const status = await context.entities.Ambient.findFirst({
-    where: { id: input.ambientId, ownerId: user.id },
+    where: { id: input.ambientId, ...access.scope },
     select: {
       agentSessionGeneration: true,
       currentVersion: true,
       draft: { select: { revision: true } },
     },
   })
-  if (!status) throw new HttpError(404, 'Ambient not found.')
+  if (!status) throw new HttpError(404, 'Theme not found.')
 
   const statusToken = createSyncToken(
     status.draft?.revision ?? null,
@@ -422,7 +573,7 @@ export const syncAmbientDraft: SyncAmbientDraft<SyncAmbientDraftInput, SyncAmbie
   }
 
   const ambient = await context.entities.Ambient.findFirst({
-    where: { id: input.ambientId, ownerId: user.id },
+    where: { id: input.ambientId, ...access.scope },
     select: {
       name: true,
       agentSessionGeneration: true,
@@ -459,11 +610,11 @@ export const saveAmbientVersion: SaveAmbientVersion<SaveAmbientVersionInput, Sav
       where: { id: input.ambientId, ownerId: user.id },
       select: { id: true, currentVersion: true },
     })
-    if (!ambient) throw new HttpError(404, 'Ambient not found.')
+    if (!ambient) throw new HttpError(404, 'Theme not found.')
     const draft = await transaction.ambientDraft.findUnique({ where: { ambientId: input.ambientId } })
-    if (!draft) throw new HttpError(404, 'Ambient draft not found.')
+    if (!draft) throw new HttpError(404, 'Theme draft not found.')
     if (draft.revision !== input.draftRevision) {
-      throw new HttpError(409, 'The ambient draft changed. Review the latest revision before saving.')
+      throw new HttpError(409, 'The theme draft changed. Review the latest revision before saving.')
     }
     const document = readDocument(draft.document)
     const lastVersion = await transaction.ambientVersion.findFirst({
@@ -497,7 +648,7 @@ export const saveAmbientVersion: SaveAmbientVersion<SaveAmbientVersionInput, Sav
       data: { baseRevision: draft.revision, sourceVersion: version.version },
     })
     if (updatedDraft.count === 0) {
-      throw new HttpError(409, 'The ambient draft changed while the version was being saved.')
+      throw new HttpError(409, 'The theme draft changed while the version was being saved.')
     }
     return version
   }, { isolationLevel: 'Serializable' })
@@ -517,11 +668,11 @@ export const createDraftFromVersion: CreateDraftFromVersion<
       where: { id: input.ambientId, ownerId: user.id },
       select: { id: true, name: true, draft: { select: { revision: true } } },
     })
-    if (!ambient) throw new HttpError(404, 'Ambient not found.')
+    if (!ambient) throw new HttpError(404, 'Theme not found.')
     const version = await transaction.ambientVersion.findFirst({
       where: { id: input.versionId, ambientId: input.ambientId },
     })
-    if (!version) throw new HttpError(404, 'Ambient version not found.')
+    if (!version) throw new HttpError(404, 'Theme version not found.')
     const versionDocument = readDocument(version.document)
     const maximum = await transaction.ambientVersion.aggregate({
       where: { ambientId: input.ambientId },
@@ -576,14 +727,15 @@ export const discardAmbientDraft: DiscardAmbientDraft<
   DiscardAmbientDraftInput,
   DiscardAmbientDraftResult
 > = async (args, context) => {
-  const user = requireUser(context.user)
-  const { ambientId } = parseInput(ambientIdInputSchema, args)
+  const input = parseInput(ambientIdInputSchema, args)
+  const { ambientId } = input
+  const access = await resolveAmbientAccess(context, input)
   const result = await prisma.$transaction(async (transaction) => {
     const ambient = await transaction.ambient.findFirst({
-      where: { id: ambientId, ownerId: user.id },
+      where: { id: ambientId, ...access.scope },
       select: { id: true, _count: { select: { versions: true } } },
     })
-    if (!ambient) throw new HttpError(404, 'Ambient not found.')
+    if (!ambient) throw new HttpError(404, 'Theme not found.')
     if (ambient._count.versions === 0) {
       await transaction.ambient.delete({ where: { id: ambientId } })
       return { ambientDeleted: true }
@@ -605,10 +757,11 @@ export const discardAmbientDraft: DiscardAmbientDraft<
 }
 
 export const deleteAmbient: DeleteAmbient<DeleteAmbientInput, void> = async (args, context) => {
-  const user = requireUser(context.user)
-  const { ambientId } = parseInput(ambientIdInputSchema, args)
+  const input = parseInput(ambientIdInputSchema, args)
+  const { ambientId } = input
+  const access = await resolveAmbientAccess(context, input)
   // Drafts, versions, and agent sessions cascade with the ambient row.
-  const deleted = await prisma.ambient.deleteMany({ where: { id: ambientId, ownerId: user.id } })
-  if (deleted.count === 0) throw new HttpError(404, 'Ambient not found.')
+  const deleted = await prisma.ambient.deleteMany({ where: { id: ambientId, ...access.scope } })
+  if (deleted.count === 0) throw new HttpError(404, 'Theme not found.')
   publishAmbientChange({ ambientId })
 }

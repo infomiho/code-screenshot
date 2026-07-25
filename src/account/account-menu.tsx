@@ -13,7 +13,7 @@ type AccountMenuProps = {
 const getAvatarInitial = (username: string) => username.trim().charAt(0).toLocaleUpperCase() || '?'
 
 const formatLibraryLabel = (draftCount: number) =>
-  draftCount > 0 ? `Your ambients (${draftCount} draft${draftCount === 1 ? '' : 's'})` : 'Your ambients'
+  draftCount > 0 ? `Your themes (${draftCount} draft${draftCount === 1 ? '' : 's'})` : 'Your themes'
 
 export function AccountMenu({
   username,

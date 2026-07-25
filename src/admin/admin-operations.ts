@@ -16,10 +16,13 @@ export const getAdminAccess: GetAdminAccess<void, AdminAccessDto> = async (_args
 export const getAdminDashboard: GetAdminDashboard<void, AdminDashboardDto> = async (_args, context) => {
   requireAdmin(context.user)
 
+  // Anonymous themes are created by every landing click and swept hourly, so counting them here
+  // would drown the product numbers in abandoned drafts.
+  const ownedAmbients = { ownerId: { not: null } }
   const [userCount, ambientCount, ambientStatusGroups, users] = await Promise.all([
     context.entities.User.count(),
-    context.entities.Ambient.count(),
-    context.entities.Ambient.groupBy({ by: ['status'], _count: { _all: true } }),
+    context.entities.Ambient.count({ where: ownedAmbients }),
+    context.entities.Ambient.groupBy({ by: ['status'], where: ownedAmbients, _count: { _all: true } }),
     context.entities.User.findMany({
       orderBy: { createdAt: 'desc' },
       select: {

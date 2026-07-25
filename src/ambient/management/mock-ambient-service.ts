@@ -108,7 +108,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
 
   openWorkspace = async (ambientId: string) => {
     const ambient = this.ambients.get(ambientId)
-    if (!ambient || this.snapshot.account.kind !== 'signed-in') return false
+    if (!ambient) return false
     this.sync(ambient.workspace)
     return true
   }
@@ -119,7 +119,6 @@ export class MockAmbientService implements AmbientWorkspaceService {
   }
 
   createAmbient = async (ambientName: string) => {
-    if (this.snapshot.account.kind !== 'signed-in') return null
     const id = `ambient-mock-${this.nextAmbientId++}`
     const document = createMinimalDraftDocument(ambientName)
     const workspace: OpenAmbientWorkspace = {
@@ -127,6 +126,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
         id,
         name: ambientName,
         slug: `${ambientName.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}-mock`,
+        ownership: this.snapshot.account.kind === 'signed-in' ? 'owned' : 'guest',
         linkSharing: { enabled: false, shareId: null },
       },
       syncToken: createSyncToken(0),
@@ -158,6 +158,36 @@ export class MockAmbientService implements AmbientWorkspaceService {
     })
     this.sync(workspace)
     return id
+  }
+
+  renameAmbient = async (name: string) => {
+    const workspace = this.snapshot.workspace
+    if (!workspace?.workingDraft) return false
+    const ambient = this.ambients.get(workspace.ambient.id)
+    if (ambient) ambient.summary = { ...ambient.summary, name }
+    this.updateWorkspace((current) => ({
+      ...current,
+      ambient: { ...current.ambient, name },
+      workingDraft: current.workingDraft && {
+        ...current.workingDraft,
+        // Both counters move together, so renaming never reads as an accepted agent change.
+        revision: current.workingDraft.revision + 1,
+        baseRevision: current.workingDraft.baseRevision + 1,
+        document: { ...current.workingDraft.document, name },
+        updatedAt: now(),
+      },
+    }))
+    return true
+  }
+
+  claimGuestWork = async () => {
+    const workspace = this.snapshot.workspace
+    if (!workspace || workspace.ambient.ownership !== 'guest') return null
+    this.updateWorkspace((current) => ({
+      ...current,
+      ambient: { ...current.ambient, ownership: 'owned' },
+    }))
+    return { claimedAmbientIds: [workspace.ambient.id], discardedAmbientIds: [] }
   }
 
   createAgentAccess = async () => {

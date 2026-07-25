@@ -2,8 +2,8 @@ import { trackProductEvent } from '../../../product-metrics/events'
 
 const buildAgentPrompt = (ambientName: string, agentAccessUrl: string, hasSavedVersion: boolean) => {
   const intro = hasSavedVersion
-    ? `Update the codeshot.dev ambient "${ambientName}".`
-    : `Create a codeshot.dev ambient for "${ambientName}".`
+    ? `Update the codeshot.dev theme "${ambientName}".`
+    : `Create a codeshot.dev theme for "${ambientName}".`
   const direction = hasSavedVersion
     ? 'The draft holds the current design. Ask me what should change.'
     : 'Ask me for the visual direction.'

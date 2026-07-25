@@ -1,8 +1,10 @@
-import type { MiddlewareConfigFn } from 'wasp/server'
+import { HttpError, type MiddlewareConfigFn } from 'wasp/server'
 import type { StreamAmbientChanges } from 'wasp/server/api'
 import { createInMemoryBroker } from '../../realtime/pubsub/broker'
 import { observeSseDisconnect, openSseServerStream } from '../../realtime/sse/server'
 import { closeSseAfter, startSseHeartbeat } from '../../realtime/sse/server-policies'
+import { resolveAmbientAccess } from './ambient-access'
+import { guestTokenHeader } from './contracts'
 import {
   ambientChangedEventName,
   type AmbientChangeNotification,
@@ -22,31 +24,35 @@ export const publishAmbientChange = ({ ambientId }: PublishAmbientChangeInput) =
 
 type StreamAmbientChangesHandler = StreamAmbientChanges<{ ambientId: string }>
 
+// Wasp's auth middleware lets tokenless requests through, so a guest reaches this handler with no
+// user and proves ownership with the anonymous session token instead.
+const readGuestToken = (req: { get: (name: string) => string | undefined }) => req.get(guestTokenHeader)
+
 export const streamAmbientChanges: StreamAmbientChangesHandler = async (req, res, context) => {
   const disconnect = observeSseDisconnect(req, res)
 
-  if (!context.user) {
-    res.status(401).json({ error: 'Sign in to stream ambient changes.' })
-    return
-  }
-
-  let ownedAmbient: { id: string } | null
+  let reachableAmbient: { id: string } | null
   try {
-    ownedAmbient = await context.entities.Ambient.findFirst({
-      where: { id: req.params.ambientId, ownerId: context.user.id },
+    const access = await resolveAmbientAccess(context, { guestToken: readGuestToken(req) })
+    reachableAmbient = await context.entities.Ambient.findFirst({
+      where: { id: req.params.ambientId, ...access.scope },
       select: { id: true },
     })
   } catch (error) {
     if (disconnect.closed) return
+    if (error instanceof HttpError) {
+      res.status(error.statusCode).json({ error: error.message })
+      return
+    }
     throw error
   }
   if (disconnect.closed) return
-  if (!ownedAmbient) {
-    res.status(404).json({ error: 'Ambient workspace not found.' })
+  if (!reachableAmbient) {
+    res.status(404).json({ error: 'Theme workspace not found.' })
     return
   }
 
-  const { id: ambientId } = ownedAmbient
+  const { id: ambientId } = reachableAmbient
   const stream = openSseServerStream(req, res)
   if (stream.closed) return
 

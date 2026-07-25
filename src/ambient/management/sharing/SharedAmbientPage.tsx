@@ -7,7 +7,7 @@ import type { SharedAmbientDto } from '../contracts'
 import './shared-ambient-page.css'
 import { trackProductEvent } from '../../../product-metrics/events'
 
-const unavailableToast = 'This shared ambient is no longer available.'
+const unavailableToast = 'This shared theme is no longer available.'
 
 const getStatusCode = (error: unknown) => {
   if (!error || typeof error !== 'object' || !('statusCode' in error)) return null
@@ -42,8 +42,8 @@ export function SharedAmbientPage() {
   if (sharedQuery.error && statusCode !== 400 && statusCode !== 404) {
     return (
       <main className="shared-ambient-state" role="alert" aria-busy={sharedQuery.isFetching}>
-        <span>Shared ambient</span>
-        <h1>Could not load this ambient</h1>
+        <span>Shared theme</span>
+        <h1>Could not load this theme</h1>
         <p>Check your connection and try again.</p>
         <div>
           <button

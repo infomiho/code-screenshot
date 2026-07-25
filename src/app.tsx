@@ -1,7 +1,10 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { routes } from 'wasp/client/router'
 import './index.css'
+import { readGuestToken, takeClaimIntent } from './account/guest-session'
+import { randomThemeName } from './ambient/naming/random-theme-name'
+import { trackProductEvent } from './product-metrics/events'
 import type { YourAmbientsState } from './ambient/selection/ambient-picker'
 import {
   ambientDefinitions,
@@ -31,8 +34,9 @@ type AppProps = {
 
 const getAmbientIdFromKey = (key: string) => key.slice(0, key.lastIndexOf('@'))
 const compositionStorageKey = 'codeshot.editor-composition'
-const postAuthRouteStorageKey = 'codeshot.post-auth-route'
-const postAuthIntentLifetime = 15 * 60 * 1000
+// Superseded by the claim intent. Draining it keeps a sign in that was in flight during the deploy
+// from resuming a route that no longer exists.
+const retiredPostAuthRouteKey = 'codeshot.post-auth-route'
 
 type StoredComposition = {
   ambientCustomizations: AmbientCustomizationState
@@ -69,6 +73,8 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
     storedComposition?.ambientCustomizations ?? {},
   )
   const [hasMounted, setHasMounted] = useState(false)
+  const [isCreatingTheme, setIsCreatingTheme] = useState(false)
+  const claimStartedRef = useRef(false)
   const workspace = useAmbientWorkspace(ambientWorkspaceService)
   const { service, snapshot } = workspace
   const definitions = useMemo(() => {
@@ -137,18 +143,36 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
   }, [location.hash, location.pathname, location.search, location.state, navigate])
 
   useEffect(() => {
-    if (!snapshot.isHydrated || snapshot.account.kind !== 'signed-in') return
     try {
-      const value = globalThis.sessionStorage?.getItem(postAuthRouteStorageKey)
-      if (!value) return
-      globalThis.sessionStorage.removeItem(postAuthRouteStorageKey)
-      const intent = JSON.parse(value) as { path: string; createdAt: number }
-      if (intent.path !== '/ambients/new' || Date.now() - intent.createdAt > postAuthIntentLifetime) return
-      openWorkspace('new')
+      globalThis.sessionStorage?.removeItem(retiredPostAuthRouteKey)
     } catch {
-      // The create flow remains available from the ambient library.
+      // Nothing to drain when session storage is unavailable.
     }
-  }, [snapshot.account.kind, snapshot.isHydrated])
+  }, [])
+
+  // Signing in always adopts whatever this browser made anonymously, so a signed-in visitor never
+  // holds unreachable work. The stored intent only decides where they land afterwards.
+  useEffect(() => {
+    if (!snapshot.isHydrated || snapshot.account.kind !== 'signed-in') return
+    if (claimStartedRef.current) return
+    const intent = takeClaimIntent()
+    if (!readGuestToken()) return
+    claimStartedRef.current = true
+    void service.claimGuestWork().then((result) => {
+      if (!result || !intent) return
+      if (!result.claimedAmbientIds.length) {
+        toastManager.add({
+          id: 'claim-empty',
+          description: 'That theme had no agent changes yet, so there was nothing to save.',
+        })
+        return
+      }
+      navigate(intent.returnTo, {
+        replace: true,
+        state: { saveOnArrival: intent.saveOnReturn },
+      })
+    })
+  }, [navigate, service, snapshot.account.kind, snapshot.isHydrated])
 
   useEffect(() => {
     try {
@@ -181,28 +205,31 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
 
   const openAdmin = () => navigate(routes.AdminRoute.to)
 
-  const createAmbient = () => {
-    if (snapshot.account.kind === 'signed-out') {
-      try {
-        globalThis.sessionStorage?.setItem(postAuthRouteStorageKey, JSON.stringify({
-          path: '/ambients/new',
-          createdAt: Date.now(),
-        }))
-      } catch {
-        // Authentication can continue without a persisted destination.
-      }
-      service.signIn()
+  // Creating a theme never asks for an account. The visitor lands straight in the workspace with a
+  // name already in place, and only saving requires signing in.
+  const createAmbient = async () => {
+    if (isCreatingTheme) return
+    setIsCreatingTheme(true)
+    const ambientId = await service.createAmbient(randomThemeName())
+    setIsCreatingTheme(false)
+    if (!ambientId) {
+      toastManager.add({
+        id: 'create-theme-failed',
+        description: 'Could not start a new theme. Try again.',
+      })
       return
     }
-    openWorkspace('new')
+    trackProductEvent('Ambient Created', { surface: 'landing' })
+    openWorkspace(ambientId)
   }
 
+  const startAmbient = () => void createAmbient()
   const yourAmbients: YourAmbientsState = snapshot.account.kind === 'signed-out'
-    ? { kind: 'signed-out', onCreateAmbient: createAmbient }
+    ? { kind: 'signed-out', onCreateAmbient: startAmbient }
     : {
         kind: 'signed-in',
         hasAmbients: snapshot.ownedAmbients.length > 0,
-        onCreateAmbient: createAmbient,
+        onCreateAmbient: startAmbient,
         onManageAmbients: openLibrary,
       }
 
@@ -242,6 +269,8 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
         account={snapshot.account}
         isHydrated={snapshot.isHydrated}
         draftCount={draftCount}
+        isCreatingTheme={isCreatingTheme}
+        onCreateTheme={startAmbient}
         onOpenLibrary={openLibrary}
         onOpenAdmin={openAdmin}
         onSignIn={service.signIn}

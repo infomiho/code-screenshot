@@ -1,5 +1,5 @@
-import { createHash, randomBytes } from 'node:crypto'
 import { config, env } from 'wasp/server'
+import { createAccessToken, hashToken } from '../../../account/token-hash'
 
 const agentSessionLifetimeMs = 24 * 60 * 60 * 1000
 
@@ -9,8 +9,7 @@ const serverUrl = () =>
 const capabilityUrl = (baseUrl: string, path: string, capability: string) =>
   new URL(`${path}/${encodeURIComponent(capability)}`, `${baseUrl.replace(/\/$/, '')}/`).toString()
 
-export const hashAgentCapability = (capability: string) =>
-  createHash('sha256').update(capability).digest('hex')
+export const hashAgentCapability = (capability: string) => hashToken(capability)
 
 export const agentSessionUrl = (capability: string) =>
   capabilityUrl(serverUrl(), 'agent/sessions', capability)
@@ -19,7 +18,7 @@ export const agentPreviewUrl = (capability: string) =>
   capabilityUrl(config.frontendUrl, 'agent-preview', capability)
 
 export const createAgentSessionAccess = () => {
-  const capability = randomBytes(32).toString('base64url')
+  const capability = createAccessToken()
   return {
     capability,
     expiresAt: new Date(Date.now() + agentSessionLifetimeMs),

@@ -31,9 +31,9 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
         <>
           <div className="admin-inventory-summary">
             <MetricCard label="Users" value={dashboard.userCount} />
-            <MetricCard label="Ambients" value={dashboard.ambientCount} />
+            <MetricCard label="Themes" value={dashboard.ambientCount} />
             <div className="admin-status-breakdown">
-              <span>Ambient status</span>
+              <span>Theme status</span>
               <div>
                 <strong>{numberFormatter.format(dashboard.ambientCountsByStatus.draft)}</strong> Draft
                 <strong>{numberFormatter.format(dashboard.ambientCountsByStatus.published)}</strong> Published
@@ -54,7 +54,7 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
                   <thead>
                     <tr>
                       <th scope="col">GitHub user</th>
-                      <th scope="col">Ambients</th>
+                      <th scope="col">Themes</th>
                     </tr>
                   </thead>
                   <tbody>

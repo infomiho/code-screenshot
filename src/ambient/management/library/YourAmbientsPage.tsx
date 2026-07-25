@@ -40,7 +40,7 @@ function DeleteAmbientDialog({
 
   return (
     <ConfirmDialog
-      confirmLabel={isDeleting ? 'Deleting...' : 'Delete ambient'}
+      confirmLabel={isDeleting ? 'Deleting...' : 'Delete theme'}
       description={description}
       eyebrow="Permanent action"
       isBusy={isDeleting}
@@ -61,13 +61,13 @@ function EmptyLibrary({ onCreate }: { onCreate: () => void }) {
         <span className="ambient-library-ghost-mark" />
         <span className="ambient-library-ghost-mark" />
       </div>
-      <h2>No ambients yet</h2>
+      <h2>No themes yet</h2>
       <p>
         An ambient is a reusable visual frame for your code screenshots.
         Describe the look you want and build it with help from your coding agent.
       </p>
       <button className="ui-button ui-button-primary" type="button" onClick={onCreate}>
-        Create your first ambient
+        Create your first theme
       </button>
     </div>
   )
@@ -84,7 +84,7 @@ export function YourAmbientsPage({
   const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
-    document.title = 'Your ambients | codeshot.dev'
+    document.title = 'Your themes | codeshot.dev'
   }, [])
 
   const openEditor = () => {
@@ -151,8 +151,8 @@ export function YourAmbientsPage({
     if (snapshot.account.kind !== 'signed-in') {
       return (
         <div className="ambient-library-empty-state">
-          <h2>Sign in to manage your ambients</h2>
-          <p>Your ambients are private to your GitHub account.</p>
+          <h2>Sign in to manage your themes</h2>
+          <p>Your themes are private to your GitHub account.</p>
           <button className="ui-button ui-button-primary" type="button" onClick={service.signIn}>
             Sign in with GitHub
           </button>
@@ -235,7 +235,7 @@ export function YourAmbientsPage({
         <div className="ambient-library-heading">
           <div>
             <span className="ambient-library-eyebrow">Ambient library</span>
-            <h1>Your ambients</h1>
+            <h1>Your themes</h1>
           </div>
           {!snapshot.isHydrated ? (
             <span className="skeleton ambient-library-skeleton-create" aria-hidden="true" />

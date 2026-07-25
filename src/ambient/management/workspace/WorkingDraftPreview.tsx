@@ -182,7 +182,7 @@ export function WorkingDraftPreview({
     return (
       <div className="workspace-empty-state">
         <h2>No working draft</h2>
-        <p>Start a draft to begin shaping this ambient.</p>
+        <p>Start a draft to begin shaping this theme.</p>
         <div className="workspace-empty-actions">
           <button className="ui-button ui-button-primary" type="button" disabled={!canStartDraft} onClick={onStartDraft}>
             Start a draft

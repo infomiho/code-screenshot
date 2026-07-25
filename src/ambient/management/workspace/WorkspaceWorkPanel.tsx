@@ -17,6 +17,7 @@ type WorkspaceWorkPanelProps = {
   discardLabel: string
   draftSafety: DraftSafetyView
   hasWorkingDraft: boolean
+  isGuest: boolean
   isSaving: boolean
   versionInUse: number | null
   view: AmbientWorkspaceView
@@ -27,6 +28,7 @@ type WorkspaceWorkPanelProps = {
   onDiscardDraft: () => void
   onRetry: () => void
   onSave: () => void
+  onSignInToSave: () => void
   onStatus: (message: string) => void
 }
 
@@ -40,6 +42,7 @@ export function WorkspaceWorkPanel({
   discardLabel,
   draftSafety,
   hasWorkingDraft,
+  isGuest,
   isSaving,
   versionInUse,
   view,
@@ -50,6 +53,7 @@ export function WorkspaceWorkPanel({
   onDiscardDraft,
   onRetry,
   onSave,
+  onSignInToSave,
   onStatus,
 }: WorkspaceWorkPanelProps) {
   const hasPrompt = access.status === 'available' && agentAccessUrl !== null
@@ -89,14 +93,22 @@ export function WorkspaceWorkPanel({
     <ReviewActions
       canCompare={canCompare}
       canSave={canSave}
+      isGuest={isGuest}
       isSaving={isSaving}
       onCompare={onCompare}
       onSave={onSave}
+      onSignInToSave={onSignInToSave}
     />
   )
 
   return (
     <div className="workspace-work-panel">
+      {accessIsNext && !hasWorkingDraft && (
+        <p className="workspace-orientation">
+          Your coding agent designs this theme. Create access below, hand it the prompt, and review
+          what it sends back here.
+        </p>
+      )}
       {statusIsNext && status}
       {reviewIsNext && review}
       {promptIsNext && prompt}

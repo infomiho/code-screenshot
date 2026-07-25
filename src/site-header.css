@@ -27,13 +27,24 @@
 
 .site-account {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 
-  > :where(.ui-button, .account-menu-trigger) {
+  > :where(.account-menu-trigger, .site-sign-in) {
     animation: skeleton-reveal var(--skeleton-reveal-duration) var(--skeleton-reveal-ease);
 
     @media (prefers-reduced-motion: reduce) {
       animation: none;
     }
+  }
+}
+
+.site-sign-in {
+  color: var(--muted);
+
+  &:hover:not(:disabled) {
+    color: var(--text);
   }
 }
 

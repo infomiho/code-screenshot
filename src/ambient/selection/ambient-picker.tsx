@@ -140,8 +140,8 @@ export function AmbientPicker({
   return (
     <>
       <div className="ambient-picker-heading">
-        <span>Choose an ambient</span>
-        <button className="ui-button ui-button-ghost ui-button-icon ambient-picker-close" type="button" aria-label="Close ambient picker" onClick={onClose}>
+        <span>Choose a theme</span>
+        <button className="ui-button ui-button-ghost ui-button-icon ambient-picker-close" type="button" aria-label="Close theme picker" onClick={onClose}>
           &#215;
         </button>
       </div>
@@ -150,7 +150,7 @@ export function AmbientPicker({
         ref={pickerRef}
         className="ambient-picker"
         role="grid"
-        aria-label="Choose ambient"
+        aria-label="Choose theme"
         aria-activedescendant={`${pickerId}-option-${activeIndex}`}
         tabIndex={0}
         onKeyDown={(event) => {
@@ -162,7 +162,7 @@ export function AmbientPicker({
           entries={builtIns}
           heading="Included"
           headingId={`${pickerId}-included`}
-          label="Included ambients"
+          label="Included themes"
           pickerId={pickerId}
           selectedIndex={selectedIndex}
           onActiveIndexChange={onActiveIndexChange}
@@ -172,9 +172,9 @@ export function AmbientPicker({
           <AmbientOptionGrid
             activeIndex={activeIndex}
             entries={personal}
-            heading="Your ambients"
+            heading="Your themes"
             headingId={`${pickerId}-owned`}
-            label="Your ambients"
+            label="Your themes"
             pickerId={pickerId}
             selectedIndex={selectedIndex}
             onActiveIndexChange={onActiveIndexChange}
@@ -182,26 +182,26 @@ export function AmbientPicker({
           />
         )}
       </div>
-      <section className="ambient-account" aria-label="Your ambients account">
+      <section className="ambient-account" aria-label="Your themes account">
         {yourAmbients.kind === 'signed-out' ? (
           <>
-            <h3>Your ambients</h3>
+            <h3>Your themes</h3>
             <p>Sign in to create your own reusable visual frame.</p>
             <button className="ui-button ui-button-primary ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
-              Create your own ambient
+              Create your own theme
             </button>
           </>
         ) : yourAmbients.hasAmbients ? (
           <button className="ambient-account-manage" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
-            <span>Manage your ambients</span>
+            <span>Manage your themes</span>
             <span aria-hidden="true">→</span>
           </button>
         ) : (
           <>
-            <h3>Your ambients</h3>
+            <h3>Your themes</h3>
             <p>Build a reusable visual frame with help from your coding agent.</p>
             <button className="ui-button ui-button-primary ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
-              Create your own ambient
+              Create your own theme
             </button>
           </>
         )}

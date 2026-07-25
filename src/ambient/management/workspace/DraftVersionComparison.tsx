@@ -53,7 +53,7 @@ export function DraftVersionComparison({
             />
           )}
           {declarativeDraft
-            ? <AmbientFramePreview ambientName="Working draft" compact customizationValues={draftCustomizations.values} definition={declarativeDraft} previewTitle="Ambient comparison" />
+            ? <AmbientFramePreview ambientName="Working draft" compact customizationValues={draftCustomizations.values} definition={declarativeDraft} previewTitle="Theme comparison" />
             : <div className="comparison-mark"><span>No working draft</span></div>}
         </article>
         <article>
@@ -66,7 +66,7 @@ export function DraftVersionComparison({
             />
           )}
           {declarativeVersion
-            ? <AmbientFramePreview ambientName={`Version ${version.version}`} compact customizationValues={versionCustomizations.values} definition={declarativeVersion} previewTitle="Ambient comparison" />
+            ? <AmbientFramePreview ambientName={`Version ${version.version}`} compact customizationValues={versionCustomizations.values} definition={declarativeVersion} previewTitle="Theme comparison" />
             : <div className="comparison-mark"><span>Preview unavailable</span></div>}
         </article>
       </div>

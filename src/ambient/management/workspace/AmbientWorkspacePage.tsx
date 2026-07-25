@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import { routes } from 'wasp/client/router'
+import { readGuestToken, rememberClaimIntent } from '../../../account/guest-session'
+import { randomThemeName } from '../../naming/random-theme-name'
 import { loadAmbientDefinition } from '../../rendering/ambient-registry'
 import { countDraftAmbients, type AmbientWorkspaceService } from '../ambient-workspace-service'
 import { AmbientWorkspaceHeader } from './AmbientWorkspaceHeader'
@@ -10,13 +12,12 @@ import { usePreviewCustomizations } from './PreviewCustomizationStrip'
 import { VersionSpine } from './VersionSpine'
 import { WorkingDraftPreview } from './WorkingDraftPreview'
 import { WorkspaceLoadingSkeleton } from './WorkspaceLoadingSkeleton'
-import { WorkspaceSetupState } from './WorkspaceSetupState'
 import { WorkspaceSidebar } from './WorkspaceSidebar'
 import { WorkspaceWorkPanel } from './WorkspaceWorkPanel'
 import { useAgentWorkflow } from '../agent/use-agent-workflow'
 import { useAmbientWorkspace } from '../use-ambient-workspace'
 import { useWorkspaceSidebar } from './use-workspace-sidebar'
-import { Toaster } from '../../../ui/toast'
+import { Toaster, toastManager } from '../../../ui/toast'
 import '../../../index.css'
 import './ambient-workspace-page.css'
 import { trackProductEvent } from '../../../product-metrics/events'
@@ -33,6 +34,7 @@ export function AmbientWorkspacePage({
   onClose,
 }: AmbientWorkspacePageProps = {}) {
   const navigate = useNavigate()
+  const location = useLocation()
   const routeParams = useParams<'ambientId'>()
   const requestedAmbientId = providedAmbientId ?? routeParams.ambientId
   const {
@@ -50,25 +52,53 @@ export function AmbientWorkspacePage({
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false)
   const previousAcceptedChangeCountRef = useRef<number | null>(null)
   const previousWorkspaceIdRef = useRef<string | null>(null)
+  const nudgedAmbientIdRef = useRef<string | null>(null)
+  const creationStartedRef = useRef(false)
   const sidebar = useWorkspaceSidebar()
   const workspace = snapshot.workspace
   const loadState = createdAmbientId && workspace ? 'ready' : workspaceLoadState
+  const ownership = workspace?.ambient.ownership ?? 'owned'
+  const isGuest = ownership === 'guest'
+  const acceptedChangeCount = workspace?.workingDraft?.acceptedChangeCount ?? 0
+  const draftMatchesVersion = workflow.draftSafety.status === 'matches-version'
+  const isSaving = workspace?.mutation === 'saving' || workflow.workspace.status === 'saving'
+  const canSave = Boolean(workspace?.workingDraft)
+    && !draftMatchesVersion
+    && workspace?.connectivity === 'online'
+    && workspace?.mutation === 'idle'
 
   useEffect(() => {
     if (!snapshot.isHydrated || loadState === 'loading') {
-      document.title = 'Loading ambient workspace | codeshot.dev'
+      document.title = 'Loading theme workspace | codeshot.dev'
     } else if (loadState === 'setup') {
-      document.title = 'Create ambient | codeshot.dev'
+      document.title = 'New theme | codeshot.dev'
     } else if (loadState === 'error') {
       document.title = 'Workspace unavailable | codeshot.dev'
     } else if (loadState === 'not-found') {
-      document.title = 'Ambient not found | codeshot.dev'
+      document.title = 'Theme not found | codeshot.dev'
     } else if (!workspace) {
-      document.title = 'Loading ambient workspace | codeshot.dev'
+      document.title = 'Loading theme workspace | codeshot.dev'
     } else {
       document.title = `${workspace.ambient.name} workspace | codeshot.dev`
     }
   }, [loadState, snapshot.isHydrated, workspace])
+
+  // Reaching /ambients/new directly still works: it mints a theme and rewrites the URL, so there is
+  // no naming form anywhere in the flow.
+  useEffect(() => {
+    if (loadState !== 'setup' || creationStartedRef.current) return
+    creationStartedRef.current = true
+    void service.createAmbient(randomThemeName()).then((ambientId) => {
+      if (!ambientId) {
+        creationStartedRef.current = false
+        setStatusMessage('Could not start a new theme. Try again.')
+        return
+      }
+      trackProductEvent('Ambient Created', { surface: 'workspace' })
+      setCreatedAmbientId(ambientId)
+      navigate(`/ambients/${encodeURIComponent(ambientId)}`, { replace: true })
+    })
+  }, [loadState, navigate, service])
 
   useEffect(() => {
     if (!workspace) return
@@ -85,20 +115,37 @@ export function AmbientWorkspacePage({
 
   useEffect(() => {
     const workspaceId = workspace?.ambient.id ?? null
-    const changeCount = workspace?.workingDraft?.acceptedChangeCount ?? 0
     if (previousWorkspaceIdRef.current !== workspaceId) {
       previousWorkspaceIdRef.current = workspaceId
-      previousAcceptedChangeCountRef.current = changeCount
+      previousAcceptedChangeCountRef.current = acceptedChangeCount
       return
     }
     const previousCount = previousAcceptedChangeCountRef.current
-    if (previousCount !== null && changeCount > previousCount) {
+    if (previousCount !== null && acceptedChangeCount > previousCount) {
       setStatusMessage(
-        `${changeCount - previousCount} agent ${changeCount - previousCount === 1 ? 'change' : 'changes'} accepted. Ready to review.`,
+        `${acceptedChangeCount - previousCount} agent ${acceptedChangeCount - previousCount === 1 ? 'change' : 'changes'} accepted. Ready to review.`,
       )
+      // The first delivered change is the moment the work is first worth keeping, and the only
+      // moment a guest is asked to sign in without being prompted again.
+      if (isGuest && previousCount === 0 && workspaceId && nudgedAmbientIdRef.current !== workspaceId) {
+        nudgedAmbientIdRef.current = workspaceId
+        toastManager.add({
+          id: 'guest-save-nudge',
+          description: 'Your theme is taking shape. Sign in when you want to keep it.',
+        })
+      }
     }
-    previousAcceptedChangeCountRef.current = changeCount
-  }, [workspace?.ambient.id, workspace?.workingDraft?.acceptedChangeCount])
+    previousAcceptedChangeCountRef.current = acceptedChangeCount
+  }, [acceptedChangeCount, isGuest, workspace?.ambient.id])
+
+  // Anonymous work only exists on this browser until it is claimed, so leaving with unsaved agent
+  // changes is worth one interruption. Before the agent delivers anything there is nothing to lose.
+  useEffect(() => {
+    if (!isGuest || acceptedChangeCount === 0) return
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warnBeforeLeaving)
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving)
+  }, [acceptedChangeCount, isGuest])
 
   const selectedVersion = workspace?.versions.find((version) => version.id === selectedVersionId) ?? null
   const selectedVersionDefinition = useMemo(() => {
@@ -115,7 +162,7 @@ export function AmbientWorkspacePage({
     if (onClose) {
       onClose()
     } else {
-      navigate('/ambients')
+      navigate(isGuest ? '/' : '/ambients')
     }
   }
 
@@ -134,27 +181,6 @@ export function AmbientWorkspacePage({
     }
     void service.openWorkspace(requestedAmbientId)
       .catch(() => undefined)
-  }
-
-  const createAmbient = async (ambientName: string) => {
-    try {
-      const id = await service.createAmbient(ambientName)
-      if (!id) {
-        return false
-      }
-      trackProductEvent('Ambient Created', { surface: 'workspace' })
-      const accessCreated = await service.createAgentAccess(id)
-      setCreatedAmbientId(id)
-      setStatusMessage(
-        accessCreated
-          ? `${ambientName} created. Agent prompt is ready.`
-          : `${ambientName} created. Create agent access when you are ready.`,
-      )
-      navigate(`/ambients/${encodeURIComponent(id)}`, { replace: true })
-      return true
-    } catch {
-      return false
-    }
   }
 
   const createAccess = async () => {
@@ -187,6 +213,36 @@ export function AmbientWorkspacePage({
     } else {
       setStatusMessage('Could not save this version. Your draft remains available.')
     }
+  }
+
+  // A guest saves in one gesture: the intent survives the sign in round trip, and coming back claims
+  // the work and saves it without asking again.
+  const signInToSave = () => {
+    const guestToken = readGuestToken()
+    if (guestToken && workspace) {
+      rememberClaimIntent({
+        guestToken,
+        returnTo: `/ambients/${encodeURIComponent(workspace.ambient.id)}`,
+        saveOnReturn: true,
+      })
+    }
+    service.signIn()
+  }
+
+  useEffect(() => {
+    const arrivalState = location.state as { saveOnArrival?: boolean } | null
+    if (!arrivalState?.saveOnArrival || !canSave) return
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: location.hash },
+      { replace: true, state: null },
+    )
+    void saveVersion()
+  }, [canSave, location.hash, location.pathname, location.search, location.state, navigate])
+
+  const renameAmbient = async (name: string) => {
+    const renamed = await service.renameAmbient(name)
+    if (!renamed) setStatusMessage('Could not rename this theme.')
+    return renamed
   }
 
   const restoreVersion = async () => {
@@ -230,32 +286,19 @@ export function AmbientWorkspacePage({
     setIsComparing(true)
   }
 
-  if (!snapshot.isHydrated || loadState === 'loading') {
+  if (!snapshot.isHydrated || loadState === 'loading' || loadState === 'setup') {
     return <WorkspaceLoadingSkeleton />
   }
 
   const draftCount = countDraftAmbients(snapshot.ownedAmbients)
 
-  if (loadState === 'setup' && !createdAmbientId) {
-    return (
-      <WorkspaceSetupState
-        account={snapshot.account}
-        draftCount={draftCount}
-        onCancel={closeWorkspace}
-        onCreate={createAmbient}
-        onSignIn={service.signIn}
-        onSignOut={signOut}
-      />
-    )
-  }
-
   if (loadState === 'not-found' || loadState === 'error') {
     const isError = loadState === 'error'
     return (
       <main className="workspace-route-state" role={isError ? 'alert' : undefined}>
-        <span className="workspace-eyebrow">Ambient workspace</span>
-        <h1>{isError ? 'Workspace unavailable' : 'Ambient not found'}</h1>
-        <p>{isError ? 'The workspace could not be opened. Try again from your ambient library.' : 'This ambient does not exist or is not available to this account.'}</p>
+        <span className="workspace-eyebrow">Theme workspace</span>
+        <h1>{isError ? 'Workspace unavailable' : 'Theme not found'}</h1>
+        <p>{isError ? 'The workspace could not be opened. Try again from your themes.' : 'This theme does not exist, or it belongs to another browser or account.'}</p>
         {snapshot.account.kind === 'signed-out' && (
           <button className="ui-button ui-button-primary" type="button" onClick={service.signIn}>
             Sign in to open workspace
@@ -266,11 +309,11 @@ export function AmbientWorkspacePage({
           type="button"
           onClick={isError && requestedAmbientId ? retryOpenWorkspace : closeWorkspace}
         >
-          {isError ? 'Retry workspace' : 'Your ambients'}
+          {isError ? 'Retry workspace' : 'Your themes'}
         </button>
         {isError && (
           <button className="workspace-secondary-link" type="button" onClick={closeWorkspace}>
-            Your ambients
+            Your themes
           </button>
         )}
       </main>
@@ -281,16 +324,10 @@ export function AmbientWorkspacePage({
     return <WorkspaceLoadingSkeleton />
   }
 
-  const draftMatchesVersion = workflow.draftSafety.status === 'matches-version'
   const discardLabel = !workspace.versionInUse
-    ? 'Discard ambient'
+    ? 'Discard theme'
     : draftMatchesVersion ? 'Close draft' : 'Discard changes'
-  const isSaving = workspace.mutation === 'saving' || workflow.workspace.status === 'saving'
   const isDiscarding = workspace.mutation === 'discarding'
-  const canSave = Boolean(workspace.workingDraft)
-    && workflow.draftSafety.status !== 'matches-version'
-    && workspace.connectivity === 'online'
-    && workspace.mutation === 'idle'
 
   return (
     <main className="ambient-workspace-page">
@@ -299,10 +336,16 @@ export function AmbientWorkspacePage({
         account={snapshot.account}
         draftCount={draftCount}
         hasSavedVersion={workspace.versionInUse !== null}
+        hasUnsavedChanges={!draftMatchesVersion && workspace.workingDraft !== null}
         linkSharing={workspace.ambient.linkSharing}
+        name={workspace.ambient.name}
+        ownership={ownership}
         slug={workspace.ambient.slug}
+        versionInUse={workspace.versionInUse?.version ?? null}
         onClose={closeWorkspace}
         onOpenAdmin={() => navigate(routes.AdminRoute.to)}
+        onRename={renameAmbient}
+        onSignIn={signInToSave}
         onSignOut={signOut}
         onSharingChange={service.setLinkSharing}
       />
@@ -346,12 +389,13 @@ export function AmbientWorkspacePage({
                 access={workflow.access}
                 agentAccessUrl={workspace.agentAccessUrl}
                 ambientName={workspace.ambient.name}
-                canCompare={workspace.versionInUse !== null && workflow.draftSafety.status !== 'matches-version'}
+                canCompare={workspace.versionInUse !== null && !draftMatchesVersion}
                 canMutate={workspace.connectivity === 'online'}
                 canSave={canSave}
                 discardLabel={discardLabel}
                 draftSafety={workflow.draftSafety}
                 hasWorkingDraft={workspace.workingDraft !== null}
+                isGuest={isGuest}
                 isSaving={isSaving}
                 versionInUse={workspace.versionInUse?.version ?? null}
                 view={workflow.workspace}
@@ -364,12 +408,13 @@ export function AmbientWorkspacePage({
                   void service.openWorkspace(workspace.ambient.id).catch(() => undefined)
                 }}
                 onSave={saveVersion}
+                onSignInToSave={signInToSave}
                 onStatus={setStatusMessage}
               />
             )}
             versions={(
               <VersionSpine
-                acceptedChangeCount={workspace.workingDraft?.acceptedChangeCount ?? 0}
+                acceptedChangeCount={acceptedChangeCount}
                 isDraftSelected={!isComparing}
                 onSelectDraft={() => setIsComparing(false)}
                 onSelectVersion={showComparison}
