@@ -154,20 +154,20 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
   // holds unreachable work. The stored intent only decides where they land afterwards.
   useEffect(() => {
     if (!snapshot.isHydrated || snapshot.account.kind !== 'signed-in') return
-    if (claimStartedRef.current) return
-    const intent = takeClaimIntent()
-    if (!readGuestToken()) return
+    if (claimStartedRef.current || !readGuestToken()) return
     claimStartedRef.current = true
+    const intent = takeClaimIntent()
     void service.claimGuestWork().then((result) => {
       if (!result || !intent) return
-      if (!result.claimedAmbientIds.length) {
+      if (!result.claimedAmbientIds.includes(intent.ambientId)) {
+        // The theme was still empty, so claiming dropped it rather than filing an untouched shell.
         toastManager.add({
-          id: 'claim-empty',
-          description: 'That theme had no agent changes yet, so there was nothing to save.',
+          id: 'claim-discarded',
+          description: 'Signed in. That theme was still empty, so it was not kept.',
         })
         return
       }
-      navigate(intent.returnTo, {
+      navigate(`/ambients/${encodeURIComponent(intent.ambientId)}`, {
         replace: true,
         state: { saveOnArrival: intent.saveOnReturn },
       })
@@ -219,7 +219,10 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
       })
       return
     }
-    trackProductEvent('Ambient Created', { surface: 'landing' })
+    trackProductEvent('Ambient Created', {
+      surface: 'landing',
+      account: snapshot.account.kind === 'signed-in' ? 'signed-in' : 'anonymous',
+    })
     openWorkspace(ambientId)
   }
 

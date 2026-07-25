@@ -38,7 +38,18 @@ describe('workspace view derivation', () => {
   })
 
   it('derives access without coupling it to draft safety', () => {
-    expect(deriveAgentAccessView({ state: 'expired', expiresAt: null })).toEqual({ status: 'expired' })
+    expect(deriveAgentAccessView({ state: 'expired', expiresAt: null, lastUsedAt: null }))
+      .toEqual({ status: 'expired' })
+    expect(deriveAgentAccessView({
+      state: 'available',
+      expiresAt: '2026-07-26T12:00:00.000Z',
+      lastUsedAt: null,
+    })).toMatchObject({ hasReadDraft: false })
+    expect(deriveAgentAccessView({
+      state: 'available',
+      expiresAt: '2026-07-26T12:00:00.000Z',
+      lastUsedAt: '2026-07-25T12:00:00.000Z',
+    })).toMatchObject({ hasReadDraft: true })
     expect(deriveDraftSafetyView({ currentVersion: 3, acceptedChangeCount: 2 })).toEqual({
       status: 'ahead-of-version',
       version: 3,

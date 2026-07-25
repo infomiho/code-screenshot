@@ -7,7 +7,8 @@ const claimIntentLifetime = 15 * 60 * 1000
 
 export type ClaimIntent = {
   guestToken: string
-  returnTo: string
+  ambientId: string
+  // Only the work panel's "Sign in to save" arms this. Signing in from the header is just signing in.
   saveOnReturn: boolean
   createdAt: number
 }

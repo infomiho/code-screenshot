@@ -63,6 +63,7 @@ export function useAgentWorkflow(snapshot: AmbientWorkspaceSnapshot) {
     access: deriveAgentAccessView({
       state: machineSnapshot.value.access as AgentAccessState,
       expiresAt: workspace?.agentAccess.status === 'available' ? workspace.agentAccess.expiresAt : null,
+      lastUsedAt: workspace?.agentAccess.status === 'available' ? workspace.agentAccess.lastUsedAt : null,
     }),
     draftSafety: deriveDraftSafetyView({
       currentVersion: workspace?.versionInUse?.version ?? null,

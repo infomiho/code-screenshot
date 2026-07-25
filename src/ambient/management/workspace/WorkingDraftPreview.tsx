@@ -195,7 +195,7 @@ export function WorkingDraftPreview({
   if (definition.kind !== 'declarative') {
     return (
       <div className="workspace-error-state" role="alert">
-        This draft cannot be rendered as a declarative ambient.
+        This draft cannot be rendered as a declarative theme.
       </div>
     )
   }

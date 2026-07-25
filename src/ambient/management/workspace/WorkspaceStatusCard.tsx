@@ -29,7 +29,11 @@ const safetyLabel = (safety: DraftSafetyView) => {
 }
 
 const accessLabel = (access: AgentAccessView, hasAccessUrl: boolean) => {
-  if (access.status === 'available' && hasAccessUrl) return `Access until ${formatExpiry(access.expiresAt)}`
+  if (access.status === 'available' && hasAccessUrl) {
+    return access.hasReadDraft
+      ? `Agent connected · access until ${formatExpiry(access.expiresAt)}`
+      : `Access until ${formatExpiry(access.expiresAt)}`
+  }
   if (access.status === 'creating') return 'Creating access...'
   if (access.status === 'expired') return 'Access ended'
   if (access.status === 'available' || access.status === 'unavailable') return 'New access required'

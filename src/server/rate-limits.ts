@@ -10,6 +10,9 @@ const limitedPaths = new Set([
   '/operations/create-ambient',
   '/operations/rename-ambient',
   '/operations/create-agent-access',
+  '/operations/discard-agent-access',
+  '/operations/discard-ambient-draft',
+  '/operations/delete-ambient',
   '/operations/claim-guest-ambients',
 ])
 

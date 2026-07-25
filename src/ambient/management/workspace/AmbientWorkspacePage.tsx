@@ -94,7 +94,10 @@ export function AmbientWorkspacePage({
         setStatusMessage('Could not start a new theme. Try again.')
         return
       }
-      trackProductEvent('Ambient Created', { surface: 'workspace' })
+      trackProductEvent('Ambient Created', {
+        surface: 'workspace',
+        account: snapshot.account.kind === 'signed-in' ? 'signed-in' : 'anonymous',
+      })
       setCreatedAmbientId(ambientId)
       navigate(`/ambients/${encodeURIComponent(ambientId)}`, { replace: true })
     })
@@ -215,16 +218,12 @@ export function AmbientWorkspacePage({
     }
   }
 
-  // A guest saves in one gesture: the intent survives the sign in round trip, and coming back claims
-  // the work and saves it without asking again.
-  const signInToSave = () => {
+  // Signing in always claims this browser's work; only the save button also asks for the version to
+  // be written on the way back, so signing in from the header never saves something nobody asked for.
+  const signIn = (saveOnReturn: boolean) => {
     const guestToken = readGuestToken()
     if (guestToken && workspace) {
-      rememberClaimIntent({
-        guestToken,
-        returnTo: `/ambients/${encodeURIComponent(workspace.ambient.id)}`,
-        saveOnReturn: true,
-      })
+      rememberClaimIntent({ guestToken, ambientId: workspace.ambient.id, saveOnReturn })
     }
     service.signIn()
   }
@@ -345,7 +344,7 @@ export function AmbientWorkspacePage({
         onClose={closeWorkspace}
         onOpenAdmin={() => navigate(routes.AdminRoute.to)}
         onRename={renameAmbient}
-        onSignIn={signInToSave}
+        onSignIn={() => signIn(false)}
         onSignOut={signOut}
         onSharingChange={service.setLinkSharing}
       />
@@ -408,7 +407,7 @@ export function AmbientWorkspacePage({
                   void service.openWorkspace(workspace.ambient.id).catch(() => undefined)
                 }}
                 onSave={saveVersion}
-                onSignInToSave={signInToSave}
+                onSignInToSave={() => signIn(true)}
                 onStatus={setStatusMessage}
               />
             )}

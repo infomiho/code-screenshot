@@ -113,7 +113,7 @@ export function AmbientSelector({
     const definition = definitions[wrappedIndex]
     onSelect(getAmbientKey(definition))
     setStatus(
-      `Ambient changed to ${definition.manifest.name}. ${wrappedIndex + 1} of ${definitions.length}.`,
+      `Theme changed to ${definition.manifest.name}. ${wrappedIndex + 1} of ${definitions.length}.`,
     )
 
     if (closeAfterSelection) {
@@ -180,7 +180,7 @@ export function AmbientSelector({
       <button
         className="ambient-step ambient-step-previous"
         type="button"
-        aria-label={`Previous ambient: ${previous.manifest.name}`}
+        aria-label={`Previous theme: ${previous.manifest.name}`}
         onClick={() => selectAt(selectedIndex - 1)}
       >
         <span className="ambient-arrow" aria-hidden="true" />
@@ -245,7 +245,7 @@ export function AmbientSelector({
       <button
         className="ambient-step ambient-step-next"
         type="button"
-        aria-label={`Next ambient: ${next.manifest.name}`}
+        aria-label={`Next theme: ${next.manifest.name}`}
         onClick={() => selectAt(selectedIndex + 1)}
       >
         <span className="ambient-arrow" aria-hidden="true" />

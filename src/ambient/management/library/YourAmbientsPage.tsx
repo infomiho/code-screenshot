@@ -63,7 +63,7 @@ function EmptyLibrary({ onCreate }: { onCreate: () => void }) {
       </div>
       <h2>No themes yet</h2>
       <p>
-        An ambient is a reusable visual frame for your code screenshots.
+        A theme is a reusable visual frame for your code screenshots.
         Describe the look you want and build it with help from your coding agent.
       </p>
       <button className="ui-button ui-button-primary" type="button" onClick={onCreate}>
@@ -234,7 +234,7 @@ export function YourAmbientsPage({
       <section className="ambient-library-body" aria-label="Your ambients">
         <div className="ambient-library-heading">
           <div>
-            <span className="ambient-library-eyebrow">Ambient library</span>
+            <span className="ambient-library-eyebrow">Theme library</span>
             <h1>Your themes</h1>
           </div>
           {!snapshot.isHydrated ? (

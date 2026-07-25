@@ -186,7 +186,7 @@ export function AmbientPicker({
         {yourAmbients.kind === 'signed-out' ? (
           <>
             <h3>Your themes</h3>
-            <p>Sign in to create your own reusable visual frame.</p>
+            <p>Build your own reusable visual frame with your coding agent.</p>
             <button className="ui-button ui-button-primary ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
               Create your own theme
             </button>

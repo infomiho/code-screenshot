@@ -228,6 +228,19 @@ test('asks a guest to sign in only once the agent has delivered work', async ({ 
   await expect(page.getByRole('button', { name: 'Sign in to save' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
   await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
+
+  // Claiming adopts the anonymous work, and the theme stops being marked unsaved.
+  await page.evaluate(async () => {
+    window.ambientWorkspaceService.signIn()
+    await window.ambientWorkspaceService.claimGuestWork()
+  })
+  // Claimed but not yet versioned, so the chip reports pending changes rather than lost work.
+  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Unsaved changes')
+  await expect(page.getByRole('button', { name: 'Save version' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in to save' })).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Save version' }).click()
+  await expect(page.getByRole('status')).toContainText('Version 1 saved and now in use')
 })
 
 test('renames a theme from the workspace header', async ({ page }) => {
