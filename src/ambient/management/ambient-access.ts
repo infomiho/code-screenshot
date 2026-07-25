@@ -3,6 +3,8 @@ import { createAccessToken, hashToken } from '../../account/token-hash'
 
 // An ambient is reachable either by its signed-in owner or by the anonymous browser that made it.
 // Both resolve to a Prisma scope, so every query stays a single `where: { id, ...scope }`.
+export type AmbientScope = { ownerId: string } | { guestSessionId: string }
+
 export type AmbientAccess =
   | { kind: 'user'; scope: { ownerId: string }; actor: string }
   | { kind: 'guest'; scope: { guestSessionId: string }; actor: string }
@@ -52,7 +54,7 @@ export const resolveAmbientAccess = async (
 }
 
 export type AmbientOwner = {
-  scope: { ownerId: string } | { guestSessionId: string }
+  scope: AmbientScope
   actor: string
   // Set only when this call started a new anonymous session, so the browser stores the secret once.
   mintedGuestToken?: string

@@ -250,12 +250,12 @@ export const getSharedAmbient: GetSharedAmbient<SharedAmbientInput, SharedAmbien
     where: { shareId, linkSharingEnabled: true, currentVersion: { not: null } },
     select: { id: true, slug: true, currentVersion: true },
   })
-  if (!ambient?.currentVersion) throw new HttpError(404, 'Shared ambient not found.')
+  if (!ambient?.currentVersion) throw new HttpError(404, 'Shared theme not found.')
 
   const version = await context.entities.AmbientVersion.findUnique({
     where: { ambientId_version: { ambientId: ambient.id, version: ambient.currentVersion } },
   })
-  if (!version) throw new HttpError(404, 'Shared ambient not found.')
+  if (!version) throw new HttpError(404, 'Shared theme not found.')
 
   return { id: ambient.id, slug: ambient.slug, version: toVersionDto(version) }
 }
@@ -363,11 +363,11 @@ type ClaimCandidate = {
   _count: { agentSessions: number }
 }
 
-// A theme nobody connected an agent to and that holds no agent work is an empty shell from a curious
-// click. Claiming it would only clutter the library, so the claim drops it instead.
+// An untouched theme is an empty shell from a curious click, and claiming it would only clutter the
+// library. Any revision above the initial one means the visitor renamed it or the agent wrote to it,
+// so a deliberately named theme survives even before an agent connects.
 const holdsGuestWork = (ambient: ClaimCandidate) =>
-  ambient._count.agentSessions > 0
-  || (ambient.draft !== null && ambient.draft.revision > ambient.draft.baseRevision)
+  ambient._count.agentSessions > 0 || (ambient.draft?.revision ?? 0) > 0
 
 // `@@unique([ownerId, slug])` never applied while the ambient was anonymous, so a slug can collide
 // with one the account already owns. Picking a free slug up front keeps the claim to a single UPDATE,

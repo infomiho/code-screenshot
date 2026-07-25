@@ -103,7 +103,7 @@ export function WorkspaceWorkPanel({
 
   return (
     <div className="workspace-work-panel">
-      {accessIsNext && (
+      {accessIsNext && versionInUse === null && (
         <p className="workspace-orientation">
           Your coding agent designs this theme. Create access below, hand it the prompt, and review
           what it sends back here.

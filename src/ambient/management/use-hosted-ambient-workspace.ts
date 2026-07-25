@@ -48,7 +48,8 @@ const getConnectivity = (error: unknown): OpenAmbientWorkspace['connectivity'] =
 }
 
 // The landing call to action creates a theme on every click. Two fast clicks would otherwise mint two
-// anonymous sessions and strand the first theme, so concurrent creates share one request.
+// anonymous sessions and strand the first theme, so concurrent creates share one request. A call that
+// joins one already in flight gets that theme back, not one named after its own argument.
 let pendingAmbientCreation: Promise<CreateAmbientResult> | null = null
 
 const createAmbientOnce = (name: string, guestToken: string | null) => {

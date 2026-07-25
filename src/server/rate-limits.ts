@@ -21,17 +21,26 @@ const limitedPaths = new Set([
 const anonymousWriteLimiter = new RateLimiterMemory({ points: 60, duration: 60 })
 
 // Express strips the mount prefix from `req.path`, and this same chain is mounted under /operations,
-// /auth, and each API route, so only the original URL identifies the operation.
-const requestPath = (req: Request) => req.originalUrl.split('?')[0]
+// /auth, and each API route, so only the original URL identifies the operation. The router matches
+// case-insensitively and ignores a trailing slash, so the comparison has to do the same or the
+// limiter is trivially skipped by asking for `/operations/Create-Ambient/`.
+const requestPath = (req: Request) =>
+  req.originalUrl.split('?')[0].toLowerCase().replace(/\/+$/, '')
 
 const clientAddress = (req: Request) => req.get('cf-connecting-ip') ?? req.ip ?? 'unknown'
+
+// This runs before Wasp's auth middleware, so there is no user yet. Bucketing signed-in callers by
+// their session instead of their address keeps one abusive visitor from spending the whole budget
+// for everyone behind the same office network. A forged token gets its own bucket and is then
+// rejected by auth before any work happens.
+const limiterKey = (req: Request) => req.get('Authorization') ?? clientAddress(req)
 
 const limitAnonymousWrites: RequestHandler = (req, res, next) => {
   if (!limitedPaths.has(requestPath(req))) {
     next()
     return
   }
-  anonymousWriteLimiter.consume(clientAddress(req))
+  anonymousWriteLimiter.consume(limiterKey(req))
     .then(() => next())
     .catch((rejection: unknown) => {
       if (!(rejection instanceof RateLimiterRes)) {

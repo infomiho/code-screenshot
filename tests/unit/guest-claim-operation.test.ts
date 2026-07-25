@@ -90,6 +90,26 @@ describe('claimGuestAmbients', () => {
     })
   })
 
+  it('keeps a theme the visitor renamed before connecting an agent', async () => {
+    transaction.guestSession.findUnique.mockResolvedValue({
+      id: 'guest-1',
+      claimedAt: null,
+      ambients: [{
+        id: 'ambient-1',
+        name: 'quiet thistle',
+        slug: 'a-1',
+        // Renaming advances both counters, so accepted changes stay zero while revision moves.
+        draft: { revision: 1, baseRevision: 1 },
+        _count: { agentSessions: 0 },
+      }],
+    })
+
+    const result = await claimGuestAmbients({ guestToken }, context as never)
+
+    expect(result.claimedAmbientIds).toEqual(['ambient-1'])
+    expect(result.discardedAmbientIds).toEqual([])
+  })
+
   it('keeps a theme whose agent is connected but has not delivered yet', async () => {
     transaction.guestSession.findUnique.mockResolvedValue({
       id: 'guest-1',

@@ -132,7 +132,7 @@ function DeclarativePreviewBlock({
   const customizationSlots = definition.manifest.customizations
   return (
     <>
-      <div className="workspace-ambient-selector" aria-label={`${ambientName} ambient preview`}>
+      <div className="workspace-ambient-selector" aria-label={`${ambientName} theme preview`}>
         <span className="workspace-selector-chevron workspace-selector-chevron-previous" aria-hidden="true" />
         <div className="workspace-ambient-identity">
           <AmbientIdentity

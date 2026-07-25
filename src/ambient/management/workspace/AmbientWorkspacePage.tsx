@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { routes } from 'wasp/client/router'
 import { readGuestToken, rememberClaimIntent } from '../../../account/guest-session'
-import { randomThemeName } from '../../naming/random-theme-name'
+import { createTheme } from '../create-theme'
 import { loadAmbientDefinition } from '../../rendering/ambient-registry'
 import { countDraftAmbients, type AmbientWorkspaceService } from '../ambient-workspace-service'
 import { AmbientWorkspaceHeader } from './AmbientWorkspaceHeader'
@@ -45,6 +45,7 @@ export function AmbientWorkspacePage({
   } = useAmbientWorkspace(ambientWorkspaceService, requestedAmbientId)
   const workflow = useAgentWorkflow(snapshot)
   const [createdAmbientId, setCreatedAmbientId] = useState<string | null>(null)
+  const [creationFailed, setCreationFailed] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [isComparing, setIsComparing] = useState(false)
@@ -84,24 +85,25 @@ export function AmbientWorkspacePage({
   }, [loadState, snapshot.isHydrated, workspace])
 
   // Reaching /ambients/new directly still works: it mints a theme and rewrites the URL, so there is
-  // no naming form anywhere in the flow.
+  // no naming form anywhere in the flow. The guard is never released on failure, because `service`
+  // is rebuilt every render and a retry loop would hammer the create endpoint while offline.
   useEffect(() => {
     if (loadState !== 'setup' || creationStartedRef.current) return
     creationStartedRef.current = true
-    void service.createAmbient(randomThemeName()).then((ambientId) => {
+    void createTheme(service, snapshot.account, 'workspace').then((ambientId) => {
       if (!ambientId) {
-        creationStartedRef.current = false
-        setStatusMessage('Could not start a new theme. Try again.')
+        setCreationFailed(true)
         return
       }
-      trackProductEvent('Ambient Created', {
-        surface: 'workspace',
-        account: snapshot.account.kind === 'signed-in' ? 'signed-in' : 'anonymous',
-      })
       setCreatedAmbientId(ambientId)
       navigate(`/ambients/${encodeURIComponent(ambientId)}`, { replace: true })
     })
-  }, [loadState, navigate, service])
+  }, [loadState])
+
+  const retryCreation = () => {
+    creationStartedRef.current = false
+    setCreationFailed(false)
+  }
 
   useEffect(() => {
     if (!workspace) return
@@ -283,6 +285,22 @@ export function AmbientWorkspacePage({
     if (!id) return
     setSelectedVersionId(id)
     setIsComparing(true)
+  }
+
+  if (creationFailed) {
+    return (
+      <main className="workspace-route-state" role="alert">
+        <span className="workspace-eyebrow">Theme workspace</span>
+        <h1>Could not start a theme</h1>
+        <p>The theme could not be created. Check your connection and try again.</p>
+        <button className="ui-button ui-button-primary" type="button" onClick={retryCreation}>
+          Try again
+        </button>
+        <button className="ui-button" type="button" onClick={() => navigate('/')}>
+          Back to editor
+        </button>
+      </main>
+    )
   }
 
   if (!snapshot.isHydrated || loadState === 'loading' || loadState === 'setup') {

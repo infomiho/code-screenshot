@@ -231,7 +231,7 @@ export function YourAmbientsPage({
         )}
       </header>
 
-      <section className="ambient-library-body" aria-label="Your ambients">
+      <section className="ambient-library-body" aria-label="Your themes">
         <div className="ambient-library-heading">
           <div>
             <span className="ambient-library-eyebrow">Theme library</span>

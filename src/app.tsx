@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { routes } from 'wasp/client/router'
 import './index.css'
 import { readGuestToken, takeClaimIntent } from './account/guest-session'
-import { randomThemeName } from './ambient/naming/random-theme-name'
-import { trackProductEvent } from './product-metrics/events'
+import { createTheme } from './ambient/management/create-theme'
 import type { YourAmbientsState } from './ambient/selection/ambient-picker'
 import {
   ambientDefinitions,
@@ -210,7 +209,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
   const createAmbient = async () => {
     if (isCreatingTheme) return
     setIsCreatingTheme(true)
-    const ambientId = await service.createAmbient(randomThemeName())
+    const ambientId = await createTheme(service, snapshot.account, 'landing')
     setIsCreatingTheme(false)
     if (!ambientId) {
       toastManager.add({
@@ -219,10 +218,6 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
       })
       return
     }
-    trackProductEvent('Ambient Created', {
-      surface: 'landing',
-      account: snapshot.account.kind === 'signed-in' ? 'signed-in' : 'anonymous',
-    })
     openWorkspace(ambientId)
   }
 
