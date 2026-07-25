@@ -15,11 +15,10 @@ import {
 } from "../ambient-operations" with { type: "ref" };
 
 export const workspaceSpec: Spec = [
-  // Anonymous visitors work here until they save, so the page resolves access itself instead of
-  // being gated by the auth wrapper, which would bounce them to the landing page.
+  // No authRequired: the auth wrapper would bounce a guest to the landing page before they arrive.
   route(
     "AmbientWorkspaceRoute",
-    "/ambients/:ambientId",
+    "/themes/:ambientId",
     page(AmbientWorkspacePage),
   ),
   query(getAmbientWorkspace, {

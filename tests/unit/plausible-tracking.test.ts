@@ -4,8 +4,8 @@ import { isAnalyticsRoute } from '../../src/product-metrics/tracked-routes'
 describe('Plausible tracking routes', () => {
   it('tracks user-facing routes', () => {
     expect(isAnalyticsRoute('/')).toBe(true)
-    expect(isAnalyticsRoute('/ambients')).toBe(true)
-    expect(isAnalyticsRoute('/ambients/ambient-1')).toBe(true)
+    expect(isAnalyticsRoute('/themes')).toBe(true)
+    expect(isAnalyticsRoute('/themes/ambient-1')).toBe(true)
     expect(isAnalyticsRoute('/a/share-1/my-ambient')).toBe(true)
   })
 

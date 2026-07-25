@@ -24,8 +24,7 @@ export const publishAmbientChange = ({ ambientId }: PublishAmbientChangeInput) =
 
 type StreamAmbientChangesHandler = StreamAmbientChanges<{ ambientId: string }>
 
-// Wasp's auth middleware lets tokenless requests through, so a guest reaches this handler with no
-// user and proves ownership with the anonymous session token instead.
+// Wasp's auth middleware passes tokenless requests through, so a guest arrives here with no user.
 const readGuestToken = (req: { get: (name: string) => string | undefined }) => req.get(guestTokenHeader)
 
 export const streamAmbientChanges: StreamAmbientChangesHandler = async (req, res, context) => {

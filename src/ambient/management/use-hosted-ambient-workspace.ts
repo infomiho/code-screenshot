@@ -47,9 +47,8 @@ const getConnectivity = (error: unknown): OpenAmbientWorkspace['connectivity'] =
   return getStatusCode(error) === null ? 'offline' : 'request-error'
 }
 
-// The landing call to action creates a theme on every click. Two fast clicks would otherwise mint two
-// anonymous sessions and strand the first theme, so concurrent creates share one request. A call that
-// joins one already in flight gets that theme back, not one named after its own argument.
+// Two fast clicks would otherwise mint two anonymous sessions and strand the first theme. A call
+// joining one already in flight gets that theme back, not one named after its own argument.
 let pendingAmbientCreation: Promise<CreateAmbientResult> | null = null
 
 const createAmbientOnce = (name: string, guestToken: string | null) => {
@@ -231,19 +230,19 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     },
     createAgentAccess: async (requestedAmbientId?: string) => {
       const targetAmbientId = requestedAmbientId ?? currentAmbientId()
-      if (!targetAmbientId || mutation !== 'idle') return false
+      if (!targetAmbientId || mutation !== 'idle') return null
       setMutation('creating-access')
       try {
         const session = await createAgentAccessOperation({
           ambientId: targetAmbientId,
           ...guestCredential(),
         })
-        const cached = cacheAgentSession(session, targetAmbientId)
+        cacheAgentSession(session, targetAmbientId)
         setSessionRevision((revision) => revision + 1)
         setPromptCopiedFor(null)
-        return cached
+        return session.url
       } catch {
-        return false
+        return null
       } finally {
         setMutation('idle')
       }

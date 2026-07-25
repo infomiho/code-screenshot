@@ -32,6 +32,7 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
           <div className="admin-inventory-summary">
             <MetricCard label="Users" value={dashboard.userCount} />
             <MetricCard label="Themes" value={dashboard.ambientCount} />
+            <MetricCard label="Anonymous" value={dashboard.anonymousAmbientCount} />
             <div className="admin-status-breakdown">
               <span>Theme status</span>
               <div>
@@ -50,7 +51,7 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
             {dashboard.users.length > 0 ? (
               <div className="admin-user-table-wrap">
                 <table className="admin-user-table">
-                  <caption className="sr-only">Users and ambient counts</caption>
+                  <caption className="sr-only">Users and theme counts</caption>
                   <thead>
                     <tr>
                       <th scope="col">GitHub user</th>

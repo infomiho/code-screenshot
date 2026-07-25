@@ -7,9 +7,7 @@ type AmbientNameFieldProps = {
   onRename: (name: string) => Promise<boolean>
 }
 
-// Always a real input rather than click-to-edit, so there is no mode to discover and keyboard users
-// tab straight into it. Renaming commits on Enter or blur rather than on each keystroke, because
-// every rename advances the draft revision.
+// Commits on Enter or blur rather than per keystroke, because every rename advances the revision.
 export function AmbientNameField({ name, onRename }: AmbientNameFieldProps) {
   const [value, setValue] = useState(name)
   const savedName = useRef(name)

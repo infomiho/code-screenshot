@@ -149,8 +149,8 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
     }
   }, [])
 
-  // Signing in always adopts whatever this browser made anonymously, so a signed-in visitor never
-  // holds unreachable work. The stored intent only decides where they land afterwards.
+  // Signing in always adopts this browser's anonymous work, so no signed-in visitor holds a theme
+  // they can no longer reach. The stored intent only decides where they land afterwards.
   useEffect(() => {
     if (!snapshot.isHydrated || snapshot.account.kind !== 'signed-in') return
     if (claimStartedRef.current || !readGuestToken()) return
@@ -159,14 +159,13 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
     void service.claimGuestWork().then((result) => {
       if (!result || !intent) return
       if (!result.claimedAmbientIds.includes(intent.ambientId)) {
-        // The theme was still empty, so claiming dropped it rather than filing an untouched shell.
         toastManager.add({
           id: 'claim-discarded',
           description: 'Signed in. That theme was still empty, so it was not kept.',
         })
         return
       }
-      navigate(`/ambients/${encodeURIComponent(intent.ambientId)}`, {
+      navigate(`/themes/${encodeURIComponent(intent.ambientId)}`, {
         replace: true,
         state: { saveOnArrival: intent.saveOnReturn },
       })
@@ -190,7 +189,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
     if (onOpenWorkspace) {
       onOpenWorkspace(ambientId)
     } else {
-      navigate(`/ambients/${encodeURIComponent(ambientId)}`)
+      navigate(`/themes/${encodeURIComponent(ambientId)}`)
     }
   }
 
@@ -198,7 +197,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
     if (onOpenLibrary) {
       onOpenLibrary()
     } else {
-      navigate('/ambients')
+      navigate('/themes')
     }
   }
 

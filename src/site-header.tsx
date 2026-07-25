@@ -30,12 +30,12 @@ export function SiteHeader({
       <div className="site-brand">codeshot.dev</div>
       <nav className="site-account" aria-label="Account" aria-busy={!isHydrated}>
         <button
-          className="ui-button ui-button-primary ui-button-signal site-create-theme"
+          className="ui-button ui-button-signal site-create-theme"
           type="button"
           disabled={isCreatingTheme}
           onClick={onCreateTheme}
         >
-          {isCreatingTheme ? 'Opening...' : 'Create your theme'}
+          {isCreatingTheme ? 'Opening...' : 'Create theme with agent'}
         </button>
         {!isHydrated ? (
           <div className="account-skeleton" aria-hidden="true">

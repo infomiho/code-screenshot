@@ -89,7 +89,7 @@ export interface AmbientWorkspaceService {
   createAmbient: (ambientName: string) => Promise<string | null>
   renameAmbient: (name: string) => Promise<boolean>
   claimGuestWork: () => Promise<ClaimGuestAmbientsResult | null>
-  createAgentAccess: (ambientId?: string) => Promise<boolean>
+  createAgentAccess: (ambientId?: string) => Promise<string | null>
   discardAgentAccess: () => Promise<boolean>
   copyPrompt: () => void
   saveAmbientVersion: () => Promise<SavedAmbientRecord | null>

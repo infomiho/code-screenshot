@@ -24,7 +24,7 @@ test('presents product outcomes before workspace inventory', async ({ page }) =>
   await expect(page.locator('.account-menu-trigger')).toContainText('@codeshot-user')
   await page.locator('.account-menu-trigger').click()
   await expect(page.getByRole('menuitem', { name: 'Admin' })).toBeVisible()
-  await expect(page.getByRole('table', { name: 'Users and ambient counts' })).toContainText('@codeshot-user')
+  await expect(page.getByRole('table', { name: 'Users and theme counts' })).toContainText('@codeshot-user')
   const chart = page.getByRole('application', { name: 'Daily visitors over 30 days' })
   await expect(chart).toBeVisible()
   await chart.hover()

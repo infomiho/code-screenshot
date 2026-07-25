@@ -99,7 +99,7 @@ export function YourAmbientsPage({
     if (onOpenWorkspace) {
       onOpenWorkspace(ambientId)
     } else {
-      navigate(`/ambients/${encodeURIComponent(ambientId)}`)
+      navigate(`/themes/${encodeURIComponent(ambientId)}`)
     }
   }
 
@@ -224,7 +224,7 @@ export function YourAmbientsPage({
             username={account.username}
             avatarUrl={account.avatarUrl}
             draftCount={countDraftAmbients(snapshot.ownedAmbients)}
-            onOpenLibrary={() => navigate('/ambients')}
+            onOpenLibrary={() => navigate('/themes')}
             onOpenAdmin={account.isAdmin ? () => navigate(routes.AdminRoute.to) : undefined}
             onSignOut={signOut}
           />
@@ -241,7 +241,7 @@ export function YourAmbientsPage({
             <span className="skeleton ambient-library-skeleton-create" aria-hidden="true" />
           ) : account && snapshot.ownedAmbients.length > 0 ? (
             <button className="ui-button ui-button-primary" type="button" onClick={() => openWorkspace('new')}>
-              Create ambient
+              Create theme
             </button>
           ) : null}
         </div>

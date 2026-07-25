@@ -71,7 +71,6 @@ export type AgentAccessSummaryDto =
   | { status: 'available'; generation: number; expiresAt: string; lastUsedAt: string | null }
   | { status: 'expired'; generation: number; expiresAt: string }
 
-// A guest workspace has no account behind it yet, so it hides sharing and asks for sign in to save.
 export type AmbientOwnership = 'guest' | 'owned'
 
 export type AmbientWorkspaceDto = {
@@ -129,8 +128,7 @@ export type SyncAmbientDraftResult =
     }
   | { kind: 'workspace-invalidated'; token: AmbientSyncTokenDto }
 
-// Anonymous callers prove who they are with a bearer token in the request body. It rides in the body
-// rather than the URL because the operations router logs every request line.
+// In the body, not the URL: the operations router logs every request line.
 export const guestTokenSchema = z.string().min(20).max(128)
 
 // The change stream is a GET, so its credential travels in a header for the same reason.
@@ -210,7 +208,6 @@ export type DeleteAmbientInput = AmbientIdInput
 
 export type CreateAmbientResult = {
   ambientId: string
-  // Present only when this call started a new anonymous session, so the browser can store it once.
   guestToken?: string
 }
 

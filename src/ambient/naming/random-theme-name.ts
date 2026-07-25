@@ -1,5 +1,4 @@
-// A new theme opens with a name already in place, so the first screen never asks for typing. The
-// words stay lowercase and concrete to match the rest of the interface.
+// A new theme opens with a name already in place, so the first screen never asks for typing.
 const adjectives = [
   'amber', 'brisk', 'candid', 'dusty', 'even', 'faded', 'gentle', 'humble',
   'inky', 'keen', 'level', 'muted', 'northern', 'opal', 'plain', 'quiet',

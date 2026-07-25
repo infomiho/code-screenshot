@@ -1,8 +1,7 @@
 import { HttpError, prisma } from 'wasp/server'
 import { createAccessToken, hashToken } from '../../account/token-hash'
 
-// An ambient is reachable either by its signed-in owner or by the anonymous browser that made it.
-// Both resolve to a Prisma scope, so every query stays a single `where: { id, ...scope }`.
+// Both credentials resolve to a scope, so every query stays a single `where: { id, ...scope }`.
 export type AmbientScope = { ownerId: string } | { guestSessionId: string }
 
 export type AmbientAccess =
@@ -13,8 +12,7 @@ type AmbientAccessContext = { user?: { id: string } | null }
 
 export type GuestCredential = { guestToken?: string }
 
-// The resolver reaches for Prisma directly rather than `context.entities`, because it runs inside
-// operations whose declared entity sets differ and would not all include GuestSession.
+// Prisma directly rather than `context.entities`: not every calling operation declares GuestSession.
 export const findGuestSession = async (guestToken: string | undefined) => {
   if (!guestToken) return null
   const session = await prisma.guestSession.findUnique({
@@ -24,8 +22,7 @@ export const findGuestSession = async (guestToken: string | undefined) => {
   return session?.claimedAt === null ? { id: session.id } : null
 }
 
-// The server always mints the secret. A token supplied by the client is only ever looked up, never
-// adopted, so token entropy can never be chosen by the caller.
+// A token supplied by the client is only ever looked up, never adopted, so entropy stays ours.
 export const startGuestSession = async () => {
   const token = createAccessToken()
   const session = await prisma.guestSession.create({
@@ -56,11 +53,9 @@ export const resolveAmbientAccess = async (
 export type AmbientOwner = {
   scope: AmbientScope
   actor: string
-  // Set only when this call started a new anonymous session, so the browser stores the secret once.
   mintedGuestToken?: string
 }
 
-// Creating a theme is the one entry point that may start an anonymous session rather than require one.
 export const resolveAmbientOwner = async (
   context: AmbientAccessContext,
   credential: GuestCredential,

@@ -2,8 +2,7 @@ import type { CollectAbandonedGuestWork } from 'wasp/server/jobs'
 
 const hours = (count: number) => count * 60 * 60 * 1000
 
-// Every click of the landing call to action creates a theme, so most anonymous rows are curiosity
-// that never became work. How long a row is kept scales with how much was invested in it.
+// Retention scales with how much was invested, because most anonymous rows are curiosity clicks.
 export const guestRetention = {
   untouched: hours(6),
   agentConnected: hours(24),
@@ -17,17 +16,19 @@ type AbandonedCandidate = {
   id: string
   updatedAt: Date
   draft: { revision: number; baseRevision: number } | null
-  _count: { agentSessions: number }
+  agentSessions: { lastUsedAt: Date | null }[]
 }
+
+// Sessions are created up front, so only one the agent actually fetched counts as contact.
+const agentArrived = (candidate: AbandonedCandidate) =>
+  candidate.agentSessions.some((session) => session.lastUsedAt !== null)
 
 export const retentionFor = (candidate: AbandonedCandidate) => {
   const acceptedChanges = candidate.draft
     ? candidate.draft.revision - candidate.draft.baseRevision
     : 0
   if (acceptedChanges > 0) return guestRetention.agentDelivered
-  return candidate._count.agentSessions > 0
-    ? guestRetention.agentConnected
-    : guestRetention.untouched
+  return agentArrived(candidate) ? guestRetention.agentConnected : guestRetention.untouched
 }
 
 export const isAbandoned = (candidate: AbandonedCandidate, now: number) =>
@@ -46,7 +47,7 @@ export const collectAbandonedGuestWork: CollectAbandonedGuestWork<never, void> =
       id: true,
       updatedAt: true,
       draft: { select: { revision: true, baseRevision: true } },
-      _count: { select: { agentSessions: true } },
+      agentSessions: { select: { lastUsedAt: true } },
     },
   })
 

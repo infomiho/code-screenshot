@@ -186,7 +186,7 @@ test('creates a theme without an account and opens it straight away', async ({ p
   await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
   await expect(page.getByRole('button', { name: 'codeshot.dev' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Create agent access' }).click()
+  // The session is created with the theme, so the prompt is waiting rather than a step away.
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
   await expect(page.locator('.agent-dock')).toHaveCount(0)
 
@@ -216,9 +216,8 @@ test('asks a guest to sign in only once the agent has delivered work', async ({ 
   await page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' }).click()
   await expect(page.getByLabel('Theme name')).toBeVisible()
 
-  // Nothing asks for an account while the agent is being connected.
+  // Nothing asks for an account while the agent is being handed the prompt.
   await expect(page.getByRole('button', { name: /Sign in to save/ })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Create agent access' }).click()
   await page.getByRole('button', { name: 'Copy prompt' }).click()
   await expect.poll(() => page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
@@ -234,8 +233,8 @@ test('asks a guest to sign in only once the agent has delivered work', async ({ 
     window.ambientWorkspaceService.signIn()
     await window.ambientWorkspaceService.claimGuestWork()
   })
-  // Claimed but not yet versioned, so the chip reports pending changes rather than lost work.
-  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Unsaved changes')
+  // Claimed but never versioned, so there is no saved state to have changed away from.
+  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Unsaved')
   await expect(page.getByRole('button', { name: 'Save version' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sign in to save' })).toHaveCount(0)
 

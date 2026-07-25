@@ -14,6 +14,7 @@ export type AdminUserDto = {
 export type AdminDashboardDto = {
   userCount: number
   ambientCount: number
+  anonymousAmbientCount: number
   ambientCountsByStatus: {
     draft: number
     published: number

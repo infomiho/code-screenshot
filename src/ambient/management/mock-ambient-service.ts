@@ -191,7 +191,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
   }
 
   createAgentAccess = async () => {
-    if (!this.snapshot.workspace) return false
+    if (!this.snapshot.workspace) return null
     this.updateWorkspace((workspace) => {
       const revision = Math.max(-1, ...workspace.versions.map((version) => version.draftRevision)) + 1
       const workingDraft = workspace.workingDraft ?? (workspace.versionInUse ? {
@@ -231,7 +231,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
         promptCopied: false,
       }
     })
-    return true
+    return this.snapshot.workspace?.agentAccessUrl ?? null
   }
 
   discardAgentAccess = async () => {

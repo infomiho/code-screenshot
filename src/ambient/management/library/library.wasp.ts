@@ -12,7 +12,7 @@ import {
 export const librarySpec: Spec = [
   route(
     "YourAmbientsRoute",
-    "/ambients",
+    "/themes",
     page(YourAmbientsPage, { authRequired: true }),
   ),
   query(listOwnedAmbients, { entities: ["Ambient", "AmbientDraft", "AmbientVersion"] }),
@@ -23,7 +23,6 @@ export const librarySpec: Spec = [
   action(deleteAmbient, {
     entities: ["Ambient", "AmbientDraft", "AmbientVersion", "AmbientAgentSession"],
   }),
-  // Every landing call to action creates a row, so abandoned anonymous work is swept hourly.
   job(collectAbandonedGuestWork, {
     executor: "PgBoss",
     schedule: { cron: "17 * * * *" },

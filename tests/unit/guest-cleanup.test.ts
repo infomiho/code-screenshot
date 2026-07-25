@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   collectAbandonedGuestWork,
   guestRetention,
@@ -13,12 +13,14 @@ const candidate = (overrides: Partial<{
   id: string
   updatedAt: Date
   draft: { revision: number; baseRevision: number } | null
-  agentSessions: number
+  agentArrived: boolean
+  agentSessions: { lastUsedAt: Date | null }[]
 }> = {}) => ({
   id: overrides.id ?? 'ambient-1',
   updatedAt: overrides.updatedAt ?? new Date(now),
   draft: overrides.draft === undefined ? { revision: 0, baseRevision: 0 } : overrides.draft,
-  _count: { agentSessions: overrides.agentSessions ?? 0 },
+  agentSessions: overrides.agentSessions
+    ?? (overrides.agentArrived ? [{ lastUsedAt: new Date(now) }] : []),
 })
 
 describe('guest retention', () => {
@@ -26,8 +28,14 @@ describe('guest retention', () => {
     expect(retentionFor(candidate())).toBe(guestRetention.untouched)
   })
 
-  it('keeps a theme with a connected agent for a day', () => {
-    expect(retentionFor(candidate({ agentSessions: 1 }))).toBe(guestRetention.agentConnected)
+  it('keeps a theme the agent actually fetched for a day', () => {
+    expect(retentionFor(candidate({ agentArrived: true }))).toBe(guestRetention.agentConnected)
+  })
+
+  it('treats a session the agent never fetched as untouched', () => {
+    // Every theme is created with a session ready, so its existence proves nothing.
+    expect(retentionFor(candidate({ agentSessions: [{ lastUsedAt: null }] })))
+      .toBe(guestRetention.untouched)
   })
 
   it('keeps a theme the agent has changed for a week', () => {
@@ -57,6 +65,13 @@ describe('guest retention', () => {
 })
 
 describe('collectAbandonedGuestWork', () => {
+  // The job reads the clock itself, so the fixture timestamps only mean anything against a fixed one.
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+  })
+  afterEach(() => vi.useRealTimers())
+
   const createContext = (candidates: ReturnType<typeof candidate>[]) => ({
     entities: {
       Ambient: {

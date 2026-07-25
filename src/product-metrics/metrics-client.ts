@@ -63,6 +63,6 @@ export const usePlausiblePageview = () => {
 
 export const getAnalyticsSurface = (): 'editor' | 'workspace' | 'shared' => {
   if (globalThis.location.pathname.startsWith('/a/')) return 'shared'
-  if (globalThis.location.pathname.startsWith('/ambients/')) return 'workspace'
+  if (globalThis.location.pathname.startsWith('/themes/')) return 'workspace'
   return 'editor'
 }

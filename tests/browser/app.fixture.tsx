@@ -35,6 +35,7 @@ const hasEmptyAdminDashboard = new URLSearchParams(window.location.search).has('
 const adminDashboard: AdminDashboardDto = {
   userCount: 3,
   ambientCount: 8,
+  anonymousAmbientCount: 5,
   ambientCountsByStatus: { draft: 5, published: 2, archived: 1 },
   users: [
     { id: 'user-1', githubLogin: 'codeshot-user', githubAvatarUrl: null, ambientCount: 5 },

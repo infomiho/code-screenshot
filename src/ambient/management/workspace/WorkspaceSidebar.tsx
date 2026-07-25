@@ -31,7 +31,7 @@ export function WorkspaceSidebar({
   const toggleLabel = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'
 
   return (
-    <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Ambient workspace tools">
+    <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Theme workspace tools">
       <Tabs.Root
         id="workspace-sidebar-content"
         className="workspace-sidebar-collapsible"

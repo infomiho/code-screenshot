@@ -359,15 +359,15 @@ type ClaimCandidate = {
   id: string
   name: string
   slug: string
-  draft: { revision: number; baseRevision: number } | null
-  _count: { agentSessions: number }
+  draft: { revision: number } | null
+  agentSessions: { lastUsedAt: Date | null }[]
 }
 
-// An untouched theme is an empty shell from a curious click, and claiming it would only clutter the
-// library. Any revision above the initial one means the visitor renamed it or the agent wrote to it,
-// so a deliberately named theme survives even before an agent connects.
+// Claiming an untouched shell would only clutter the library. A revision past the initial one means
+// a rename or an agent write; sessions exist from creation, so only a fetched one counts as contact.
 const holdsGuestWork = (ambient: ClaimCandidate) =>
-  ambient._count.agentSessions > 0 || (ambient.draft?.revision ?? 0) > 0
+  (ambient.draft?.revision ?? 0) > 0
+  || ambient.agentSessions.some((session) => session.lastUsedAt !== null)
 
 // `@@unique([ownerId, slug])` never applied while the ambient was anonymous, so a slug can collide
 // with one the account already owns. Picking a free slug up front keeps the claim to a single UPDATE,
@@ -400,8 +400,8 @@ export const claimGuestAmbients: ClaimGuestAmbients<
             id: true,
             name: true,
             slug: true,
-            draft: { select: { revision: true, baseRevision: true } },
-            _count: { select: { agentSessions: true } },
+            draft: { select: { revision: true } },
+            agentSessions: { select: { lastUsedAt: true } },
           },
         },
       },

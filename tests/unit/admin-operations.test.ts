@@ -52,7 +52,7 @@ describe('admin operations', () => {
 
   it('returns database totals and users with ambient counts', async () => {
     countUsers.mockResolvedValue(2)
-    countAmbients.mockResolvedValue(4)
+    countAmbients.mockResolvedValueOnce(4).mockResolvedValueOnce(7)
     groupAmbients.mockResolvedValue([
       { status: 'DRAFT', _count: { _all: 2 } },
       { status: 'PUBLISHED', _count: { _all: 1 } },
@@ -81,6 +81,7 @@ describe('admin operations', () => {
     expect(result).toEqual({
       userCount: 2,
       ambientCount: 4,
+      anonymousAmbientCount: 7,
       ambientCountsByStatus: { draft: 2, published: 1, archived: 1 },
       users: [{ id: 'user-1', githubLogin: 'octocat', githubAvatarUrl: null, ambientCount: 3 }],
     })

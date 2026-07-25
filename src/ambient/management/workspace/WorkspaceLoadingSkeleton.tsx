@@ -3,7 +3,7 @@ import { AmbientSkeleton } from '../../../screenshot/ambient-skeleton'
 export function WorkspaceLoadingSkeleton() {
   return (
     <main className="ambient-workspace-page" aria-busy="true">
-      <h1 className="sr-only">Loading ambient workspace</h1>
+      <h1 className="sr-only">Loading theme workspace</h1>
       <header className="subpage-header">
         <span className="skeleton workspace-skeleton-back" />
         <span className="skeleton workspace-skeleton-meta" />

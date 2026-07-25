@@ -53,13 +53,12 @@ export function AmbientWorkspaceHeader({
       {name && onRename && (
         <div className="subpage-header-title">
           <AmbientNameField name={name} onRename={onRename} />
-          {versionInUse !== null && versionInUse !== undefined && (
-            <span className="workspace-version-chip">v{versionInUse}</span>
-          )}
           {isGuest ? (
             <span className="workspace-unsaved-chip">Not saved</span>
           ) : hasUnsavedChanges ? (
-            <span className="workspace-unsaved-chip">Unsaved changes</span>
+            <span className="workspace-unsaved-chip">
+              {versionInUse === null ? 'Unsaved' : 'Unsaved changes'}
+            </span>
           ) : null}
         </div>
       )}

@@ -28,16 +28,17 @@ const withAgentWork = (id: string, slug: string) => ({
   id,
   name: 'quiet thistle',
   slug,
-  draft: { revision: 5, baseRevision: 2 },
-  _count: { agentSessions: 1 },
+  draft: { revision: 5 },
+  agentSessions: [{ lastUsedAt: new Date('2026-07-25T12:00:00.000Z') }],
 })
 
+// Freshly created: a session is waiting but the agent never fetched it, and nothing was renamed.
 const untouched = (id: string, slug: string) => ({
   id,
   name: 'amber drift',
   slug,
-  draft: { revision: 0, baseRevision: 0 },
-  _count: { agentSessions: 0 },
+  draft: { revision: 0 },
+  agentSessions: [{ lastUsedAt: null }],
 })
 
 describe('claimGuestAmbients', () => {
@@ -98,9 +99,8 @@ describe('claimGuestAmbients', () => {
         id: 'ambient-1',
         name: 'quiet thistle',
         slug: 'a-1',
-        // Renaming advances both counters, so accepted changes stay zero while revision moves.
-        draft: { revision: 1, baseRevision: 1 },
-        _count: { agentSessions: 0 },
+            draft: { revision: 1 },
+        agentSessions: [{ lastUsedAt: null }],
       }],
     })
 
@@ -110,7 +110,7 @@ describe('claimGuestAmbients', () => {
     expect(result.discardedAmbientIds).toEqual([])
   })
 
-  it('keeps a theme whose agent is connected but has not delivered yet', async () => {
+  it('keeps a theme the agent fetched but has not written to yet', async () => {
     transaction.guestSession.findUnique.mockResolvedValue({
       id: 'guest-1',
       claimedAt: null,
@@ -118,8 +118,8 @@ describe('claimGuestAmbients', () => {
         id: 'ambient-1',
         name: 'quiet thistle',
         slug: 'a-1',
-        draft: { revision: 3, baseRevision: 3 },
-        _count: { agentSessions: 1 },
+        draft: { revision: 0 },
+        agentSessions: [{ lastUsedAt: new Date('2026-07-25T12:00:00.000Z') }],
       }],
     })
 

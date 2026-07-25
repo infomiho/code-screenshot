@@ -1,5 +1,4 @@
-/* The primary call to action keeps the standard yellow slab, so the label contrast is the one we
-   already validated. Only the halo behind it moves. */
+/* Violet, because a yellow call to action reads as a peer to the editor's yellow primary button. */
 @property --cta-angle {
   syntax: '<angle>';
   inherits: false;
@@ -9,52 +8,81 @@
 .ui-button-signal {
   position: relative;
   isolation: isolate;
+  border-color: transparent;
+  background: var(--cta-body);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 45%);
+  color: var(--text);
+  letter-spacing: 0.01em;
 
   &::before {
     position: absolute;
-    z-index: -1;
+    z-index: -2;
     content: '';
     background: conic-gradient(
       from var(--cta-angle),
-      var(--cta-halo-edge),
-      var(--wasp-yellow),
-      var(--cta-halo-peak),
-      var(--wasp-yellow),
-      var(--cta-halo-edge)
+      var(--cta-ring-dim),
+      var(--cta-accent),
+      var(--cta-ring-peak),
+      var(--cta-accent),
+      var(--cta-ring-dim)
     );
-    inset: calc(-1 * var(--cta-halo-width));
-    opacity: var(--cta-halo-opacity);
+    inset: calc(-1 * var(--cta-ring-width));
+  }
+
+  &::after {
+    position: absolute;
+    z-index: -3;
+    content: '';
+    background: conic-gradient(
+      from var(--cta-angle),
+      transparent,
+      var(--cta-accent),
+      var(--cta-ring-peak),
+      var(--cta-accent),
+      transparent
+    );
+    filter: blur(var(--cta-glow-blur));
+    inset: calc(-1 * var(--cta-glow-spread));
+    opacity: var(--cta-glow-opacity);
     transition: opacity var(--ambient-motion-duration) var(--ambient-motion-ease);
   }
 
-  &:hover::before {
-    opacity: 1;
+  &:hover:not(:disabled) {
+    background: var(--cta-body-hover);
+
+    &::after {
+      opacity: 1;
+    }
   }
 
-  /* The halo shares the button's yellow, so the default focus ring would disappear into it. */
+  &:active:not(:disabled) {
+    background: var(--cta-body);
+  }
+
   &:focus-visible {
-    outline: 2px solid var(--text);
-    outline-offset: 3px;
+    outline: var(--focus-ring);
+    outline-offset: 4px;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ui-button-signal::before {
-    animation: cta-halo-sweep var(--cta-halo-duration) linear infinite;
+  .ui-button-signal::before,
+  .ui-button-signal::after {
+    animation: cta-ring-sweep var(--cta-ring-duration) linear infinite;
   }
 }
 
-@keyframes cta-halo-sweep {
+@keyframes cta-ring-sweep {
   to {
     --cta-angle: 360deg;
   }
 }
 
-/* Without @property the angle cannot interpolate, so the halo stays a static ring rather than
-   jumping between whole turns. */
+/* Without @property the angle cannot interpolate, so the ring holds still rather than stepping. */
 @supports not (background: conic-gradient(from var(--cta-angle), red, blue)) {
-  .ui-button-signal::before {
+  .ui-button-signal::before,
+  .ui-button-signal::after {
     animation: none;
-    background: var(--wasp-yellow);
+    background: var(--cta-accent);
   }
 }

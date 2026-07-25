@@ -1,6 +1,6 @@
 import { trackProductEvent } from '../../../product-metrics/events'
 
-const buildAgentPrompt = (ambientName: string, agentAccessUrl: string, hasSavedVersion: boolean) => {
+export const buildAgentPrompt = (ambientName: string, agentAccessUrl: string, hasSavedVersion: boolean) => {
   const intro = hasSavedVersion
     ? `Update the codeshot.dev theme "${ambientName}".`
     : `Create a codeshot.dev theme for "${ambientName}".`
@@ -52,6 +52,7 @@ export function AgentPromptCard({
     <section className="workspace-card workspace-prompt-card" aria-labelledby="agent-prompt-heading">
       <span className="workspace-eyebrow">{isPrimary ? 'Next step' : 'Continue with agent'}</span>
       <h2 id="agent-prompt-heading">Agent prompt</h2>
+      <p>Paste this into your coding agent. It designs the theme and sends it back here to review.</p>
       <button className="ui-button ui-button-primary" type="button" onClick={copyPrompt}>
         Copy prompt
       </button>

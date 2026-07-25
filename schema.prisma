@@ -28,8 +28,7 @@ model User {
   updatedAt       DateTime  @updatedAt
 }
 
-// A browser working anonymously. Holds every ambient created before sign in,
-// so signing in can claim all of them at once.
+// Groups everything one browser made before signing in, so a claim can take it all at once.
 model GuestSession {
   id        String    @id @default(cuid())
   tokenHash String    @unique

@@ -84,9 +84,8 @@ export function AmbientWorkspacePage({
     }
   }, [loadState, snapshot.isHydrated, workspace])
 
-  // Reaching /ambients/new directly still works: it mints a theme and rewrites the URL, so there is
-  // no naming form anywhere in the flow. The guard is never released on failure, because `service`
-  // is rebuilt every render and a retry loop would hammer the create endpoint while offline.
+  // The guard is never released on failure: `service` is a new object each render, so a released
+  // guard would retry the create endpoint on every render.
   useEffect(() => {
     if (loadState !== 'setup' || creationStartedRef.current) return
     creationStartedRef.current = true
@@ -96,7 +95,7 @@ export function AmbientWorkspacePage({
         return
       }
       setCreatedAmbientId(ambientId)
-      navigate(`/ambients/${encodeURIComponent(ambientId)}`, { replace: true })
+      navigate(`/themes/${encodeURIComponent(ambientId)}`, { replace: true })
     })
   }, [loadState])
 
@@ -130,8 +129,7 @@ export function AmbientWorkspacePage({
       setStatusMessage(
         `${acceptedChangeCount - previousCount} agent ${acceptedChangeCount - previousCount === 1 ? 'change' : 'changes'} accepted. Ready to review.`,
       )
-      // The first delivered change is the moment the work is first worth keeping, and the only
-      // moment a guest is asked to sign in without being prompted again.
+      // The first delivered change is the one moment a guest is nudged, and it never repeats.
       if (isGuest && previousCount === 0 && workspaceId && nudgedAmbientIdRef.current !== workspaceId) {
         nudgedAmbientIdRef.current = workspaceId
         toastManager.add({
@@ -143,8 +141,7 @@ export function AmbientWorkspacePage({
     previousAcceptedChangeCountRef.current = acceptedChangeCount
   }, [acceptedChangeCount, isGuest, workspace?.ambient.id])
 
-  // Anonymous work only exists on this browser until it is claimed, so leaving with unsaved agent
-  // changes is worth one interruption. Before the agent delivers anything there is nothing to lose.
+  // Unclaimed agent work exists only on this browser, so leaving is worth one interruption.
   useEffect(() => {
     if (!isGuest || acceptedChangeCount === 0) return
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => event.preventDefault()
@@ -167,7 +164,7 @@ export function AmbientWorkspacePage({
     if (onClose) {
       onClose()
     } else {
-      navigate(isGuest ? '/' : '/ambients')
+      navigate(isGuest ? '/' : '/themes')
     }
   }
 
@@ -220,8 +217,6 @@ export function AmbientWorkspacePage({
     }
   }
 
-  // Signing in always claims this browser's work; only the save button also asks for the version to
-  // be written on the way back, so signing in from the header never saves something nobody asked for.
   const signIn = (saveOnReturn: boolean) => {
     const guestToken = readGuestToken()
     if (guestToken && workspace) {
@@ -315,7 +310,7 @@ export function AmbientWorkspacePage({
       <main className="workspace-route-state" role={isError ? 'alert' : undefined}>
         <span className="workspace-eyebrow">Theme workspace</span>
         <h1>{isError ? 'Workspace unavailable' : 'Theme not found'}</h1>
-        <p>{isError ? 'The workspace could not be opened. Try again from your themes.' : 'This theme does not exist, or it belongs to another browser or account.'}</p>
+        <p>{isError ? 'The workspace could not be opened. Try again from your themes.' : 'This theme does not exist or is not available here.'}</p>
         {snapshot.account.kind === 'signed-out' && (
           <button className="ui-button ui-button-primary" type="button" onClick={service.signIn}>
             Sign in to open workspace

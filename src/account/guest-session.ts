@@ -1,6 +1,4 @@
-// The anonymous session token identifies a browser's unsaved themes. It lives in localStorage rather
-// than sessionStorage so a refresh or a new tab keeps the work, and it is cleared once the themes
-// have been claimed under an account.
+// localStorage rather than sessionStorage, so a refresh or a new tab keeps the work.
 const guestSessionKey = 'codeshot.guest-session'
 const claimIntentKey = 'codeshot.claim-intent'
 const claimIntentLifetime = 15 * 60 * 1000
@@ -8,7 +6,6 @@ const claimIntentLifetime = 15 * 60 * 1000
 export type ClaimIntent = {
   guestToken: string
   ambientId: string
-  // Only the work panel's "Sign in to save" arms this. Signing in from the header is just signing in.
   saveOnReturn: boolean
   createdAt: number
 }
