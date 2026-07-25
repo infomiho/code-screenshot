@@ -234,7 +234,7 @@ test('asks a guest to sign in only once the agent has delivered work', async ({ 
   await expect(page.getByRole('button', { name: 'Sign in to save' })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.getByRole('status')).toContainText('Version 1 saved and now in use')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved and now in use' })).toBeVisible()
 })
 
 test('renames a theme from the workspace header', async ({ page }) => {
@@ -261,14 +261,14 @@ test('reviews an agent change and saves an immutable version', async ({ page, co
   await page.getByRole('button', { name: 'Create agent access' }).click()
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
   await page.getByRole('button', { name: 'Copy prompt' }).click()
-  await expect(page.getByRole('status')).toContainText(/Agent prompt copied|Ready to review/)
+  await expect(page.locator('.app-toast').filter({ hasText: /Agent prompt copied|Ready to review/ }).first()).toBeVisible()
   await expect.poll(() => page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.getByRole('status')).toContainText('Version 1 saved and now in use')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved and now in use' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
   await page.getByRole('tab', { name: /Versions/ }).click()
   await expect(page.getByText('Version 1', { exact: true })).toBeVisible()
@@ -312,7 +312,7 @@ test('ends agent access without discarding the draft', async ({ page }) => {
   await page.getByRole('button', { name: 'End agent access' }).click()
 
   await expect(page.getByText('Access ended', { exact: true })).toBeVisible()
-  await expect(page.getByRole('status')).toContainText('Your draft is safe')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Your draft is safe' })).toBeVisible()
   expect(await page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft !== null,
   )).toBe(true)
@@ -343,21 +343,21 @@ test('restores an older version into a new working draft', async ({ page }) => {
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.getByRole('status')).toContainText('Version 1 saved')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved' })).toBeVisible()
 
   await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
   await expect.poll(() => page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.getByRole('status')).toContainText('Version 2 saved')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Version 2 saved' })).toBeVisible()
 
   await page.getByRole('tab', { name: /Versions/ }).click()
   await page.getByRole('button', { name: /Version 1/ }).click()
   await expect(page.getByRole('heading', { name: 'Draft and Version 1' })).toBeVisible()
   await page.getByRole('button', { name: 'Start draft from Version 1' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Start from Version 1' }).click()
-  await expect(page.getByRole('status')).toContainText('Working draft started from Version 1')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Working draft started from Version 1' })).toBeVisible()
   await expect(page.getByText('Version 2', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Work' }).click()
   await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
@@ -375,7 +375,7 @@ test('starts a new draft from the version in use after discarding changes', asyn
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.getByRole('status')).toContainText('Version 1 saved')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Close draft' }).click()
   await expect(page.getByRole('heading', { name: 'Close the working draft?' })).toBeVisible()
@@ -386,7 +386,7 @@ test('starts a new draft from the version in use after discarding changes', asyn
   await expect(page.locator('.workspace-preview-frame .cm-editor')).toBeVisible()
 
   await page.getByRole('button', { name: 'Start editing' }).click()
-  await expect(page.getByRole('status')).toContainText('New draft started from Version 1')
+  await expect(page.locator('.app-toast').filter({ hasText: 'New draft started from Version 1' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Working draft')
 
@@ -444,7 +444,7 @@ test('customizes each comparison pane independently', async ({ page }) => {
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.getByRole('status')).toContainText('Version 1 saved')
+  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved' })).toBeVisible()
 
   await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
   await expect.poll(() => page.evaluate(

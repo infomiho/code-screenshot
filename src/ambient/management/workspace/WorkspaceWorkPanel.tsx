@@ -29,7 +29,6 @@ type WorkspaceWorkPanelProps = {
   onRetry: () => void
   onSave: () => void
   onSignInToSave: () => void
-  onStatus: (message: string) => void
 }
 
 export function WorkspaceWorkPanel({
@@ -54,7 +53,6 @@ export function WorkspaceWorkPanel({
   onRetry,
   onSave,
   onSignInToSave,
-  onStatus,
 }: WorkspaceWorkPanelProps) {
   const hasPrompt = access.status === 'available' && agentAccessUrl !== null
   const promptIsNext = view.status === 'prompt-ready' || view.status === 'waiting'
@@ -69,7 +67,6 @@ export function WorkspaceWorkPanel({
       hasSavedVersion={versionInUse !== null}
       isPrimary={promptIsNext || view.status === 'saved'}
       onCopied={onCopyPrompt}
-      onStatus={onStatus}
     />
   ) : null
   const statusIsNext = connectionIsNext || accessIsNext

@@ -1,4 +1,5 @@
 import { trackProductEvent } from '../../../product-metrics/events'
+import { toastManager } from '../../../ui/toast'
 
 export const buildAgentPrompt = (ambientName: string, agentAccessUrl: string, hasSavedVersion: boolean) => {
   const intro = hasSavedVersion
@@ -23,7 +24,6 @@ type AgentPromptCardProps = {
   hasSavedVersion: boolean
   isPrimary?: boolean
   onCopied: () => void
-  onStatus: (message: string) => void
 }
 
 export function AgentPromptCard({
@@ -32,7 +32,6 @@ export function AgentPromptCard({
   hasSavedVersion,
   isPrimary = false,
   onCopied,
-  onStatus,
 }: AgentPromptCardProps) {
   const prompt = buildAgentPrompt(ambientName, agentAccessUrl, hasSavedVersion)
 
@@ -42,9 +41,12 @@ export function AgentPromptCard({
       await navigator.clipboard.writeText(prompt)
       trackProductEvent('Agent Prompt Copied', { surface: 'workspace' })
       onCopied()
-      onStatus('Agent prompt copied. Waiting for agent changes.')
+      toastManager.add({ description: 'Agent prompt copied. Waiting for agent changes.' })
     } catch {
-      onStatus('Could not copy the agent prompt. Select the prompt and copy it manually.')
+      toastManager.add({
+        description: 'Could not copy the agent prompt. Select the prompt and copy it manually.',
+        priority: 'high',
+      })
     }
   }
 

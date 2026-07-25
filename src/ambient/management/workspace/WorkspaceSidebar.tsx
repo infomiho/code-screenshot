@@ -6,7 +6,6 @@ import type { WorkspaceSidebarTab } from './use-workspace-sidebar'
 type WorkspaceSidebarProps = {
   activeTab: WorkspaceSidebarTab
   isCollapsed: boolean
-  statusMessage: string
   versionCount: number
   versions: ReactNode
   work: ReactNode
@@ -21,7 +20,6 @@ function SidebarPanelIcon() {
 export function WorkspaceSidebar({
   activeTab,
   isCollapsed,
-  statusMessage,
   versionCount,
   versions,
   work,
@@ -67,10 +65,6 @@ export function WorkspaceSidebar({
       >
         <SidebarPanelIcon />
       </button>
-
-      <div className="workspace-live-region" role="status" aria-live="polite" aria-atomic="true">
-        {statusMessage}
-      </div>
     </aside>
   )
 }

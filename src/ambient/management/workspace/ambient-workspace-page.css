@@ -892,20 +892,6 @@ button.version-entry-button[aria-pressed='true'] .version-node,
   display: none;
 }
 
-.workspace-live-region {
-  max-width: none;
-  border-top: 1px solid var(--workspace-border);
-  background: var(--workspace-surface-raised);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.workspace-live-region:not(:empty) {
-  padding: 12px 14px;
-}
-
 .workspace-empty-state,
 .workspace-error-state {
   display: grid;

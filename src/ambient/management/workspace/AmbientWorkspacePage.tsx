@@ -46,7 +46,6 @@ export function AmbientWorkspacePage({
   const workflow = useAgentWorkflow(snapshot)
   const [createdAmbientId, setCreatedAmbientId] = useState<string | null>(null)
   const [creationFailed, setCreationFailed] = useState(false)
-  const [statusMessage, setStatusMessage] = useState('')
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [isComparing, setIsComparing] = useState(false)
   const draftCustomizations = usePreviewCustomizations()
@@ -56,6 +55,8 @@ export function AmbientWorkspacePage({
   const nudgedAmbientIdRef = useRef<string | null>(null)
   const creationStartedRef = useRef(false)
   const sidebar = useWorkspaceSidebar()
+  const notify = (description: string, priority: 'low' | 'high' = 'low') =>
+    toastManager.add({ description, priority })
   const workspace = snapshot.workspace
   const loadState = createdAmbientId && workspace ? 'ready' : workspaceLoadState
   const ownership = workspace?.ambient.ownership ?? 'owned'
@@ -112,12 +113,6 @@ export function AmbientWorkspacePage({
   }, [workspace?.ambient.id])
 
   useEffect(() => {
-    if (!statusMessage) return
-    const timer = window.setTimeout(() => setStatusMessage(''), 4500)
-    return () => window.clearTimeout(timer)
-  }, [statusMessage])
-
-  useEffect(() => {
     const workspaceId = workspace?.ambient.id ?? null
     if (previousWorkspaceIdRef.current !== workspaceId) {
       previousWorkspaceIdRef.current = workspaceId
@@ -126,7 +121,7 @@ export function AmbientWorkspacePage({
     }
     const previousCount = previousAcceptedChangeCountRef.current
     if (previousCount !== null && acceptedChangeCount > previousCount) {
-      setStatusMessage(
+      notify(
         `${acceptedChangeCount - previousCount} agent ${acceptedChangeCount - previousCount === 1 ? 'change' : 'changes'} accepted. Ready to review.`,
       )
       if (isGuest && previousCount === 0 && workspaceId && nudgedAmbientIdRef.current !== workspaceId) {
@@ -188,30 +183,30 @@ export function AmbientWorkspacePage({
     workflow.send({ type: 'ACCESS_STARTED' })
     const created = await service.createAgentAccess()
     if (!created) {
-      setStatusMessage('Could not create agent access.')
+      notify('Could not create agent access.')
     } else if (startedFromVersion !== null) {
-      setStatusMessage(`New draft started from Version ${startedFromVersion}. Agent prompt is ready.`)
+      notify(`New draft started from Version ${startedFromVersion}. Agent prompt is ready.`)
     } else {
-      setStatusMessage('Temporary agent access created.')
+      notify('Temporary agent access created.')
     }
   }
 
   const discardAccess = async () => {
     const discarded = await service.discardAgentAccess()
-    setStatusMessage(discarded ? 'Agent access ended. Your draft is safe.' : 'Could not end agent access.')
+    notify(discarded ? 'Agent access ended. Your draft is safe.' : 'Could not end agent access.')
   }
 
   const saveVersion = async () => {
     workflow.send({ type: 'SAVE_STARTED' })
-    setStatusMessage('Saving version...')
+    notify('Saving version...')
     const saved = await service.saveAmbientVersion()
     workflow.send({ type: 'MUTATION_FINISHED' })
     if (saved) {
       trackProductEvent('Ambient Version Saved', { surface: 'workspace' })
       setSelectedVersionId(saved.id)
-      setStatusMessage(`Version ${saved.version} saved and now in use.`)
+      notify(`Version ${saved.version} saved and now in use.`)
     } else {
-      setStatusMessage('Could not save this version. Your draft remains available.')
+      notify('Could not save this version. Your draft remains available.')
     }
   }
 
@@ -235,13 +230,7 @@ export function AmbientWorkspacePage({
 
   const renameAmbient = async (name: string) => {
     const renamed = await service.renameAmbient(name)
-    if (!renamed) {
-      toastManager.add({
-        id: 'rename-failed',
-        description: 'Could not rename this theme.',
-        priority: 'high',
-      })
-    }
+    if (!renamed) notify('Could not rename this theme.', 'high')
     return renamed
   }
 
@@ -250,7 +239,7 @@ export function AmbientWorkspacePage({
     workflow.send({ type: 'RESTORE_STARTED' })
     const restored = await service.createDraftFromVersion(selectedVersion.id)
     workflow.send({ type: 'MUTATION_FINISHED' })
-    setStatusMessage(
+    notify(
       restored
         ? `Working draft started from Version ${selectedVersion.version}. Saved history is unchanged.`
         : `Could not start a draft from Version ${selectedVersion.version}.`,
@@ -268,14 +257,14 @@ export function AmbientWorkspacePage({
     workflow.send({ type: 'MUTATION_FINISHED' })
     setIsDiscardDialogOpen(false)
     if (!discarded) {
-      setStatusMessage('Could not discard the working draft.')
+      notify('Could not discard the working draft.')
       return
     }
     draftCustomizations.onReset()
     if (shouldClose) {
       closeWorkspace()
     } else {
-      setStatusMessage(`Draft changes discarded. Version ${workspace?.versionInUse?.version} remains available.`)
+      notify(`Draft changes discarded. Version ${workspace?.versionInUse?.version} remains available.`)
     }
   }
 
@@ -396,7 +385,6 @@ export function AmbientWorkspacePage({
           <WorkspaceSidebar
             activeTab={sidebar.activeTab}
             isCollapsed={sidebar.isCollapsed}
-            statusMessage={statusMessage}
             versionCount={workspace.versions.length}
             onTabChange={sidebar.setActiveTab}
             onToggleCollapse={sidebar.toggleCollapsed}
@@ -425,7 +413,6 @@ export function AmbientWorkspacePage({
                 }}
                 onSave={saveVersion}
                 onSignInToSave={() => signIn(true)}
-                onStatus={setStatusMessage}
               />
             )}
             versions={(
