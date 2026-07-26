@@ -21,7 +21,9 @@ type AmbientSelectorProps = {
   definitions: readonly AmbientDefinition[]
   selectedKey: string
   yourAmbients: YourAmbientsState
+  isCreatingTheme: boolean
   onOpenChange?: (isOpen: boolean) => void
+  onCreateTheme: () => void
   onSelect: (key: string) => void
   onExitSharedAmbient?: () => void
 }
@@ -63,7 +65,9 @@ export function AmbientSelector({
   definitions,
   selectedKey,
   yourAmbients,
+  isCreatingTheme,
   onOpenChange,
+  onCreateTheme,
   onSelect,
   onExitSharedAmbient,
 }: AmbientSelectorProps) {
@@ -233,8 +237,10 @@ export function AmbientSelector({
                 pickerRef={pickerRef}
                 selectedIndex={selectedIndex}
                 yourAmbients={yourAmbients}
+                isCreatingTheme={isCreatingTheme}
                 onActiveIndexChange={setActiveIndex}
                 onClose={() => updateOpen(false)}
+                onCreateTheme={onCreateTheme}
                 onKeyDown={handlePickerKeyDown}
                 onSelect={(index) => selectAt(index, true)}
               />

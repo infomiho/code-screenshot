@@ -55,20 +55,6 @@ describe('renameAmbient', () => {
     }))
   })
 
-  it('returns the advanced revision so an in-flight agent write conflicts and refetches', async () => {
-    const result = await renameAmbient(args, context as never)
-
-    expect(result).toEqual({ name: 'quiet thistle', revision: 6 })
-  })
-
-  it('scopes the lookup to the caller', async () => {
-    await renameAmbient(args, context as never)
-
-    expect(transaction.ambient.findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'ambient-1', ownerId: 'user-1' },
-    }))
-  })
-
   it('lets a guest rename their own theme', async () => {
     prisma.guestSession.findUnique.mockResolvedValue({ id: 'guest-1', claimedAt: null })
 

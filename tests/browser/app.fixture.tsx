@@ -26,7 +26,6 @@ const isAgentPreview = new URLSearchParams(window.location.search).has('agent-pr
 const hasExistingDraft = new URLSearchParams(window.location.search).has('existing-draft')
 const hasDelayedNavigation = new URLSearchParams(window.location.search).has('delayed-navigation')
 const hasSharedAmbient = new URLSearchParams(window.location.search).has('shared-ambient')
-const hasUnavailableShare = new URLSearchParams(window.location.search).has('unavailable-share')
 const hasAdminDashboard = new URLSearchParams(window.location.search).has('admin-dashboard')
 const hasAdminLoading = new URLSearchParams(window.location.search).has('admin-loading')
 const hasSparseAdminDashboard = new URLSearchParams(window.location.search).has('admin-sparse')
@@ -35,7 +34,7 @@ const hasEmptyAdminDashboard = new URLSearchParams(window.location.search).has('
 const adminDashboard: AdminDashboardDto = {
   userCount: 3,
   ambientCount: 8,
-  anonymousAmbientCount: 5,
+  guestThemeCount: 5,
   ambientCountsByStatus: { draft: 5, published: 2, archived: 1 },
   users: [
     { id: 'user-1', githubLogin: 'codeshot-user', githubAvatarUrl: null, ambientCount: 5 },
@@ -155,7 +154,7 @@ function FixtureApp() {
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={hasUnavailableShare ? [{ pathname: '/', state: { toast: 'This shared ambient is no longer available.' } }] : undefined}>
+      <MemoryRouter>
         {isAgentPreview
           ? <AgentPreviewCanvas definition={previewResult.definition} />
           : hasAdminDashboard || hasAdminLoading || hasSparseAdminDashboard || hasEmptyAdminDashboard

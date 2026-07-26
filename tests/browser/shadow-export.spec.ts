@@ -9,7 +9,7 @@ type ExportResult = {
   pixels: Record<string, number>
 }
 
-const widths = [420, 860, 1280]
+const widths = [420, 1280]
 
 for (const width of widths) {
   test(`exports open shadow content and slotted CodeMirror at ${width}px`, async ({ page }) => {

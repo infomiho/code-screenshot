@@ -6,8 +6,6 @@ type SiteHeaderProps = {
   account: AmbientAccountDto
   isHydrated: boolean
   draftCount: number
-  isCreatingTheme: boolean
-  onCreateTheme: () => void
   onOpenLibrary: () => void
   onOpenAdmin: () => void
   onSignIn: () => void
@@ -18,8 +16,6 @@ export function SiteHeader({
   account,
   isHydrated,
   draftCount,
-  isCreatingTheme,
-  onCreateTheme,
   onOpenLibrary,
   onOpenAdmin,
   onSignIn,
@@ -29,14 +25,6 @@ export function SiteHeader({
     <header className="site-header">
       <div className="site-brand">codeshot.dev</div>
       <nav className="site-account" aria-label="Account" aria-busy={!isHydrated}>
-        <button
-          className="ui-button ui-button-signal site-create-theme"
-          type="button"
-          disabled={isCreatingTheme}
-          onClick={onCreateTheme}
-        >
-          {isCreatingTheme ? 'Opening...' : 'Create theme with agent'}
-        </button>
         {!isHydrated ? (
           <div className="account-skeleton" aria-hidden="true">
             <span className="skeleton-circle account-skeleton-avatar" />

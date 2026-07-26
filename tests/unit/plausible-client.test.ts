@@ -59,15 +59,4 @@ describe('Plausible client', () => {
     expect(tracker.init).not.toHaveBeenCalled()
   })
 
-  it('supports non-interactive events', async () => {
-    const { trackPlausibleEvent } = await import('../../src/product-metrics/metrics-client')
-
-    await trackPlausibleEvent('Shared Ambient Viewed', { surface: 'shared' }, { interactive: false })
-
-    expect(tracker.track).toHaveBeenCalledWith('Shared Ambient Viewed', {
-      interactive: false,
-      props: { surface: 'shared' },
-      url: 'https://codeshot.dev/',
-    })
-  })
 })

@@ -1,9 +1,6 @@
 import { useLayoutEffect } from 'react'
 import { useActorRef, useSelector } from '@xstate/react'
-import type {
-  AmbientWorkspaceSnapshot,
-  OpenAmbientWorkspace,
-} from '../ambient-workspace-service'
+import type { AmbientWorkspaceSnapshot, OpenAmbientWorkspace } from '../ambient-workspace-service'
 import { documentsEqual } from '../contracts'
 import {
   agentWorkflowMachine,
@@ -26,7 +23,7 @@ const getAccess = (workspace: OpenAmbientWorkspace | null): AgentAccessState => 
 }
 
 const getLifecycle = (workspace: OpenAmbientWorkspace | null): AgentDraftLifecycle => {
-  if (!workspace?.workingDraft) return 'setup'
+  if (!workspace?.workingDraft) return workspace?.versionInUse ? 'saved' : 'setup'
   if (workspace.mutation === 'saving') return 'reviewReady'
   const matchesVersionInUse = Boolean(
     workspace.versionInUse
@@ -35,9 +32,10 @@ const getLifecycle = (workspace: OpenAmbientWorkspace | null): AgentDraftLifecyc
   if (workspace.workingDraft.acceptedChangeCount > 0 || (workspace.versionInUse && !matchesVersionInUse)) {
     return 'reviewReady'
   }
-  if (matchesVersionInUse) return 'saved'
-  if (workspace.promptCopied) return 'waiting'
-  return workspace.agentAccess.status === 'available' ? 'promptReady' : 'setup'
+  if (workspace.agentAccess.status === 'available') {
+    return workspace.promptCopied || workspace.agentAccess.lastUsedAt ? 'waiting' : 'promptReady'
+  }
+  return matchesVersionInUse ? 'saved' : 'setup'
 }
 
 const getConnectivity = (workspace: OpenAmbientWorkspace | null): AgentConnectivityState => {
@@ -58,7 +56,6 @@ export function useAgentWorkflow(snapshot: AmbientWorkspaceSnapshot) {
     actor.send({ type: 'SYNC', access, connectivity, lifecycle })
   }, [access, actor, connectivity, lifecycle])
 
-  const mutation = machineSnapshot.value.mutation
   return {
     access: deriveAgentAccessView({
       state: machineSnapshot.value.access as AgentAccessState,
@@ -78,7 +75,7 @@ export function useAgentWorkflow(snapshot: AmbientWorkspaceSnapshot) {
     workspace: deriveAmbientWorkspaceView({
       lifecycle: machineSnapshot.value.lifecycle as AgentDraftLifecycle,
       connectivity: machineSnapshot.value.connectivity as AgentConnectivityState,
-      mutation,
+      mutation: machineSnapshot.value.mutation,
     }),
     send: actor.send,
   }

@@ -110,19 +110,6 @@
   --button-primary-hover: color-mix(in oklch, var(--wasp-yellow), white 9%);
   --button-primary-pressed: color-mix(in oklch, var(--wasp-yellow), black 8%);
 
-  /* Signal call to action: violet reads as a second accent beside the yellow rather than a peer. */
-  --cta-accent: oklch(0.62 0.19 295);
-  --cta-accent-bright: oklch(0.72 0.2 300);
-  --cta-body: color-mix(in oklch, var(--bg), var(--cta-accent) 14%);
-  --cta-body-hover: color-mix(in oklch, var(--bg), var(--cta-accent) 24%);
-  --cta-ring-width: 1.5px;
-  --cta-ring-duration: 5s;
-  --cta-ring-dim: color-mix(in oklch, var(--cta-accent), transparent 70%);
-  --cta-ring-peak: color-mix(in oklch, var(--cta-accent-bright), white 45%);
-  --cta-glow-spread: 5px;
-  --cta-glow-blur: 8px;
-  --cta-glow-opacity: 0.45;
-
   /* Ambient selector & picker */
   --ambient-control-size: 44px;
   --ambient-mark-width: 40px;

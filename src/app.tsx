@@ -222,13 +222,8 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
 
   const startAmbient = () => void createAmbient()
   const yourAmbients: YourAmbientsState = snapshot.account.kind === 'signed-out'
-    ? { kind: 'signed-out', onCreateAmbient: startAmbient }
-    : {
-        kind: 'signed-in',
-        hasAmbients: snapshot.ownedAmbients.length > 0,
-        onCreateAmbient: startAmbient,
-        onManageAmbients: openLibrary,
-      }
+    ? { kind: 'signed-out' }
+    : { kind: 'signed-in' }
 
   const updateAmbientCustomization = (slotId: string, value: string) => {
     setAmbientCustomizations((current) => ({
@@ -266,8 +261,6 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
         account={snapshot.account}
         isHydrated={snapshot.isHydrated}
         draftCount={draftCount}
-        isCreatingTheme={isCreatingTheme}
-        onCreateTheme={startAmbient}
         onOpenLibrary={openLibrary}
         onOpenAdmin={openAdmin}
         onSignIn={service.signIn}
@@ -278,8 +271,10 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
           ambientKey={selectedAmbientKey}
           definitions={definitions}
           yourAmbients={yourAmbients}
+          isCreatingTheme={isCreatingTheme}
           onAmbientPickerOpenChange={() => undefined}
           onAmbientChange={setAmbientKey}
+          onCreateTheme={startAmbient}
           onExitSharedAmbient={sharedDefinition ? exitSharedAmbient : undefined}
           selectedAmbient={selectedAmbient}
           screenshotContent={screenshotContent}

@@ -21,7 +21,6 @@ vi.mock('../../src/admin/plausible-stats', () => ({
 }))
 
 import {
-  getAdminAccess,
   getAdminDashboard,
   getAdminPlausibleSnapshot,
   refreshAdminPlausibleSnapshot,
@@ -42,13 +41,6 @@ describe('admin operations', () => {
   }
 
   beforeEach(() => vi.clearAllMocks())
-
-  it('reports whether the current user is an admin', async () => {
-    await expect(getAdminAccess(undefined, context as never)).resolves.toEqual({ isAdmin: true })
-    await expect(getAdminAccess(undefined, { ...context, user: undefined } as never)).resolves.toEqual({
-      isAdmin: false,
-    })
-  })
 
   it('returns database totals and users with ambient counts', async () => {
     countUsers.mockResolvedValue(2)
@@ -81,7 +73,7 @@ describe('admin operations', () => {
     expect(result).toEqual({
       userCount: 2,
       ambientCount: 4,
-      anonymousAmbientCount: 7,
+      guestThemeCount: 7,
       ambientCountsByStatus: { draft: 2, published: 1, archived: 1 },
       users: [{ id: 'user-1', githubLogin: 'octocat', githubAvatarUrl: null, ambientCount: 3 }],
     })

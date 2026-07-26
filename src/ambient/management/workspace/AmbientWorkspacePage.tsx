@@ -50,13 +50,10 @@ export function AmbientWorkspacePage({
   const [isComparing, setIsComparing] = useState(false)
   const draftCustomizations = usePreviewCustomizations()
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false)
-  const previousAcceptedChangeCountRef = useRef<number | null>(null)
-  const previousWorkspaceIdRef = useRef<string | null>(null)
-  const nudgedAmbientIdRef = useRef<string | null>(null)
   const creationStartedRef = useRef(false)
   const sidebar = useWorkspaceSidebar()
-  const notify = (description: string, priority: 'low' | 'high' = 'low') =>
-    toastManager.add({ description, priority })
+  const notifyError = (description: string) =>
+    toastManager.add({ description, priority: 'high' })
   const workspace = snapshot.workspace
   const loadState = createdAmbientId && workspace ? 'ready' : workspaceLoadState
   const ownership = workspace?.ambient.ownership ?? 'owned'
@@ -113,29 +110,6 @@ export function AmbientWorkspacePage({
   }, [workspace?.ambient.id])
 
   useEffect(() => {
-    const workspaceId = workspace?.ambient.id ?? null
-    if (previousWorkspaceIdRef.current !== workspaceId) {
-      previousWorkspaceIdRef.current = workspaceId
-      previousAcceptedChangeCountRef.current = acceptedChangeCount
-      return
-    }
-    const previousCount = previousAcceptedChangeCountRef.current
-    if (previousCount !== null && acceptedChangeCount > previousCount) {
-      notify(
-        `${acceptedChangeCount - previousCount} agent ${acceptedChangeCount - previousCount === 1 ? 'change' : 'changes'} accepted. Ready to review.`,
-      )
-      if (isGuest && previousCount === 0 && workspaceId && nudgedAmbientIdRef.current !== workspaceId) {
-        nudgedAmbientIdRef.current = workspaceId
-        toastManager.add({
-          id: 'guest-save-nudge',
-          description: 'Your theme is taking shape. Sign in when you want to keep it.',
-        })
-      }
-    }
-    previousAcceptedChangeCountRef.current = acceptedChangeCount
-  }, [acceptedChangeCount, isGuest, workspace?.ambient.id])
-
-  useEffect(() => {
     if (!isGuest || acceptedChangeCount === 0) return
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => event.preventDefault()
     window.addEventListener('beforeunload', warnBeforeLeaving)
@@ -179,34 +153,27 @@ export function AmbientWorkspacePage({
   }
 
   const createAccess = async () => {
-    const startedFromVersion = workspace?.workingDraft ? null : workspace?.versionInUse?.version ?? null
     workflow.send({ type: 'ACCESS_STARTED' })
     const created = await service.createAgentAccess()
     if (!created) {
-      notify('Could not create agent access.')
-    } else if (startedFromVersion !== null) {
-      notify(`New draft started from Version ${startedFromVersion}. Agent prompt is ready.`)
-    } else {
-      notify('Temporary agent access created.')
+      notifyError('Could not create agent access.')
     }
   }
 
   const discardAccess = async () => {
     const discarded = await service.discardAgentAccess()
-    notify(discarded ? 'Agent access ended. Your draft is safe.' : 'Could not end agent access.')
+    if (!discarded) notifyError('Could not end agent access.')
   }
 
   const saveVersion = async () => {
     workflow.send({ type: 'SAVE_STARTED' })
-    notify('Saving version...')
     const saved = await service.saveAmbientVersion()
     workflow.send({ type: 'MUTATION_FINISHED' })
     if (saved) {
       trackProductEvent('Ambient Version Saved', { surface: 'workspace' })
       setSelectedVersionId(saved.id)
-      notify(`Version ${saved.version} saved and now in use.`)
     } else {
-      notify('Could not save this version. Your draft remains available.')
+      notifyError('Could not save this version. Your draft remains available.')
     }
   }
 
@@ -230,7 +197,7 @@ export function AmbientWorkspacePage({
 
   const renameAmbient = async (name: string) => {
     const renamed = await service.renameAmbient(name)
-    if (!renamed) notify('Could not rename this theme.', 'high')
+    if (!renamed) notifyError('Could not rename this theme.')
     return renamed
   }
 
@@ -239,11 +206,7 @@ export function AmbientWorkspacePage({
     workflow.send({ type: 'RESTORE_STARTED' })
     const restored = await service.createDraftFromVersion(selectedVersion.id)
     workflow.send({ type: 'MUTATION_FINISHED' })
-    notify(
-      restored
-        ? `Working draft started from Version ${selectedVersion.version}. Saved history is unchanged.`
-        : `Could not start a draft from Version ${selectedVersion.version}.`,
-    )
+    if (!restored) notifyError(`Could not start a draft from Version ${selectedVersion.version}.`)
     if (restored) {
       setIsComparing(false)
       draftCustomizations.onReset()
@@ -257,14 +220,12 @@ export function AmbientWorkspacePage({
     workflow.send({ type: 'MUTATION_FINISHED' })
     setIsDiscardDialogOpen(false)
     if (!discarded) {
-      notify('Could not discard the working draft.')
+      notifyError('Could not discard the working draft.')
       return
     }
     draftCustomizations.onReset()
     if (shouldClose) {
       closeWorkspace()
-    } else {
-      notify(`Draft changes discarded. Version ${workspace?.versionInUse?.version} remains available.`)
     }
   }
 
@@ -341,15 +302,11 @@ export function AmbientWorkspacePage({
         account={snapshot.account}
         draftCount={draftCount}
         hasSavedVersion={workspace.versionInUse !== null}
-        hasUnsavedChanges={!draftMatchesVersion && workspace.workingDraft !== null}
         linkSharing={workspace.ambient.linkSharing}
-        name={workspace.ambient.name}
         ownership={ownership}
         slug={workspace.ambient.slug}
-        versionInUse={workspace.versionInUse?.version ?? null}
         onClose={closeWorkspace}
         onOpenAdmin={() => navigate(routes.AdminRoute.to)}
-        onRename={renameAmbient}
         onSignIn={() => signIn(false)}
         onSignOut={signOut}
         onSharingChange={service.setLinkSharing}
@@ -377,6 +334,7 @@ export function AmbientWorkspacePage({
               versionInUseDefinition={versionInUseDefinition}
               canStartDraft={workspace.connectivity === 'online' && workspace.mutation === 'idle'}
               onStartDraft={createAccess}
+              onRename={renameAmbient}
             />
           )}
         </section>

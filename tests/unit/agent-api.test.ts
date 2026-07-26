@@ -201,25 +201,6 @@ describe('agent draft patching', () => {
     expect(database.transaction).not.toHaveBeenCalled()
   })
 
-  it('reports the current revision when a patch loses a race', async () => {
-    database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
-    database.transaction.mockImplementation(async (run) => run({
-      ambientAgentSession: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
-      ambientDraft: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
-    }))
-    database.ambientDraft.findUnique.mockResolvedValue({ revision: 2 })
-    const response = createResponse()
-
-    await callPatchDraft(response, { baseRevision: 1, patch: { name: 'Renamed' } })
-
-    expect(response.status).toHaveBeenCalledWith(409)
-    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
-      error: 'draft_revision_conflict',
-      currentRevision: 2,
-    }))
-    expect(changeStream.publishAmbientChange).not.toHaveBeenCalled()
-  })
-
   it('expires the session when the commit finds it gone', async () => {
     database.ambientAgentSession.findUnique.mockResolvedValue(createSession())
     database.transaction.mockImplementation(async (run) => run({

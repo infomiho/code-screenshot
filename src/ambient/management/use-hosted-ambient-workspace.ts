@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getMe, githubSignInUrl, logout } from 'wasp/client/auth'
 import {
   claimGuestAmbients as claimGuestAmbientsOperation,
@@ -62,6 +62,7 @@ const createAmbientOnce = (name: string, guestToken: string | null) => {
 export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled: boolean) => {
   const isWorkspaceRoute = Boolean(ambientId && ambientId !== 'new')
   const [guestToken, setGuestToken] = useState(readGuestToken)
+  const guestTokenRef = useRef(guestToken)
   const authQuery = useQuery(getMe, undefined, { enabled, retry: false })
   const libraryQuery = useQuery(listOwnedAmbients, undefined, {
     enabled: enabled && Boolean(authQuery.data),
@@ -165,7 +166,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
   }, [enabled, workspace?.ambient.id, workspace?.agentAccess.status, workspace?.agentAccess.status === 'available' ? workspace.agentAccess.expiresAt : null])
 
   const currentAmbientId = () => workspace?.ambient.id ?? null
-  const guestCredential = () => (guestToken ? { guestToken } : {})
+  const guestCredential = () => (guestTokenRef.current ? { guestToken: guestTokenRef.current } : {})
   const service: AmbientWorkspaceService = {
     getSnapshot: () => snapshot,
     getServerSnapshot: () => signedOutSnapshot,
@@ -174,6 +175,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     signOut: async () => {
       clearAgentSessions()
       clearGuestToken()
+      guestTokenRef.current = null
       setGuestToken(null)
       try {
         await logout()
@@ -196,6 +198,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
         const created = await createAmbientOnce(name, guestToken)
         if (created.guestToken) {
           storeGuestToken(created.guestToken)
+          guestTokenRef.current = created.guestToken
           setGuestToken(created.guestToken)
         }
         return created.ambientId
@@ -219,6 +222,7 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
       try {
         const result = await claimGuestAmbientsOperation({ guestToken })
         clearGuestToken()
+        guestTokenRef.current = null
         setGuestToken(null)
         await Promise.allSettled([libraryQuery.refetch(), workspaceQuery.refetch()])
         return result

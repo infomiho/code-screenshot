@@ -1,16 +1,12 @@
 import type { KeyboardEventHandler, RefObject } from 'react'
+import { IconX } from '@tabler/icons-react'
 import { AmbientMark } from '../rendering/ambient-mark'
 import { getAmbientKey, type AmbientDefinition } from '../rendering/ambient-themes'
 import './ambient-picker.css'
 
 export type YourAmbientsState =
-  | { kind: 'signed-out'; onCreateAmbient: () => void }
-  | {
-      kind: 'signed-in'
-      hasAmbients: boolean
-      onCreateAmbient: () => void
-      onManageAmbients: () => void
-    }
+  | { kind: 'signed-out' }
+  | { kind: 'signed-in' }
 
 export type AmbientPickerEntry = {
   definition: AmbientDefinition
@@ -25,8 +21,10 @@ type AmbientPickerProps = {
   pickerRef: RefObject<HTMLDivElement | null>
   selectedIndex: number
   yourAmbients: YourAmbientsState
+  isCreatingTheme: boolean
   onActiveIndexChange: (index: number) => void
   onClose: () => void
+  onCreateTheme: () => void
   onKeyDown: KeyboardEventHandler<HTMLDivElement>
   onSelect: (index: number) => void
 }
@@ -127,22 +125,19 @@ export function AmbientPicker({
   pickerRef,
   selectedIndex,
   yourAmbients,
+  isCreatingTheme,
   onActiveIndexChange,
   onClose,
+  onCreateTheme,
   onKeyDown,
   onSelect,
 }: AmbientPickerProps) {
-  const runAction = (action: () => void) => {
-    onClose()
-    action()
-  }
-
   return (
     <>
       <div className="ambient-picker-heading">
         <span>Choose a theme</span>
         <button className="ui-button ui-button-ghost ui-button-icon ambient-picker-close" type="button" aria-label="Close theme picker" onClick={onClose}>
-          &#215;
+          <IconX aria-hidden="true" />
         </button>
       </div>
       <div
@@ -182,30 +177,21 @@ export function AmbientPicker({
           />
         )}
       </div>
-      <section className="ambient-account" aria-label="Your themes account">
-        {yourAmbients.kind === 'signed-out' ? (
-          <>
-            <h3>Your themes</h3>
-            <p>Create your own reusable visual frame.</p>
-            <button className="ui-button ui-button-primary ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
-              Create your own theme
-            </button>
-          </>
-        ) : yourAmbients.hasAmbients ? (
-          <button className="ambient-account-manage" type="button" onClick={() => runAction(yourAmbients.onManageAmbients)}>
-            <span>Manage your themes</span>
-            <span aria-hidden="true">→</span>
+      {personal.length === 0 && (
+        <section className="ambient-picker-empty" aria-labelledby={`${pickerId}-empty-heading`}>
+          <h3 id={`${pickerId}-empty-heading`}>Your themes</h3>
+          <p>Create a custom theme with your agent in 1-2 minutes.</p>
+          <button
+            className="ui-button ui-button-primary"
+            type="button"
+            aria-busy={isCreatingTheme}
+            disabled={isCreatingTheme}
+            onClick={onCreateTheme}
+          >
+            Create theme
           </button>
-        ) : (
-          <>
-            <h3>Your themes</h3>
-            <p>Build a reusable visual frame with help from your coding agent.</p>
-            <button className="ui-button ui-button-primary ambient-account-action" type="button" onClick={() => runAction(yourAmbients.onCreateAmbient)}>
-              Create your own theme
-            </button>
-          </>
-        )}
-      </section>
+        </section>
+      )}
     </>
   )
 }

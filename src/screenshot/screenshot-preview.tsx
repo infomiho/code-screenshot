@@ -15,18 +15,21 @@ import { toastManager } from '../ui/toast'
 import { type AmbientDefinition, type ScreenshotContent } from '../ambient/rendering/ambient-themes'
 import { usePenDrawing } from './use-pen-drawing'
 import { usePreviewFrame } from './use-preview-frame'
+import { ThemeNudge } from './theme-nudge'
 import './preview-frame.css'
 import { trackProductEvent } from '../product-metrics/events'
 import { getAnalyticsSurface } from '../product-metrics/metrics-client'
-
-type ExportAction = 'copy' | 'download' | null
+import { useCopyFeedback } from '../ui/use-copy-feedback'
+import { CopyFeedbackLabel } from '../ui/copy-feedback-label'
 
 type ScreenshotPreviewProps = {
   ambientKey: string
   definitions: readonly AmbientDefinition[]
   yourAmbients: YourAmbientsState
+  isCreatingTheme: boolean
   onAmbientPickerOpenChange: (isOpen: boolean) => void
   onAmbientChange: (ambientKey: string) => void
+  onCreateTheme: () => void
   onExitSharedAmbient?: () => void
   selectedAmbient: AmbientDefinition
   screenshotContent: ScreenshotContent
@@ -54,8 +57,10 @@ export function ScreenshotPreview({
   ambientKey,
   definitions,
   yourAmbients,
+  isCreatingTheme,
   onAmbientPickerOpenChange,
   onAmbientChange,
+  onCreateTheme,
   onExitSharedAmbient,
   selectedAmbient,
   screenshotContent,
@@ -67,7 +72,10 @@ export function ScreenshotPreview({
 }: ScreenshotPreviewProps) {
   const [isFrameRevealed, setIsFrameRevealed] = useState(false)
   const hasStartedRevealRef = useRef(false)
-  const [exportAction, setExportAction] = useState<ExportAction>(null)
+  const copyInFlightRef = useRef(false)
+  const downloadInFlightRef = useRef(false)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const copyFeedback = useCopyFeedback()
   const {
     frameWidth,
     previewMode,
@@ -88,9 +96,6 @@ export function ScreenshotPreview({
     undoLastStroke,
     clearDrawing,
   } = usePenDrawing(renderedPreviewScale)
-  const isCopying = exportAction === 'copy'
-  const isDownloading = exportAction === 'download'
-  const isExporting = exportAction !== null
   const frameStatus = !isFrameReady ? 'resolving' : isFrameRevealed ? 'ready' : 'revealing'
   const isThemedFrame = isFrameReady && selectedAmbient.kind === 'react'
   const frameClass = isThemedFrame
@@ -145,14 +150,15 @@ export function ScreenshotPreview({
   }
 
   const copyPng = async () => {
-    setExportAction('copy')
+    if (copyInFlightRef.current) return
+    copyInFlightRef.current = true
 
     try {
       const blob = await renderPngBlob()
       if (!blob) return
 
       if (!navigator.clipboard || !window.ClipboardItem) {
-        toastManager.add({ description: 'Clipboard unavailable. Use Download PNG.' })
+        toastManager.add({ description: 'Clipboard unavailable. Use Download PNG.', priority: 'high' })
         return
       }
 
@@ -161,16 +167,18 @@ export function ScreenshotPreview({
         surface: getAnalyticsSurface(),
         ambient_source: selectedAmbient.source,
       })
-      toastManager.add({ description: 'Copied PNG to clipboard.' })
+      copyFeedback.showCopied()
     } catch {
       toastManager.add({ description: 'Copy failed. Use Download PNG.', priority: 'high' })
     } finally {
-      setExportAction(null)
+      copyInFlightRef.current = false
     }
   }
 
   const downloadPng = async () => {
-    setExportAction('download')
+    if (downloadInFlightRef.current) return
+    downloadInFlightRef.current = true
+    setIsDownloading(true)
 
     try {
       const blob = await renderPngBlob()
@@ -181,11 +189,11 @@ export function ScreenshotPreview({
         surface: getAnalyticsSurface(),
         ambient_source: selectedAmbient.source,
       })
-      toastManager.add({ description: 'Downloaded PNG.' })
     } catch {
       toastManager.add({ description: 'Download failed.', priority: 'high' })
     } finally {
-      setExportAction(null)
+      downloadInFlightRef.current = false
+      setIsDownloading(false)
     }
   }
 
@@ -199,15 +207,14 @@ export function ScreenshotPreview({
                 className="ui-button ui-button-primary toolbar-button"
                 type="button"
                 onClick={copyPng}
-                disabled={isExporting}
               >
-                {isCopying ? 'Copying...' : 'Copy PNG'}
+                <CopyFeedbackLabel isCopied={copyFeedback.isCopied}>Copy PNG</CopyFeedbackLabel>
               </button>
               <button
                 className="ui-button toolbar-button"
                 type="button"
                 onClick={downloadPng}
-                disabled={isExporting}
+                disabled={isDownloading}
               >
                 {isDownloading ? 'Downloading...' : 'Download PNG'}
               </button>
@@ -216,7 +223,9 @@ export function ScreenshotPreview({
               definitions={definitions}
               selectedKey={ambientKey}
               yourAmbients={yourAmbients}
+              isCreatingTheme={isCreatingTheme}
               onOpenChange={onAmbientPickerOpenChange}
+              onCreateTheme={onCreateTheme}
               onSelect={onAmbientChange}
               onExitSharedAmbient={onExitSharedAmbient}
             />
@@ -266,6 +275,7 @@ export function ScreenshotPreview({
               </button>
             </div>
           </div>
+          <ThemeNudge isCreatingTheme={isCreatingTheme} onCreateTheme={onCreateTheme} />
           <div style={renderedPreviewScale < 1 ? { zoom: renderedPreviewScale } : undefined}>
             <div
               ref={shotRef}

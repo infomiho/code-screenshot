@@ -5,6 +5,8 @@ import type { AmbientLinkSharingDto } from '../contracts'
 import { toastManager } from '../../../ui/toast'
 import './ambient-share-popover.css'
 import { trackProductEvent } from '../../../product-metrics/events'
+import { useCopyFeedback } from '../../../ui/use-copy-feedback'
+import { CopyFeedbackLabel } from '../../../ui/copy-feedback-label'
 
 type AmbientSharePopoverProps = {
   linkSharing: AmbientLinkSharingDto
@@ -26,6 +28,7 @@ export function AmbientSharePopover({
 }: AmbientSharePopoverProps) {
   const headingId = `${useId()}-share-heading`
   const [isUpdating, setIsUpdating] = useState(false)
+  const copyFeedback = useCopyFeedback()
   const enableButtonRef = useRef<HTMLButtonElement>(null)
   const copyButtonRef = useRef<HTMLButtonElement>(null)
   const shareUrl = linkSharing.shareId
@@ -33,15 +36,16 @@ export function AmbientSharePopover({
     : null
 
   const updateSharing = async (enabled: boolean) => {
+    copyFeedback.resetCopied()
     setIsUpdating(true)
     const updated = await onSharingChange(enabled)
     setIsUpdating(false)
-    toastManager.add({
-      description: updated
-        ? enabled ? 'Link sharing enabled.' : 'Link sharing turned off.'
-        : enabled ? 'Could not enable link sharing.' : 'Could not turn off link sharing.',
-      priority: updated ? 'low' : 'high',
-    })
+    if (!updated) {
+      toastManager.add({
+        description: enabled ? 'Could not enable link sharing.' : 'Could not turn off link sharing.',
+        priority: 'high',
+      })
+    }
     if (updated) {
       if (enabled) trackProductEvent('Ambient Sharing Enabled', { surface: 'workspace' })
       requestAnimationFrame(() => {
@@ -56,7 +60,7 @@ export function AmbientSharePopover({
     try {
       await navigator.clipboard.writeText(shareUrl)
       trackProductEvent('Share Link Copied', { surface: 'workspace' })
-      toastManager.add({ description: 'Share link copied.' })
+      copyFeedback.showCopied()
     } catch {
       toastManager.add({ description: 'Could not copy the share link.', priority: 'high' })
     }
@@ -125,8 +129,10 @@ export function AmbientSharePopover({
                     disabled={isUpdating}
                     onClick={() => void copyLink()}
                   >
-                    <AccessIcon enabled />
-                    Copy link
+                    <CopyFeedbackLabel isCopied={copyFeedback.isCopied}>
+                      <AccessIcon enabled />
+                      Copy link
+                    </CopyFeedbackLabel>
                   </button>
                 </>
               ) : (

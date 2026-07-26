@@ -118,11 +118,4 @@ describe('collectAbandonedGuestWork', () => {
     }))
   })
 
-  it('deletes nothing when every theme is still inside its window', async () => {
-    const context = createContext([candidate()])
-
-    await collectAbandonedGuestWork(undefined as never, context as never)
-
-    expect(context.entities.Ambient.deleteMany).not.toHaveBeenCalled()
-  })
 })

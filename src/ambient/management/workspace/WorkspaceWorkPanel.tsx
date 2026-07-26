@@ -4,8 +4,9 @@ import type {
   DraftSafetyView,
 } from '../agent/agent-workflow-machine'
 import { AgentPromptCard } from '../agent/AgentPromptCard'
+import { AgentAccessControl } from './AgentAccessControl'
 import { ReviewActions } from './ReviewActions'
-import { WorkspaceStatusCard } from './WorkspaceStatusCard'
+import { WorkspaceTaskCard } from './WorkspaceTaskCard'
 
 type WorkspaceWorkPanelProps = {
   access: AgentAccessView
@@ -29,6 +30,25 @@ type WorkspaceWorkPanelProps = {
   onRetry: () => void
   onSave: () => void
   onSignInToSave: () => void
+}
+
+const getPromptVariant = (
+  status: AmbientWorkspaceView['status'],
+  agentConnected: boolean,
+  hasSavedVersion: boolean,
+) => {
+  if (status === 'saved') return 'saved'
+  if (status === 'prompt-ready' && hasSavedVersion) return 'update'
+  if (status === 'review-ready' || status === 'saving') return 'review'
+  if (agentConnected) return 'connected'
+  return 'next'
+}
+
+const getDraftMeta = (safety: DraftSafetyView) => {
+  if (safety.status === 'different-from-version') return `Differs from Version ${safety.version}`
+  if (safety.status === 'based-on-version') return `Started from Version ${safety.sourceVersion}`
+  if (safety.status === 'ahead-of-version') return `Ahead of Version ${safety.version}`
+  return undefined
 }
 
 export function WorkspaceWorkPanel({
@@ -55,58 +75,115 @@ export function WorkspaceWorkPanel({
   onSignInToSave,
 }: WorkspaceWorkPanelProps) {
   const hasPrompt = access.status === 'available' && agentAccessUrl !== null
-  const promptIsNext = view.status === 'prompt-ready' || view.status === 'waiting'
-  const reviewIsNext = view.status === 'review-ready' || view.status === 'saving'
-  const connectionIsNext = view.status === 'offline' || view.status === 'request-error'
-  const accessIsNext = !hasPrompt && !reviewIsNext && !connectionIsNext
+  const agentConnected = access.status === 'available' && access.hasReadDraft
+  const promptIsNext = view.status === 'prompt-ready'
+  const promptVariant = getPromptVariant(view.status, agentConnected, versionInUse !== null)
+  const draftMeta = getDraftMeta(draftSafety)
+  const discardAction = hasWorkingDraft ? (
+    <button
+      className="workspace-danger-link"
+      type="button"
+      disabled={!canMutate}
+      onClick={onDiscardDraft}
+    >
+      {discardLabel}
+    </button>
+  ) : null
 
   const prompt = hasPrompt ? (
     <AgentPromptCard
       agentAccessUrl={agentAccessUrl}
       ambientName={ambientName}
       hasSavedVersion={versionInUse !== null}
-      isPrimary={promptIsNext || view.status === 'saved'}
+      isPrimary={promptIsNext}
+      footer={promptIsNext ? discardAction : undefined}
+      variant={promptVariant}
       onCopied={onCopyPrompt}
     />
   ) : null
-  const statusIsNext = connectionIsNext || accessIsNext
-  const status = (
-    <WorkspaceStatusCard
-      access={access}
-      agentAccessUrl={agentAccessUrl}
-      canMutate={canMutate}
-      discardLabel={discardLabel}
-      hasWorkingDraft={hasWorkingDraft}
-      safety={draftSafety}
-      versionInUse={versionInUse}
-      view={view}
-      onCreateAccess={onCreateAccess}
-      onDiscardAccess={onDiscardAccess}
-      onDiscardDraft={onDiscardDraft}
-      onRetry={onRetry}
-    />
-  )
   const review = (
     <ReviewActions
       canCompare={canCompare}
       canSave={canSave}
+      discardLabel={discardLabel}
+      draftMeta={draftMeta}
       isGuest={isGuest}
       isSaving={isSaving}
       onCompare={onCompare}
+      onDiscard={onDiscardDraft}
       onSave={onSave}
       onSignInToSave={onSignInToSave}
     />
   )
+  const prepareAccess = (
+    <WorkspaceTaskCard
+      heading="Prepare the agent prompt"
+      description="Create temporary agent access to generate a prompt for this theme."
+      actions={(
+        <button
+          className="ui-button ui-button-primary"
+          type="button"
+          disabled={!canMutate || access.status === 'creating'}
+          onClick={onCreateAccess}
+        >
+          {access.status === 'creating' ? 'Creating access...' : 'Create agent access'}
+        </button>
+      )}
+      footer={discardAction}
+    />
+  )
+
+  const task = (() => {
+    switch (view.status) {
+      case 'offline':
+      case 'request-error':
+        return (
+          <WorkspaceTaskCard
+            heading="Unable to update the workspace"
+            description="Check your connection and try again. Your draft remains available."
+            actions={<button className="ui-button ui-button-primary" type="button" onClick={onRetry}>Retry connection</button>}
+            footer={discardAction}
+          />
+        )
+      case 'review-ready':
+      case 'saving':
+        return review
+      case 'prompt-ready':
+        return prompt ?? prepareAccess
+      case 'waiting':
+        return (
+          <WorkspaceTaskCard
+            heading={agentConnected ? 'Waiting for changes' : 'Waiting for your agent'}
+            description={agentConnected
+              ? 'Your agent is connected and can send changes back here.'
+              : 'Paste the copied prompt into your coding agent to connect it.'}
+            footer={discardAction}
+          />
+        )
+      case 'saved':
+        return (
+          <WorkspaceTaskCard
+            heading={`Version ${versionInUse} is in use`}
+            description="This version is available in the screenshot editor."
+            actions={<button className="ui-button ui-button-primary" type="button" onClick={onCreateAccess}>Start another update</button>}
+            footer={discardAction}
+          />
+        )
+      case 'setup':
+        return prepareAccess
+    }
+  })()
 
   return (
     <div className="workspace-work-panel">
-      {statusIsNext && status}
-      {reviewIsNext && review}
-      {promptIsNext && prompt}
-
-      {!statusIsNext && status}
+      {task}
+      <AgentAccessControl
+        access={access}
+        canMutate={canMutate}
+        hasAccessUrl={agentAccessUrl !== null}
+        onEndAccess={onDiscardAccess}
+      />
       {!promptIsNext && prompt}
-
     </div>
   )
 }

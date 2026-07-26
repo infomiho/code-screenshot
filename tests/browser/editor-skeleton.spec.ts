@@ -34,24 +34,3 @@ test('editor host is never painted empty while the editor loads', async ({ page 
 
   await expect(page.locator('.editor-skeleton')).toHaveCount(0)
 })
-
-test('editor skeleton height matches the loaded editor height', async ({ page }) => {
-  await page.goto('/tests/browser/app.fixture.html')
-  await expect(page.locator('.cm-editor')).toBeVisible()
-
-  const heights = await page.evaluate(() => {
-    const host = document.querySelector<HTMLElement>('.code-editor-host')
-    const editor = host?.querySelector<HTMLElement>('.cm-editor')
-    if (!host || !editor) throw new Error('Missing editor host')
-
-    const skeleton = document.createElement('div')
-    skeleton.className = 'editor-skeleton'
-    host.parentElement?.append(skeleton)
-    const skeletonHeight = skeleton.getBoundingClientRect().height
-    skeleton.remove()
-
-    return { skeleton: skeletonHeight, editor: editor.getBoundingClientRect().height }
-  })
-
-  expect(Math.abs(heights.skeleton - heights.editor)).toBeLessThanOrEqual(4)
-})

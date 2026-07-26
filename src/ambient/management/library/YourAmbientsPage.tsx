@@ -113,10 +113,12 @@ export function YourAmbientsPage({
     setIsDeleting(true)
     const deleted = await service.deleteAmbient(pendingDelete.id)
     setIsDeleting(false)
-    toastManager.add({
-      description: deleted ? `${pendingDelete.name} deleted.` : `Could not delete ${pendingDelete.name}.`,
-      priority: deleted ? 'low' : 'high',
-    })
+    if (!deleted) {
+      toastManager.add({
+        description: `Could not delete ${pendingDelete.name}.`,
+        priority: 'high',
+      })
+    }
     if (deleted) setPendingDelete(null)
   }
 

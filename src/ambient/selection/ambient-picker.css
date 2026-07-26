@@ -57,8 +57,12 @@
 .ambient-picker-close {
   display: none;
   place-items: center;
-  font-family: var(--sans);
-  font-size: 22px;
+
+  svg {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    stroke-width: 2;
+  }
 
   @media (max-width: 720px) {
     display: grid;
@@ -103,8 +107,7 @@
   margin-top: 8px;
 }
 
-.ambient-picker-section h3,
-.ambient-account h3 {
+.ambient-picker-section h3 {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--muted);
@@ -115,6 +118,45 @@
   line-height: 1.2;
   padding: var(--space-4) var(--space-4) var(--space-2);
   text-transform: uppercase;
+}
+
+.ambient-picker-empty {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--panel-border);
+  padding: var(--space-7);
+
+  h3,
+  p {
+    margin: 0;
+  }
+
+  h3 {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: var(--font-weight-heavy);
+    letter-spacing: var(--letter-spacing-label);
+    text-transform: uppercase;
+  }
+
+  p {
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--font-size-control);
+  }
+
+  .ui-button {
+    width: 100%;
+    min-height: 40px;
+    margin-top: var(--space-2);
+  }
+
+  @media (max-width: 720px) {
+    .ui-button {
+      min-height: 44px;
+    }
+  }
 }
 
 .ambient-picker-option {
@@ -192,76 +234,6 @@
   font-weight: var(--font-weight-heavy);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.ambient-account {
-  display: grid;
-  gap: var(--space-3);
-  border-top: 1px solid var(--panel-border);
-  padding: var(--space-5) var(--space-4) var(--space-4);
-
-  /* The manage row is a full-bleed footer item like the picker tiles, so it
-     supplies its own inset instead of the section padding. */
-  &:has(.ambient-account-manage) {
-    padding: 0;
-  }
-
-  h3 {
-    padding: 0;
-  }
-
-  p {
-    margin: 0;
-    color: var(--muted);
-    font-family: var(--sans);
-    font-size: var(--font-size-control);
-    line-height: var(--line-height-help);
-  }
-}
-
-.ambient-account-action {
-  justify-self: start;
-}
-
-.ambient-account-manage {
-  display: flex;
-  width: 100%;
-  min-height: 48px;
-  align-items: center;
-  gap: var(--space-2);
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--font-size-control);
-  font-weight: var(--font-weight-heavy);
-
-  /* Matches the heading band inset so the footer bookends the popup. */
-  padding: 0 16px;
-  transition: background-color var(--ambient-motion-duration) var(--ambient-motion-ease);
-
-  span[aria-hidden='true'] {
-    color: var(--muted);
-    transition:
-      color var(--ambient-motion-duration) var(--ambient-motion-ease),
-      translate var(--ambient-motion-duration) var(--ambient-motion-ease);
-  }
-
-  &:hover,
-  &:focus-visible {
-    background: var(--ambient-hover-bg);
-
-    span[aria-hidden='true'] {
-      color: var(--wasp-yellow);
-      translate: 3px 0;
-    }
-  }
-
-  &:focus-visible {
-    outline: var(--focus-ring);
-    outline-offset: -2px;
-  }
 }
 
 @keyframes ambient-picker-in {

@@ -1,5 +1,4 @@
 import { trackProductEvent } from '../../product-metrics/events'
-import { randomThemeName } from '../naming/random-theme-name'
 import type { AmbientWorkspaceService } from './ambient-workspace-service'
 import type { AmbientAccountDto } from './contracts'
 
@@ -13,7 +12,7 @@ export const createTheme = async (
   account: AmbientAccountDto,
   surface: CreationSurface,
 ) => {
-  const ambientId = await service.createAmbient(randomThemeName())
+  const ambientId = await service.createAmbient('Custom Theme')
   if (!ambientId) return null
   trackProductEvent('Ambient Created', { surface, account: accountDimension(account) })
   // The workspace opens on the prompt, so the session it needs is created before anyone gets there.

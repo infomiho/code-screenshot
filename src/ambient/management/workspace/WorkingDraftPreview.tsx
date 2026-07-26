@@ -10,6 +10,7 @@ import { DeclarativeAmbient } from '../../rendering/declarative-ambient'
 import { EditorSkeleton } from '../../../screenshot/editor-skeleton'
 import { defaultCode, useCodeEditor } from '../../../screenshot/use-code-editor'
 import { PreviewCustomizationStrip, type PreviewCustomizations } from './PreviewCustomizationStrip'
+import { AmbientNameField } from './AmbientNameField'
 
 type DeclarativeAmbientDefinition = Extract<AmbientDefinition, { kind: 'declarative' }>
 
@@ -21,6 +22,7 @@ type WorkingDraftPreviewProps = {
   versionInUseDefinition: AmbientDefinition | null
   canStartDraft: boolean
   onStartDraft: () => void
+  onRename: (name: string) => Promise<boolean>
 }
 
 export function AmbientFramePreview({
@@ -122,11 +124,13 @@ function DeclarativePreviewBlock({
   customizations,
   definition,
   meta,
+  onRename,
 }: {
   ambientName: string
   customizations: PreviewCustomizations
   definition: DeclarativeAmbientDefinition
   meta: string
+  onRename: (name: string) => Promise<boolean>
 }) {
   const editorHelpId = `${useId()}-editor-help`
   const customizationSlots = definition.manifest.customizations
@@ -138,7 +142,7 @@ function DeclarativePreviewBlock({
           <AmbientIdentity
             definition={definition}
             meta={meta}
-            name={ambientName}
+            name={<AmbientNameField name={ambientName} onRename={onRename} />}
           />
         </div>
         <span className="workspace-selector-chevron workspace-selector-chevron-next" aria-hidden="true" />
@@ -166,6 +170,7 @@ export function WorkingDraftPreview({
   versionInUseDefinition,
   canStartDraft,
   onStartDraft,
+  onRename,
 }: WorkingDraftPreviewProps) {
   if (!definition) {
     if (versionInUse !== null && versionInUseDefinition?.kind === 'declarative') {
@@ -175,6 +180,7 @@ export function WorkingDraftPreview({
           customizations={customizations}
           definition={versionInUseDefinition}
           meta="Current version"
+          onRename={onRename}
         />
       )
     }
@@ -206,6 +212,7 @@ export function WorkingDraftPreview({
       customizations={customizations}
       definition={definition}
       meta="Working draft"
+      onRename={onRename}
     />
   )
 }

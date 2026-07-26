@@ -16,9 +16,8 @@ export const getAdminAccess: GetAdminAccess<void, AdminAccessDto> = async (_args
 export const getAdminDashboard: GetAdminDashboard<void, AdminDashboardDto> = async (_args, context) => {
   requireAdmin(context.user)
 
-  // Anonymous themes are the top of the funnel, but mixed into the totals they would swamp them.
   const ownedAmbients = { ownerId: { not: null } }
-  const [userCount, ambientCount, anonymousAmbientCount, ambientStatusGroups, users] = await Promise.all([
+  const [userCount, ambientCount, guestThemeCount, ambientStatusGroups, users] = await Promise.all([
     context.entities.User.count(),
     context.entities.Ambient.count({ where: ownedAmbients }),
     context.entities.Ambient.count({ where: { guestSessionId: { not: null } } }),
@@ -38,7 +37,7 @@ export const getAdminDashboard: GetAdminDashboard<void, AdminDashboardDto> = asy
   return {
     userCount,
     ambientCount,
-    anonymousAmbientCount,
+    guestThemeCount,
     ambientCountsByStatus: {
       draft: statusCounts.get('DRAFT') ?? 0,
       published: statusCounts.get('PUBLISHED') ?? 0,

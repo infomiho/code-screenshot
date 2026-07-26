@@ -1,9 +1,14 @@
+import { WorkspaceTaskCard } from './WorkspaceTaskCard'
+
 type ReviewActionsProps = {
   canCompare: boolean
   canSave: boolean
+  discardLabel: string
+  draftMeta?: string
   isGuest: boolean
   isSaving: boolean
   onCompare: () => void
+  onDiscard: () => void
   onSave: () => void
   onSignInToSave: () => void
 }
@@ -11,48 +16,54 @@ type ReviewActionsProps = {
 export function ReviewActions({
   canCompare,
   canSave,
+  discardLabel,
+  draftMeta,
   isGuest,
   isSaving,
   onCompare,
+  onDiscard,
   onSave,
   onSignInToSave,
 }: ReviewActionsProps) {
   if (!canSave && !isSaving && !canCompare) return null
 
   return (
-    <section className="workspace-card workspace-review-actions" aria-labelledby="review-actions-heading">
-      <span className="workspace-eyebrow">Next step</span>
-      <h2 id="review-actions-heading">Review the working draft</h2>
-      <p>
-        {isGuest
-          ? 'This theme lives in this browser until you save it. Signing in keeps it for good.'
-          : 'Save an immutable version when the preview is ready to use.'}
-      </p>
-      {(canSave || isSaving) && (
-        isGuest ? (
-          <button
-            className="ui-button ui-button-primary workspace-primary-action"
-            type="button"
-            onClick={onSignInToSave}
-          >
-            Sign in to save
-          </button>
-        ) : (
-          <button
-            className="ui-button ui-button-primary workspace-primary-action"
-            type="button"
-            disabled={!canSave || isSaving}
-            onClick={onSave}
-          >
-            {isSaving ? 'Saving version...' : 'Save version'}
-          </button>
-        )
+    <WorkspaceTaskCard
+      heading="Review the working draft"
+      description={isGuest
+        ? 'Check the preview. Sign in when you are ready to save this version.'
+        : 'Check the preview. Save it as a version when it is ready.'}
+      meta={draftMeta}
+      actions={(
+        <>
+          {(canSave || isSaving) && (
+            isGuest ? (
+              <button className="ui-button ui-button-primary" type="button" onClick={onSignInToSave}>
+                Sign in and save
+              </button>
+            ) : (
+              <button
+                className="ui-button ui-button-primary"
+                type="button"
+                disabled={!canSave || isSaving}
+                onClick={onSave}
+              >
+                {isSaving ? 'Saving version...' : 'Save version'}
+              </button>
+            )
+          )}
+          {canCompare && (
+            <button className="ui-button" type="button" onClick={onCompare}>
+              Compare with version in use
+            </button>
+          )}
+        </>
       )}
-      {canCompare && (
-        <button className="ui-button" type="button" onClick={onCompare}>
-          Compare with version in use
+      footer={(
+        <button className="workspace-danger-link" type="button" onClick={onDiscard}>
+          {discardLabel}
         </button>
       )}
-    </section>
+    />
   )
 }

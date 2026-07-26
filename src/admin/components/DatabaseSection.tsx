@@ -32,7 +32,7 @@ export function DatabaseSection({ dashboard, isLoading, hasError, onRetry }: Dat
           <div className="admin-inventory-summary">
             <MetricCard label="Users" value={dashboard.userCount} />
             <MetricCard label="Themes" value={dashboard.ambientCount} />
-            <MetricCard label="Anonymous" value={dashboard.anonymousAmbientCount} />
+            <MetricCard label="Guest themes" value={dashboard.guestThemeCount} />
             <div className="admin-status-breakdown">
               <span>Theme status</span>
               <div>

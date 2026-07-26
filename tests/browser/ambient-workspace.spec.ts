@@ -50,6 +50,18 @@ test('toggles the ambient picker closed from its trigger', async ({ page }) => {
   await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
 })
 
+test('dismisses the create theme suggestion', async ({ page }) => {
+  await openApp(page)
+  const suggestion = page.getByRole('complementary', { name: 'Create your own theme' })
+
+  await expect(suggestion).toBeVisible()
+  await suggestion.getByRole('button', { name: 'Dismiss create theme suggestion' }).click()
+  await expect(suggestion).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('.cm-editor')).toBeVisible()
+  await expect(suggestion).toHaveCount(0)
+})
+
 test('keeps included ambients in a two-column grid', async ({ page }) => {
   await openApp(page)
   await openAmbientPicker(page)
@@ -96,22 +108,12 @@ test('opens a shared theme directly in the editor', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Swiss poster/ })).toHaveCount(0)
 })
 
-test('shows a toast after an unavailable shared theme returns to the editor', async ({ page }) => {
-  await page.goto('/tests/browser/app.fixture.html?unavailable-share')
-  await expect(page.locator('.cm-editor')).toBeVisible()
-  await expect(page.getByText('This shared ambient is no longer available.')).toBeVisible()
-})
-
-test('keeps link sharing disabled until an ambient has a saved version', async ({ page }) => {
+test('hides link sharing until an ambient has a saved version', async ({ page }) => {
   await openApp(page)
   await createAmbient(page)
   await openWorkspaceFromLibrary(page, 'Signal study')
 
-  await page.getByRole('button', { name: 'Share' }).click()
-  await expect(page.getByRole('heading', { name: 'Share theme' })).toBeVisible()
-  await expect(page.getByText('Private', { exact: true })).toBeVisible()
-  await expect(page.getByText('Save a version before sharing this theme.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Enable link sharing' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Share theme' })).toHaveCount(0)
 })
 
 test('reuses the same link after link sharing is turned off and on', async ({ page, context }) => {
@@ -125,6 +127,8 @@ test('reuses the same link after link sharing is turned off and on', async ({ pa
   await expect(page.getByText('Anyone with the link', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Copy link' })).toBeFocused()
   await page.getByRole('button', { name: 'Copy link' }).click()
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible()
+  await expect(page.locator('.app-toast')).toHaveCount(0)
   const firstLink = await page.evaluate(() => navigator.clipboard.readText())
 
   await page.getByRole('button', { name: 'Turn off link sharing' }).click()
@@ -149,9 +153,9 @@ test('restores the screenshot composition after a full-page authentication redir
   await page.getByRole('button', { name: 'Highlight current line' }).click()
   await expect(page.locator('.cm-highlighted-line')).toHaveCount(1)
 
+  await page.getByRole('button', { name: 'Draw' }).click()
   const editor = await page.locator('.cm-content').boundingBox()
   if (!editor) throw new Error('Missing code editor')
-  await page.getByRole('button', { name: 'Draw' }).click()
   await page.mouse.move(editor.x + editor.width / 2, editor.y + editor.height / 2)
   await page.mouse.down()
   await page.mouse.move(editor.x + editor.width / 2 + 70, editor.y + editor.height / 2 + 30, { steps: 8 })
@@ -170,30 +174,26 @@ test('restores the screenshot composition after a full-page authentication redir
 
 test('creates a theme without an account and opens it straight away', async ({ page }) => {
   await openApp(page)
-  await openAmbientPicker(page)
-  await page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' }).click()
+  await page.getByRole('button', { name: 'create a theme' }).click()
 
-  const nameField = page.getByLabel('Theme name')
-  await expect(nameField).toBeVisible()
-  const generatedName = await nameField.inputValue()
-  expect(generatedName).not.toBe('')
-  await expect(page.locator('.workspace-ambient-identity')).toContainText(generatedName)
-  await expect(page).toHaveTitle(`${generatedName} workspace | codeshot.dev`)
+  const themeName = 'Custom Theme'
+  await expect(page.locator('.workspace-ambient-identity')).toContainText(themeName)
+  await expect(page).toHaveTitle(`${themeName} workspace | codeshot.dev`)
   await expect(page.locator('.workspace-preview-frame .cm-editor')).toBeVisible()
 
-  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
-  await expect(page.getByRole('button', { name: 'codeshot.dev' })).toBeVisible()
+  await expect(page.locator('.workspace-unsaved-chip')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'codeshot.dev', exact: true })).toBeVisible()
 
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy prompt' })).toBeVisible()
   await expect(page.locator('.agent-dock')).toHaveCount(0)
 
-  await page.getByText('Show prompt', { exact: true }).click()
-  await expect(page.locator('.workspace-prompt-disclosure pre'))
-    .toContainText(`Create a codeshot.dev theme for "${generatedName}"`)
+  await expect(page.locator('.workspace-prompt-text'))
+    .toContainText(`Create a codeshot.dev theme for "${themeName}"`)
   const promptContainment = await page.evaluate(() => {
     const sidebar = document.querySelector('.workspace-sidebar')?.getBoundingClientRect()
     const card = document.querySelector('.workspace-prompt-card')?.getBoundingClientRect()
-    const prompt = document.querySelector('.workspace-prompt-disclosure pre')?.getBoundingClientRect()
+    const prompt = document.querySelector('.workspace-prompt-text')?.getBoundingClientRect()
     return {
       cardRight: card?.right ?? 0,
       pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -209,40 +209,40 @@ test('creates a theme without an account and opens it straight away', async ({ p
 test('asks a guest to sign in only once the agent has delivered work', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await openApp(page)
-  await openAmbientPicker(page)
-  await page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' }).click()
-  await expect(page.getByLabel('Theme name')).toBeVisible()
+  await page.getByRole('button', { name: 'create a theme' }).click()
+  await expect(page.getByRole('button', { name: /Rename theme/ })).toBeVisible()
 
   // Nothing asks for an account while the agent is being handed the prompt.
-  await expect(page.getByRole('button', { name: /Sign in to save/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sign in and save' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Copy prompt' }).click()
   await expect.poll(() => page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
 
   // Saving is the first and only moment signing in is required.
-  await expect(page.getByRole('button', { name: 'Sign in to save' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in and save' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
-  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Not saved')
+  await expect(page.locator('.workspace-unsaved-chip')).toHaveCount(0)
 
   await page.evaluate(async () => {
     window.ambientWorkspaceService.signIn()
     await window.ambientWorkspaceService.claimGuestWork()
   })
-  await expect(page.locator('.workspace-unsaved-chip')).toHaveText('Unsaved')
+  await expect(page.locator('.workspace-unsaved-chip')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Save version' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Sign in to save' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sign in and save' })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved and now in use' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
 })
 
-test('renames a theme from the workspace header', async ({ page }) => {
+test('renames a theme from the workspace preview', async ({ page }) => {
   await openApp(page)
   await createAmbient(page)
   await openWorkspaceFromLibrary(page, 'Signal study')
 
-  const nameField = page.getByLabel('Theme name')
+  await page.getByRole('button', { name: /Rename theme/ }).click()
+  const nameField = page.getByLabel('Theme name', { exact: true })
   await nameField.fill('Launch frame')
   await nameField.press('Enter')
 
@@ -261,15 +261,19 @@ test('reviews an agent change and saves an immutable version', async ({ page, co
   await page.getByRole('button', { name: 'Create agent access' }).click()
   await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
   await page.getByRole('button', { name: 'Copy prompt' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: /Agent prompt copied|Ready to review/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible()
   await expect.poll(() => page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
-  await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Review the working draft' })).toBeVisible()
+  const promptUtility = page.getByText('Agent prompt', { exact: true })
+  await expect(promptUtility).toBeVisible()
+  await promptUtility.click()
+  await expect(page.getByRole('button', { name: 'Copy prompt' })).toHaveClass(/ui-button-primary/)
 
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved and now in use' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0)
+  await expect(page.locator('.app-toast')).toHaveCount(0)
   await page.getByRole('tab', { name: /Versions/ }).click()
   await expect(page.getByText('Version 1', { exact: true })).toBeVisible()
   await expect(page.getByText('In use', { exact: true })).toBeVisible()
@@ -309,10 +313,10 @@ test('ends agent access without discarding the draft', async ({ page }) => {
   await createAmbient(page)
   await openWorkspaceFromLibrary(page, 'Signal study')
   await page.getByRole('button', { name: 'Create agent access' }).click()
-  await page.getByRole('button', { name: 'End agent access' }).click()
+  await page.getByRole('button', { name: 'End access' }).click()
 
-  await expect(page.getByText('Access ended', { exact: true })).toBeVisible()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Your draft is safe' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Prepare the agent prompt' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create agent access' })).toBeVisible()
   expect(await page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft !== null,
   )).toBe(true)
@@ -343,26 +347,24 @@ test('restores an older version into a new working draft', async ({ page }) => {
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Versions 1/ })).toBeVisible()
 
   await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
   await expect.poll(() => page.evaluate(
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Version 2 saved' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Versions 2/ })).toBeVisible()
 
   await page.getByRole('tab', { name: /Versions/ }).click()
   await page.getByRole('button', { name: /Version 1/ }).click()
   await expect(page.getByRole('heading', { name: 'Draft and Version 1' })).toBeVisible()
   await page.getByRole('button', { name: 'Start draft from Version 1' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Start from Version 1' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Working draft started from Version 1' })).toBeVisible()
   await expect(page.getByText('Version 2', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Work' }).click()
-  await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
-  await expect(page.getByText(/From Version 1/)).toBeVisible()
-  await expect(page.getByText('Access ended', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Review the working draft' })).toBeVisible()
+  await expect(page.getByText('Started from Version 1', { exact: true })).toBeVisible()
 })
 
 test('starts a new draft from the version in use after discarding changes', async ({ page }) => {
@@ -375,23 +377,23 @@ test('starts a new draft from the version in use after discarding changes', asyn
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Versions 1/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Close draft' }).click()
   await expect(page.getByRole('heading', { name: 'Close the working draft?' })).toBeVisible()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Close draft' }).click()
   await expect(page.getByRole('button', { name: 'Close draft' })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'No active draft' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Version 1 is in use' })).toBeVisible()
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Current version')
   await expect(page.locator('.workspace-preview-frame .cm-editor')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Start editing' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'New draft started from Version 1' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Agent prompt' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start another update' }).click()
+  await expect(page.getByRole('heading', { name: 'Update this theme' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Update this theme' }).getByRole('button', { name: 'Copy prompt' }))
+    .toHaveClass(/ui-button-primary/)
   await expect(page.locator('.workspace-ambient-identity')).toContainText('Working draft')
 
-  await page.getByText('Show prompt', { exact: true }).click()
-  await expect(page.locator('.workspace-prompt-disclosure pre'))
+  await expect(page.locator('.workspace-prompt-text'))
     .toContainText('Update the codeshot.dev theme "Signal study"')
 })
 
@@ -444,7 +446,7 @@ test('customizes each comparison pane independently', async ({ page }) => {
     () => window.ambientWorkspaceService.getSnapshot().workspace?.workingDraft?.acceptedChangeCount,
   )).toBe(1)
   await page.getByRole('button', { name: 'Save version' }).click()
-  await expect(page.locator('.app-toast').filter({ hasText: 'Version 1 saved' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /Versions 1/ })).toBeVisible()
 
   await page.evaluate(() => window.ambientWorkspaceService.copyPrompt())
   await expect.poll(() => page.evaluate(
@@ -558,7 +560,7 @@ test('account navigation opens the ambient library and logs out private state', 
 
   await openAmbientPicker(page)
   await expect(page.getByRole('rowgroup', { name: 'Your themes' })).toHaveCount(0)
-  await expect(page.getByLabel('Your themes account').getByRole('button', { name: 'Create your own theme' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'create a theme' })).toBeVisible()
 })
 
 test('does not show a missing ambient while returning to the library', async ({ page }) => {
@@ -592,9 +594,7 @@ test('manages themes from the library page', async ({ page }) => {
   await openApp(page)
   await createAmbient(page)
 
-  await openAmbientPicker(page)
-  await page.getByRole('button', { name: 'Manage your themes' }).click()
-  await expect(page.getByRole('heading', { name: 'Your themes' })).toBeVisible()
+  await openAmbientLibraryPage(page)
 
   const row = page.locator('.ambient-library-row').filter({ hasText: 'Signal study' })
   await row.getByRole('button', { name: 'Delete' }).click()
@@ -607,41 +607,41 @@ test('manages themes from the library page', async ({ page }) => {
   )).toBe(0)
 
   await page.getByRole('button', { name: 'Create your first theme' }).click()
-  await expect(page.getByLabel('Theme name')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Rename theme/ })).toBeVisible()
 })
 
-test('ambient picker closes from account controls', async ({ page }) => {
+test('ambient picker closes when keyboard focus leaves it', async ({ page }) => {
   await openApp(page)
   const trigger = page.locator('.ambient-current')
 
   await trigger.click()
-  const createAmbient = page.getByRole('region', { name: 'Your themes account' })
-    .getByRole('button', { name: 'Create your own theme' })
-  await createAmbient.focus()
+  await page.getByRole('grid', { name: 'Choose theme' }).focus()
   await page.keyboard.press('Escape')
   await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
   await expect(trigger).toBeFocused()
 
   await trigger.click()
-  await createAmbient.focus()
+  await page.getByRole('grid', { name: 'Choose theme' }).focus()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('button', { name: 'Create theme', exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(page.locator('.ambient-picker-shell')).toHaveCount(0)
 })
 
-test('mobile export feedback stays visible without resizing the toolbar', async ({ page, context }) => {
+test('mobile copy feedback stays in the button without resizing the toolbar', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.setViewportSize({ width: 390, height: 844 })
   await openApp(page)
 
   const toolbar = page.locator('.shot-toolbar')
-  const toolbarBefore = await toolbar.boundingBox()
-  await page.getByRole('button', { name: 'Copy PNG' }).click()
-  const status = page.locator('.app-toast').filter({ hasText: /Copied PNG to clipboard|Copy failed/ })
-  await expect(status).toHaveText(/Copied PNG to clipboard|Copy failed/)
-  const [statusBox, toolbarAfter] = await Promise.all([status.boundingBox(), toolbar.boundingBox()])
+  const copyButton = page.getByRole('button', { name: 'Copy PNG' })
+  const [toolbarBefore, buttonBefore] = await Promise.all([toolbar.boundingBox(), copyButton.boundingBox()])
+  await copyButton.click()
+  const copiedButton = page.getByRole('button', { name: 'Copied' })
+  await expect(copiedButton).toBeVisible()
+  const [toolbarAfter, buttonAfter] = await Promise.all([toolbar.boundingBox(), copiedButton.boundingBox()])
 
-  expect(statusBox).not.toBeNull()
-  expect(statusBox!.y).toBeGreaterThanOrEqual(0)
-  expect(statusBox!.y + statusBox!.height).toBeLessThanOrEqual(844)
+  await expect(page.locator('.app-toast')).toHaveCount(0)
+  expect(buttonAfter?.width).toBe(buttonBefore?.width)
   expect(toolbarAfter?.height).toBe(toolbarBefore?.height)
 })

@@ -278,6 +278,9 @@ export class MockAmbientService implements AmbientWorkspaceService {
       }
       return {
         ...workspace,
+        agentAccess: workspace.agentAccess.status === 'available'
+          ? { ...workspace.agentAccess, lastUsedAt: updatedAt }
+          : workspace.agentAccess,
         syncToken: createSyncToken(revision, workspace.syncToken.agentSessionGeneration),
         workingDraft: {
           ...draft,

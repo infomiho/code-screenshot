@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react'
 import { AmbientMark } from './ambient-mark'
 import type { AmbientDefinition } from './ambient-themes'
 
 type AmbientIdentityProps = {
   definition: AmbientDefinition
   meta: string
-  name?: string
+  name?: ReactNode
   showDisclosure?: boolean
 }
 
