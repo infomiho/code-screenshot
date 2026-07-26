@@ -77,31 +77,10 @@
     border-inline-end: 1px solid transparent;
     vertical-align: bottom;
     white-space: nowrap;
-  }
-
-  .theme-nudge[data-animate='true'] .theme-nudge-phrase-1 {
-    --type-steps: 19;
-    --type-width: 19ch;
     animation:
-      theme-nudge-type 340ms steps(var(--type-steps), end) 120ms forwards,
-      theme-nudge-cursor-pass 580ms step-end 120ms forwards;
-  }
-
-  .theme-nudge[data-animate='true'] .theme-nudge-phrase-2 {
-    --type-steps: 36;
-    --type-width: 36ch;
-    animation:
-      theme-nudge-type 640ms steps(var(--type-steps), end) 700ms forwards,
-      theme-nudge-cursor-pass 640ms step-end 700ms forwards;
-  }
-
-  .theme-nudge[data-animate='true'] .theme-nudge-phrase-3 {
-    --type-steps: 36;
-    --type-width: 37ch;
+      theme-nudge-type var(--type-duration) steps(var(--type-steps), end) var(--type-delay) forwards,
+      theme-nudge-cursor-pass var(--phrase-duration) step-end var(--type-delay) forwards;
     pointer-events: none;
-    animation:
-      theme-nudge-type 640ms steps(var(--type-steps), end) 1.34s forwards,
-      theme-nudge-cursor-pass 640ms step-end 1.34s forwards;
 
     &:focus-within {
       max-width: var(--type-width);
@@ -111,7 +90,7 @@
 
   .theme-nudge[data-animate='true'] .theme-nudge-dismiss {
     opacity: 0;
-    animation: theme-nudge-dismiss-in 140ms var(--ambient-motion-ease) 1.98s forwards;
+    animation: theme-nudge-dismiss-in 140ms var(--ambient-motion-ease) var(--typewriter-duration) forwards;
 
     &:focus-visible {
       opacity: 1;

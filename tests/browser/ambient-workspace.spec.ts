@@ -101,7 +101,11 @@ test('keeps an unsaved working draft out of the screenshot editor', async ({ pag
 
 test('opens a shared theme directly in the editor', async ({ page }) => {
   await page.goto('/tests/browser/app.fixture.html?shared-ambient')
+  const themeNudge = page.getByRole('complementary', { name: 'Create your own theme' })
+  await expect(themeNudge).toHaveAttribute('data-animate', 'true')
   await expect(page.locator('.cm-editor')).toBeVisible()
+  await expect(themeNudge)
+    .toContainText('Create a custom theme like this in 1-2 minutes with your agent: create a theme')
   await expect(page.locator('.ambient-shared-current')).toContainText('Swiss poster')
   await expect(page.getByText('Shared theme', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Exit shared theme and open editor' })).toBeVisible()

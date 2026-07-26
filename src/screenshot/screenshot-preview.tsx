@@ -15,7 +15,11 @@ import { toastManager } from '../ui/toast'
 import { type AmbientDefinition, type ScreenshotContent } from '../ambient/rendering/ambient-themes'
 import { usePenDrawing } from './use-pen-drawing'
 import { usePreviewFrame } from './use-preview-frame'
-import { ThemeNudge } from './theme-nudge'
+import {
+  editorThemeNudgeSentences,
+  sharedThemeNudgeSentences,
+  ThemeNudge,
+} from './theme-nudge'
 import './preview-frame.css'
 import { trackProductEvent } from '../product-metrics/events'
 import { getAnalyticsSurface } from '../product-metrics/metrics-client'
@@ -275,7 +279,11 @@ export function ScreenshotPreview({
               </button>
             </div>
           </div>
-          <ThemeNudge isCreatingTheme={isCreatingTheme} onCreateTheme={onCreateTheme} />
+          <ThemeNudge
+            isCreatingTheme={isCreatingTheme}
+            onCreateTheme={onCreateTheme}
+            sentences={onExitSharedAmbient ? sharedThemeNudgeSentences : editorThemeNudgeSentences}
+          />
           <div style={renderedPreviewScale < 1 ? { zoom: renderedPreviewScale } : undefined}>
             <div
               ref={shotRef}
