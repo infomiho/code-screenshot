@@ -26,10 +26,16 @@ const isAgentPreview = new URLSearchParams(window.location.search).has('agent-pr
 const hasExistingDraft = new URLSearchParams(window.location.search).has('existing-draft')
 const hasDelayedNavigation = new URLSearchParams(window.location.search).has('delayed-navigation')
 const hasSharedAmbient = new URLSearchParams(window.location.search).has('shared-ambient')
+const hasOwnedSharedAmbient = new URLSearchParams(window.location.search).has('shared-owned')
 const hasAdminDashboard = new URLSearchParams(window.location.search).has('admin-dashboard')
 const hasAdminLoading = new URLSearchParams(window.location.search).has('admin-loading')
 const hasSparseAdminDashboard = new URLSearchParams(window.location.search).has('admin-sparse')
 const hasEmptyAdminDashboard = new URLSearchParams(window.location.search).has('admin-empty')
+const sharedAmbientShareId = 'shared-swiss-poster-token'
+
+if (hasSharedAmbient) {
+  ambientWorkspaceService.registerSharedAmbient(sharedAmbientShareId, swissPosterDocument)
+}
 
 const adminDashboard: AdminDashboardDto = {
   userCount: 3,
@@ -141,9 +147,13 @@ function FixtureApp() {
     <App
       ambientWorkspaceService={ambientWorkspaceService}
       sharedAmbient={hasSharedAmbient ? {
-        id: 'shared-swiss-poster',
-        version: 1,
-        document: swissPosterDocument,
+        record: {
+          id: 'shared-swiss-poster',
+          version: 1,
+          document: swissPosterDocument,
+        },
+        shareId: sharedAmbientShareId,
+        isOwnedByViewer: hasOwnedSharedAmbient,
       } : undefined}
       onOpenLibrary={() => setView({ name: 'library' })}
       onOpenWorkspace={(ambientId) => setView({ name: 'workspace', ambientId })}

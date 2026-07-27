@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const transaction = vi.hoisted(() => ({
-  guestSession: { findUnique: vi.fn(), update: vi.fn() },
+  guestSession: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
   ambient: { findMany: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
 }))
 const prisma = vi.hoisted(() => ({
@@ -46,6 +46,7 @@ describe('claimGuestAmbients', () => {
     prisma.$transaction.mockImplementation(async (run: (tx: typeof transaction) => unknown) =>
       run(transaction))
     transaction.ambient.findMany.mockResolvedValue([])
+    transaction.guestSession.updateMany.mockResolvedValue({ count: 1 })
   })
 
   it('claims every theme that holds agent work', async () => {
@@ -59,6 +60,8 @@ describe('claimGuestAmbients', () => {
 
     expect(result.claimedAmbientIds).toEqual(['ambient-1', 'ambient-2'])
     expect(transaction.ambient.update).toHaveBeenCalledTimes(2)
+    expect(transaction.guestSession.updateMany.mock.invocationCallOrder[0])
+      .toBeLessThan(transaction.guestSession.findUnique.mock.invocationCallOrder[0])
   })
 
   it('hands ownership over in a single update so the owner/guest constraint always holds', async () => {
@@ -106,6 +109,25 @@ describe('claimGuestAmbients', () => {
     const result = await claimGuestAmbients({ guestToken }, context as never)
 
     expect(result.claimedAmbientIds).toEqual(['ambient-1'])
+    expect(result.discardedAmbientIds).toEqual([])
+  })
+
+  it('keeps a copied baseline draft during sign in', async () => {
+    transaction.guestSession.findUnique.mockResolvedValue({
+      id: 'guest-1',
+      claimedAt: null,
+      ambients: [{
+        id: 'ambient-copy',
+        name: 'quiet thistle (copy)',
+        slug: 'quiet-thistle-copy',
+        draft: { revision: 1 },
+        agentSessions: [],
+      }],
+    })
+
+    const result = await claimGuestAmbients({ guestToken }, context as never)
+
+    expect(result.claimedAmbientIds).toEqual(['ambient-copy'])
     expect(result.discardedAmbientIds).toEqual([])
   })
 

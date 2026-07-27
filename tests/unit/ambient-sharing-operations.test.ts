@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
 
+const prisma = vi.hoisted(() => ({
+  $transaction: vi.fn(),
+  ambient: { create: vi.fn(), findFirst: vi.fn() },
+  ambientVersion: { findUnique: vi.fn() },
+  guestSession: { findUnique: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+}))
+
 vi.mock('wasp/server', () => ({
   env: { ADMIN_GITHUB_IDS: '' },
   HttpError: class HttpError extends Error {
@@ -8,10 +15,11 @@ vi.mock('wasp/server', () => ({
       super(message)
     }
   },
-  prisma: {},
+  prisma,
 }))
 
 import {
+  copySharedAmbient,
   getSharedAmbient,
   setAmbientLinkSharing,
 } from '../../src/ambient/management/ambient-operations'
@@ -25,10 +33,11 @@ const currentVersion = {
 }
 
 describe('ambient link sharing operations', () => {
-  const findAmbient = vi.fn()
+  const findAmbient = prisma.ambient.findFirst
   const updateAmbient = vi.fn()
+  const createAmbient = prisma.ambient.create
   const updateManyAmbients = vi.fn()
-  const findVersion = vi.fn()
+  const findVersion = prisma.ambientVersion.findUnique
   const context = {
     user: { id: 'owner-1' },
     entities: {
@@ -37,7 +46,13 @@ describe('ambient link sharing operations', () => {
     },
   }
 
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    prisma.guestSession.findUnique.mockResolvedValue(null)
+    prisma.guestSession.create.mockResolvedValue({ id: 'guest-1' })
+    prisma.guestSession.updateMany.mockResolvedValue({ count: 0 })
+    prisma.$transaction.mockImplementation(async (run: (store: typeof prisma) => unknown) => run(prisma))
+  })
 
   it('requires the owner to change link sharing', async () => {
     await expect(setAmbientLinkSharing(
@@ -103,7 +118,7 @@ describe('ambient link sharing operations', () => {
   })
 
   it('returns only the current version for an enabled share ID', async () => {
-    findAmbient.mockResolvedValue({ id: 'ambient-1', slug: 'signal-study', currentVersion: 2 })
+    findAmbient.mockResolvedValue({ id: 'ambient-1', ownerId: 'owner-2', slug: 'signal-study', currentVersion: 2 })
     findVersion.mockResolvedValue(currentVersion)
 
     const result = await getSharedAmbient(
@@ -121,7 +136,25 @@ describe('ambient link sharing operations', () => {
     expect(findVersion).toHaveBeenCalledWith({
       where: { ambientId_version: { ambientId: 'ambient-1', version: 2 } },
     })
-    expect(result).toMatchObject({ id: 'ambient-1', slug: 'signal-study', version: { version: 2 } })
+    expect(result).toMatchObject({
+      id: 'ambient-1',
+      slug: 'signal-study',
+      isOwnedByViewer: false,
+      version: { version: 2 },
+    })
+  })
+
+  it('identifies the shared theme owner without exposing owner data', async () => {
+    findAmbient.mockResolvedValue({ id: 'ambient-1', ownerId: 'owner-1', slug: 'signal-study', currentVersion: 2 })
+    findVersion.mockResolvedValue(currentVersion)
+
+    const result = await getSharedAmbient(
+      { shareId: 'stable-share-id-123456' },
+      context as never,
+    )
+
+    expect(result.isOwnedByViewer).toBe(true)
+    expect(result).not.toHaveProperty('ownerId')
   })
 
   it('does not reveal disabled, unknown, or malformed share IDs', async () => {
@@ -135,5 +168,101 @@ describe('ambient link sharing operations', () => {
       { shareId: 'short' },
       context as never,
     )).rejects.toMatchObject({ statusCode: 400 })
+  })
+
+  it('copies the current shared version into an independent private draft', async () => {
+    findAmbient.mockResolvedValue({ id: 'ambient-1', ownerId: 'owner-2', currentVersion: 2 })
+    findVersion.mockResolvedValue(currentVersion)
+    createAmbient.mockResolvedValue({ id: 'ambient-copy' })
+
+    const result = await copySharedAmbient(
+      { shareId: 'stable-share-id-123456' },
+      context as never,
+    )
+
+    expect(createAmbient).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        ownerId: 'owner-1',
+        name: 'Swiss poster (copy)',
+        currentVersion: null,
+        shareId: null,
+        linkSharingEnabled: false,
+        draft: {
+          create: expect.objectContaining({
+            revision: 1,
+            baseRevision: 1,
+            sourceVersion: null,
+            document: expect.objectContaining({ name: 'Swiss poster (copy)' }),
+          }),
+        },
+      }),
+    })
+    expect(result).toEqual({ ambientId: 'ambient-copy' })
+  })
+
+  it('does not let the owner copy their own shared theme', async () => {
+    findAmbient.mockResolvedValue({ id: 'ambient-1', ownerId: 'owner-1', currentVersion: 2 })
+
+    await expect(copySharedAmbient(
+      { shareId: 'stable-share-id-123456' },
+      context as never,
+    )).rejects.toMatchObject({ statusCode: 409 })
+    expect(findVersion).toHaveBeenCalledOnce()
+    expect(createAmbient).not.toHaveBeenCalled()
+  })
+
+  it('does not copy a disabled, unknown, or malformed share capability', async () => {
+    findAmbient.mockResolvedValue(null)
+
+    await expect(copySharedAmbient(
+      { shareId: 'stable-share-id-123456' },
+      { ...context, user: undefined } as never,
+    )).rejects.toMatchObject({ statusCode: 404 })
+    await expect(copySharedAmbient(
+      { shareId: 'short' },
+      { ...context, user: undefined } as never,
+    )).rejects.toMatchObject({ statusCode: 400 })
+    expect(createAmbient).not.toHaveBeenCalled()
+  })
+
+  it('mints a guest session for an anonymous copy', async () => {
+    findAmbient.mockResolvedValue({ id: 'ambient-1', ownerId: 'owner-2', currentVersion: 2 })
+    findVersion.mockResolvedValue(currentVersion)
+    createAmbient.mockResolvedValue({ id: 'ambient-copy' })
+
+    const result = await copySharedAmbient(
+      { shareId: 'stable-share-id-123456' },
+      { ...context, user: undefined } as never,
+    )
+
+    expect(result.ambientId).toBe('ambient-copy')
+    expect(result.guestToken).toHaveLength(43)
+    expect(createAmbient).toHaveBeenCalledWith({
+      data: expect.objectContaining({ guestSessionId: 'guest-1' }),
+    })
+  })
+
+  it('reuses an existing guest session for an anonymous copy', async () => {
+    prisma.guestSession.findUnique.mockResolvedValue({ id: 'guest-existing', claimedAt: null })
+    findAmbient.mockResolvedValue({ id: 'ambient-1', ownerId: 'owner-2', currentVersion: 2 })
+    findVersion.mockResolvedValue(currentVersion)
+    createAmbient.mockResolvedValue({ id: 'ambient-copy' })
+
+    const result = await copySharedAmbient(
+      { shareId: 'stable-share-id-123456', guestToken: 'guest-token-value-long-enough' },
+      { ...context, user: undefined } as never,
+    )
+
+    expect(result).toEqual({ ambientId: 'ambient-copy' })
+    expect(createAmbient).toHaveBeenCalledWith({
+      data: expect.objectContaining({ guestSessionId: 'guest-existing' }),
+    })
+    expect(prisma.guestSession.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ claimedAt: null }),
+      data: { claimedAt: null },
+    })
+    expect(prisma.guestSession.updateMany.mock.invocationCallOrder[0])
+      .toBeLessThan(createAmbient.mock.invocationCallOrder[0])
+    expect(prisma.guestSession.create).not.toHaveBeenCalled()
   })
 })

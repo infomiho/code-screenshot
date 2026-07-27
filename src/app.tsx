@@ -23,12 +23,21 @@ import { Toaster, toastManager } from './ui/toast'
 import { useCodeEditor } from './screenshot/use-code-editor'
 import { loadAmbientDefinition } from './ambient/rendering/ambient-registry'
 import type { SavedAmbientRecord } from './ambient/management/ambient-workspace-service'
+import { copyAmbientShareLink } from './ambient/management/sharing/copy-share-link'
+import { trackProductEvent } from './product-metrics/events'
+import type { AmbientToolbarActionState } from './ambient/selection/ambient-actions-menu'
+
+type SharedAmbientSource = {
+  record: SavedAmbientRecord
+  shareId: string
+  isOwnedByViewer: boolean
+}
 
 type AppProps = {
   ambientWorkspaceService?: AmbientWorkspaceService
   onOpenLibrary?: () => void
   onOpenWorkspace?: (ambientId: string) => void
-  sharedAmbient?: SavedAmbientRecord
+  sharedAmbient?: SharedAmbientSource
 }
 
 const getAmbientIdFromKey = (key: string) => key.slice(0, key.lastIndexOf('@'))
@@ -53,7 +62,12 @@ const readStoredComposition = (): StoredComposition | null => {
   }
 }
 
-export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, sharedAmbient }: AppProps = {}) {
+export function App({
+  ambientWorkspaceService,
+  onOpenLibrary,
+  onOpenWorkspace,
+  sharedAmbient,
+}: AppProps = {}) {
   const navigate = useNavigate()
   const location = useLocation()
   const editorHelpId = `${useId()}-editor-help`
@@ -61,7 +75,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
   const [storedComposition] = useState(readStoredComposition)
   const [languageId, setLanguageId] = useState(storedComposition?.languageId ?? 'typescript')
   const sharedDefinition = useMemo(
-    () => sharedAmbient ? loadAmbientDefinition(sharedAmbient, 'shared').definition : null,
+    () => sharedAmbient ? loadAmbientDefinition(sharedAmbient.record, 'shared').definition : null,
     [sharedAmbient],
   )
   const [ambientKey, setAmbientKey] = useState(
@@ -73,6 +87,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
   )
   const [hasMounted, setHasMounted] = useState(false)
   const [isCreatingTheme, setIsCreatingTheme] = useState(false)
+  const creationInFlightRef = useRef(false)
   const claimStartedRef = useRef(false)
   const workspace = useAmbientWorkspace(ambientWorkspaceService)
   const { service, snapshot } = workspace
@@ -124,6 +139,9 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
   )
   const isFrameReady = hasMounted && (isBuiltInAmbientKey || snapshot.isHydrated)
   const draftCount = countDraftAmbients(snapshot.ownedAmbients)
+  const selectedOwnedAmbient = snapshot.ownedAmbients.find(
+    (ambient) => ambient.id === selectedAmbient.id,
+  )
 
   useEffect(() => {
     document.title = 'codeshot.dev | Beautiful code screenshots'
@@ -206,14 +224,32 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
   // Creating a theme never asks for an account. The visitor lands straight in the workspace with a
   // name already in place, and only saving requires signing in.
   const createAmbient = async () => {
-    if (isCreatingTheme) return
+    if (creationInFlightRef.current) return
+    creationInFlightRef.current = true
     setIsCreatingTheme(true)
-    const ambientId = await createTheme(service, snapshot.account, 'landing')
-    setIsCreatingTheme(false)
+    let ambientId: string | null = null
+    try {
+      ambientId = sharedAmbient
+        ? await service.copySharedAmbient(sharedAmbient.shareId)
+        : await createTheme(service, snapshot.account, 'landing')
+      if (ambientId && sharedAmbient) {
+        trackProductEvent('Ambient Created', {
+          surface: 'shared',
+          account: snapshot.account.kind === 'signed-in' ? 'signed-in' : 'anonymous',
+          ambient_source: 'shared',
+        })
+        await service.createAgentAccess(ambientId)
+      }
+    } finally {
+      creationInFlightRef.current = false
+      setIsCreatingTheme(false)
+    }
     if (!ambientId) {
       toastManager.add({
-        id: 'create-theme-failed',
-        description: 'Could not start a new theme. Try again.',
+        id: sharedAmbient ? 'copy-theme-failed' : 'create-theme-failed',
+        description: sharedAmbient
+          ? 'Could not copy this theme. Try again.'
+          : 'Could not start a new theme. Try again.',
       })
       return
     }
@@ -254,6 +290,22 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
     navigate('/')
   }
 
+  const getAmbientActions = (): AmbientToolbarActionState => {
+    if (sharedDefinition && !sharedAmbient?.isOwnedByViewer) {
+      return { kind: 'shared', isCopying: isCreatingTheme, onCopy: startAmbient }
+    }
+    if (!selectedOwnedAmbient) return { kind: 'none' }
+    return {
+      kind: 'owned',
+      ambient: selectedOwnedAmbient,
+      onCopyLink: (ambient) => {
+        if (ambient.shareId) void copyAmbientShareLink(ambient.shareId, ambient.slug, 'editor')
+      },
+      onEdit: openWorkspace,
+    }
+  }
+  const ambientActions = getAmbientActions()
+
   return (
     <main className="app-shell">
       <h1 className="sr-only">codeshot.dev code screenshot tool</h1>
@@ -276,6 +328,7 @@ export function App({ ambientWorkspaceService, onOpenLibrary, onOpenWorkspace, s
           onAmbientChange={setAmbientKey}
           onCreateTheme={startAmbient}
           onExitSharedAmbient={sharedDefinition ? exitSharedAmbient : undefined}
+          ambientActions={ambientActions}
           selectedAmbient={selectedAmbient}
           screenshotContent={screenshotContent}
           ambientVariables={ambientVariables}

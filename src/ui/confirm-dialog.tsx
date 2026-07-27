@@ -9,6 +9,7 @@ type ConfirmDialogProps = {
   isBusy: boolean
   isDanger?: boolean
   isOpen: boolean
+  identity?: ReactNode
   title: string
   onCancel: () => void
   onConfirm: () => void
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   isBusy,
   isDanger = false,
   isOpen,
+  identity,
   title,
   onCancel,
   onConfirm,
@@ -37,6 +39,7 @@ export function ConfirmDialog({
         <AlertDialog.Backdrop className="confirm-dialog-backdrop" />
         <AlertDialog.Popup className="confirm-dialog">
           <span className="confirm-dialog-eyebrow">{eyebrow}</span>
+          {identity}
           <AlertDialog.Title className="confirm-dialog-title">{title}</AlertDialog.Title>
           <AlertDialog.Description className="confirm-dialog-description">
             {description}

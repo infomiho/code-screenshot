@@ -42,10 +42,9 @@ describe('guest retention', () => {
       .toBe(guestRetention.agentDelivered)
   })
 
-  it('does not treat a rename as agent work', () => {
-    // Renaming advances both counters, so the difference stays zero.
+  it('keeps a renamed or copied baseline for a day without treating it as agent delivery', () => {
     expect(retentionFor(candidate({ draft: { revision: 3, baseRevision: 3 } })))
-      .toBe(guestRetention.untouched)
+      .toBe(guestRetention.agentConnected)
   })
 
   it('never drops a theme with agent work inside its window', () => {

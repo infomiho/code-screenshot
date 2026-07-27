@@ -7,6 +7,7 @@ import './ambient-share-popover.css'
 import { trackProductEvent } from '../../../product-metrics/events'
 import { useCopyFeedback } from '../../../ui/use-copy-feedback'
 import { CopyFeedbackLabel } from '../../../ui/copy-feedback-label'
+import { getAmbientShareUrl } from './share-url'
 
 type AmbientSharePopoverProps = {
   linkSharing: AmbientLinkSharingDto
@@ -31,9 +32,7 @@ export function AmbientSharePopover({
   const copyFeedback = useCopyFeedback()
   const enableButtonRef = useRef<HTMLButtonElement>(null)
   const copyButtonRef = useRef<HTMLButtonElement>(null)
-  const shareUrl = linkSharing.shareId
-    ? `${globalThis.location.origin}/a/${encodeURIComponent(linkSharing.shareId)}/${encodeURIComponent(slug)}`
-    : null
+  const shareUrl = linkSharing.shareId ? getAmbientShareUrl(linkSharing.shareId, slug) : null
 
   const updateSharing = async (enabled: boolean) => {
     copyFeedback.resetCopied()

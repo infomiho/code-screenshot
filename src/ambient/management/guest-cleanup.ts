@@ -1,4 +1,5 @@
 import type { CollectAbandonedGuestWork } from 'wasp/server/jobs'
+import { acceptedGuestChangeCount, hasMeaningfulGuestDraft } from './guest-work-policy'
 
 const hours = (count: number) => count * 60 * 60 * 1000
 
@@ -24,11 +25,11 @@ const agentArrived = (candidate: AbandonedCandidate) =>
   candidate.agentSessions.some((session) => session.lastUsedAt !== null)
 
 export const retentionFor = (candidate: AbandonedCandidate) => {
-  const acceptedChanges = candidate.draft
-    ? candidate.draft.revision - candidate.draft.baseRevision
-    : 0
+  const acceptedChanges = acceptedGuestChangeCount(candidate.draft)
   if (acceptedChanges > 0) return guestRetention.agentDelivered
-  return agentArrived(candidate) ? guestRetention.agentConnected : guestRetention.untouched
+  return hasMeaningfulGuestDraft(candidate.draft) || agentArrived(candidate)
+    ? guestRetention.agentConnected
+    : guestRetention.untouched
 }
 
 export const isAbandoned = (candidate: AbandonedCandidate, now: number) =>

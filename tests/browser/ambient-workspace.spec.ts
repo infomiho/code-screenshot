@@ -23,6 +23,18 @@ const createSavedAmbient = async (page: Page, name = 'Signal study') => page.eva
   return id
 }, name)
 
+const createSharedAmbient = async (page: Page, name = 'Signal study') => page.evaluate(async (ambientName) => {
+  window.ambientWorkspaceService.signIn()
+  const id = await window.ambientWorkspaceService.createAmbient(ambientName)
+  if (!id) throw new Error('Ambient was not created')
+  const version = await window.ambientWorkspaceService.saveAmbientVersion()
+  if (!version) throw new Error('Ambient version was not saved')
+  const shared = await window.ambientWorkspaceService.setLinkSharing(true)
+  if (!shared) throw new Error('Ambient was not shared')
+  window.ambientWorkspaceService.closeWorkspace()
+  return id
+}, name)
+
 const openAmbientPicker = async (page: Page) => {
   await page.locator('.ambient-current').click()
   await expect(page.getByRole('grid', { name: 'Choose theme' })).toBeVisible()
@@ -37,7 +49,7 @@ const openAmbientLibraryPage = async (page: Page) => {
 const openWorkspaceFromLibrary = async (page: Page, ambientName: string) => {
   await openAmbientLibraryPage(page)
   const row = page.locator('.ambient-library-row').filter({ hasText: ambientName })
-  await row.getByRole('button', { name: 'Edit' }).click()
+  await row.getByRole('button', { name: new RegExp(`Edit ${ambientName}`) }).click()
   await expect(page.locator('.workspace-ambient-identity')).toContainText(ambientName)
   await expect(page.locator('.subpage-header .account-menu-trigger')).toBeVisible()
 }
@@ -96,7 +108,7 @@ test('keeps an unsaved working draft out of the screenshot editor', async ({ pag
   const row = page.locator('.ambient-library-row').filter({ hasText: 'Signal study' })
   await expect(row).toContainText('Not saved yet')
   await expect(row).toContainText('Working draft')
-  await expect(row.getByRole('button', { name: 'Edit' })).toBeVisible()
+  await expect(row.getByRole('button', { name: /Edit Signal study/ })).toBeVisible()
 })
 
 test('opens a shared theme directly in the editor', async ({ page }) => {
@@ -109,7 +121,61 @@ test('opens a shared theme directly in the editor', async ({ page }) => {
   await expect(page.locator('.ambient-shared-current')).toContainText('Swiss poster')
   await expect(page.getByText('Shared theme', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Exit shared theme and open editor' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Swiss poster/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'More actions for Swiss Poster' })).toBeVisible()
+})
+
+test('copies a shared theme into an independent private workspace', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html?shared-ambient')
+  await expect(page.locator('.cm-editor')).toBeVisible()
+
+  await page.getByRole('button', { name: 'More actions for Swiss Poster' }).click()
+  await expect(page.getByText('Add this theme to your account and customize it.')).toBeVisible()
+  await page.getByRole('button', { name: 'Copy theme', exact: true }).evaluate((button) => {
+    button.click()
+    button.click()
+  })
+
+  await expect(page.locator('.workspace-ambient-identity')).toContainText('Swiss poster (copy)')
+  expect(await page.evaluate(() => {
+    const workspace = window.ambientWorkspaceService.getSnapshot().workspace
+    return workspace && {
+      ownership: workspace.ambient.ownership,
+      sharing: workspace.ambient.linkSharing,
+      versionCount: workspace.versions.length,
+      revision: workspace.workingDraft?.revision,
+      baseRevision: workspace.workingDraft?.baseRevision,
+      ambientCount: window.ambientWorkspaceService.getSnapshot().ownedAmbients.length,
+    }
+  })).toEqual({
+    ownership: 'guest',
+    sharing: { enabled: false, shareId: null },
+    versionCount: 0,
+    revision: 1,
+    baseRevision: 1,
+    ambientCount: 1,
+  })
+})
+
+test('does not offer to copy a shared theme to its owner', async ({ page }) => {
+  await page.goto('/tests/browser/app.fixture.html?shared-ambient&shared-owned')
+  await expect(page.locator('.cm-editor')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Copy theme', exact: true })).toHaveCount(0)
+})
+
+test('offers owned-theme actions without offering to copy the theme', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await openApp(page)
+  await createSharedAmbient(page)
+  await openAmbientPicker(page)
+  await page.getByRole('gridcell', { name: /Signal study/ }).click()
+
+  await page.getByRole('button', { name: 'More actions for Signal study' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Edit theme' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Copy sharing link' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Copy theme' })).toHaveCount(0)
+  await page.getByRole('menuitem', { name: 'Copy sharing link' }).click()
+  await expect(page.locator('.app-toast')).toContainText('Sharing link copied.')
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('/a/share-ambient-mock-1-token/')
 })
 
 test('hides link sharing until an ambient has a saved version', async ({ page }) => {
@@ -601,8 +667,10 @@ test('manages themes from the library page', async ({ page }) => {
   await openAmbientLibraryPage(page)
 
   const row = page.locator('.ambient-library-row').filter({ hasText: 'Signal study' })
-  await row.getByRole('button', { name: 'Delete' }).click()
-  await expect(page.getByRole('heading', { name: 'Delete Signal study?' })).toBeVisible()
+  await row.getByRole('button', { name: 'More actions for Signal study' }).click()
+  await page.getByRole('menuitem', { name: 'Delete' }).click()
+  await expect(page.getByRole('heading', { name: 'Delete theme?' })).toBeVisible()
+  await expect(page.getByRole('alertdialog')).toContainText('Signal study')
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete theme' }).click()
 
   await expect(page.getByRole('heading', { name: 'No themes yet' })).toBeVisible()
@@ -612,6 +680,20 @@ test('manages themes from the library page', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Create your first theme' }).click()
   await expect(page.getByRole('button', { name: /Rename theme/ })).toBeVisible()
+})
+
+test('keeps secondary shared-theme actions in the library overflow', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await openApp(page)
+  await createSharedAmbient(page)
+  await openAmbientLibraryPage(page)
+
+  const row = page.locator('.ambient-library-row').filter({ hasText: 'Signal study' })
+  await expect(row.getByRole('button', { name: /Edit Signal study/ })).toBeVisible()
+  await expect(row.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0)
+  await row.getByRole('button', { name: 'More actions for Signal study' }).click()
+  await page.getByRole('menuitem', { name: 'Copy sharing link' }).click()
+  await expect(page.locator('.app-toast')).toContainText('Sharing link copied.')
 })
 
 test('ambient picker closes when keyboard focus leaves it', async ({ page }) => {

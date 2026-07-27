@@ -8,6 +8,8 @@ import { ConfirmDialog } from '../../../ui/confirm-dialog'
 import type { AmbientDefinition } from '../../rendering/ambient-themes'
 import { countDraftAmbients, type AmbientWorkspaceService, type OwnedAmbientSummary } from '../ambient-workspace-service'
 import { useAmbientWorkspace } from '../use-ambient-workspace'
+import { AmbientActionsMenu } from '../../selection/ambient-actions-menu'
+import { copyAmbientShareLink } from '../sharing/copy-share-link'
 import '../../../index.css'
 import './your-ambients-page.css'
 
@@ -28,11 +30,13 @@ function DeleteAmbientDialog({
   isDeleting,
   onCancel,
   onConfirm,
+  definition,
 }: {
   ambient: OwnedAmbientSummary
   isDeleting: boolean
   onCancel: () => void
   onConfirm: () => void
+  definition: AmbientDefinition | null
 }) {
   const description = ambient.currentVersion
     ? `This permanently removes ${ambient.name}, all ${ambient.currentVersion.version === 1 ? 'its saved history' : `${ambient.currentVersion.version} versions`}, and any working draft. Screenshots already exported are not affected.`
@@ -46,7 +50,22 @@ function DeleteAmbientDialog({
       isBusy={isDeleting}
       isDanger
       isOpen
-      title={`Delete ${ambient.name}?`}
+      identity={(
+        <div className="ambient-library-confirm-identity">
+          {definition
+            ? <AmbientMark definition={definition} />
+            : <span className="ambient-library-placeholder-mark" aria-hidden="true" />}
+          <span className="ambient-library-row-copy">
+            <strong>{ambient.name}</strong>
+            <span className="ambient-library-row-meta">
+              <span>{ambient.currentVersion ? `Version ${ambient.currentVersion.version}` : 'Not saved yet'}</span>
+              <span aria-hidden="true">·</span>
+              <span>{ambient.visibility === 'link' ? 'Shared' : 'Private'}</span>
+            </span>
+          </span>
+        </div>
+      )}
+      title="Delete theme?"
       onCancel={onCancel}
       onConfirm={onConfirm}
     />
@@ -141,8 +160,7 @@ export function YourAmbientsPage({
                 </div>
               </div>
               <div className="ambient-library-row-actions">
-                <span className="skeleton ambient-library-skeleton-edit" />
-                <span className="skeleton ambient-library-skeleton-delete" />
+                <span className="skeleton ambient-library-skeleton-actions" />
               </div>
             </li>
           ))}
@@ -170,9 +188,15 @@ export function YourAmbientsPage({
       <ul className="ambient-library-list">
         {snapshot.ownedAmbients.map((ambient) => {
           const definition = getRowDefinition(ambient)
+          const shareId = ambient.shareId
           return (
             <li className="ambient-library-row" key={ambient.id}>
-              <button className="ambient-library-row-open" type="button" onClick={() => openWorkspace(ambient.id)}>
+              <button
+                className="ambient-library-row-open"
+                type="button"
+                aria-label={`Edit ${ambient.name}, ${ambient.currentVersion ? `Version ${ambient.currentVersion.version}` : 'not saved yet'}, ${ambient.visibility === 'link' ? 'shared' : 'private'}`}
+                onClick={() => openWorkspace(ambient.id)}
+              >
                 {definition
                   ? <AmbientMark definition={definition} />
                   : <span className="ambient-library-placeholder-mark" aria-hidden="true" />}
@@ -194,16 +218,24 @@ export function YourAmbientsPage({
                 </div>
               </button>
               <div className="ambient-library-row-actions">
-                <button className="ui-button" type="button" onClick={() => openWorkspace(ambient.id)}>
-                  Edit
-                </button>
-                <button
-                  className="ambient-library-delete-button"
-                  type="button"
-                  onClick={() => setPendingDelete(ambient)}
-                >
-                  Delete
-                </button>
+                <AmbientActionsMenu
+                  triggerLabel={`More actions for ${ambient.name}`}
+                  identity={{
+                    definition,
+                    name: ambient.name,
+                    meta: `${ambient.currentVersion ? `Version ${ambient.currentVersion.version}` : 'Not saved yet'} · ${ambient.visibility === 'link' ? 'Shared' : 'Private'}`,
+                  }}
+                  actions={[
+                    ...(ambient.visibility === 'link' && shareId
+                      ? [{
+                          id: 'copy-link',
+                          label: 'Copy sharing link',
+                          onSelect: () => void copyAmbientShareLink(shareId, ambient.slug, 'library'),
+                        }]
+                      : []),
+                    { id: 'delete', label: 'Delete', danger: true, onSelect: () => setPendingDelete(ambient) },
+                  ]}
+                />
               </div>
             </li>
           )
@@ -256,6 +288,7 @@ export function YourAmbientsPage({
         <DeleteAmbientDialog
           ambient={pendingDelete}
           isDeleting={isDeleting}
+          definition={getRowDefinition(pendingDelete)}
           onCancel={() => setPendingDelete(null)}
           onConfirm={deleteAmbient}
         />

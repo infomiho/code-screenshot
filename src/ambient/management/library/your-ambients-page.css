@@ -117,26 +117,6 @@
   gap: var(--space-2);
 }
 
-.ambient-library-delete-button {
-  min-height: 40px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: color-mix(in oklch, var(--library-danger), white 20%);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--font-size-control);
-  font-weight: var(--font-weight-heavy);
-  padding-inline: var(--space-4);
-  transition:
-    border-color var(--transition-fast),
-    background-color var(--transition-fast);
-
-  &:hover {
-    border-color: color-mix(in oklch, var(--library-danger), transparent 55%);
-    background: color-mix(in oklch, var(--library-danger), transparent 90%);
-  }
-}
-
 .ambient-library-placeholder-mark,
 .ambient-library-ghost-mark {
   position: relative;
@@ -238,14 +218,24 @@
   margin-block: 2px;
 }
 
-.ambient-library-skeleton-edit {
-  width: 58px;
+.ambient-library-skeleton-actions {
+  width: 40px;
   height: 40px;
 }
 
-.ambient-library-skeleton-delete {
-  width: 74px;
-  height: 40px;
+.ambient-library-confirm-identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-5);
+  border: 1px solid var(--panel-border);
+  background: var(--control);
+  padding: var(--space-5);
+
+  .ambient-mark {
+    width: 48px;
+    height: 34px;
+  }
 }
 
 .ambient-library-skeleton-create {

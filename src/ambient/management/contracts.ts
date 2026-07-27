@@ -43,6 +43,8 @@ export const deriveDraftStatus = (
 export type OwnedAmbientSummaryDto = {
   id: string
   name: string
+  slug: string
+  shareId: string | null
   visibility: 'private' | 'link'
   currentVersion: SavedAmbientVersionDto | null
   draft: OwnedAmbientDraftSummaryDto | null
@@ -96,6 +98,7 @@ export type AmbientLinkSharingDto = {
 export type SharedAmbientDto = {
   id: string
   slug: string
+  isOwnedByViewer: boolean
   version: SavedAmbientVersionDto
 }
 
@@ -144,6 +147,8 @@ export const ambientIdInputSchema = z.strictObject({
 export const sharedAmbientInputSchema = z.strictObject({
   shareId: z.string().min(20).max(64),
 })
+
+export const copySharedAmbientInputSchema = sharedAmbientInputSchema.extend(guestCredentialShape)
 
 export const setAmbientLinkSharingInputSchema = ambientIdInputSchema.extend({
   enabled: z.boolean(),
@@ -200,6 +205,7 @@ export type CreateDraftFromVersionInput = z.infer<typeof createDraftFromVersionI
 export type SyncAmbientDraftInput = z.infer<typeof syncAmbientDraftInputSchema>
 export type AmbientIdInput = z.infer<typeof ambientIdInputSchema>
 export type SharedAmbientInput = z.infer<typeof sharedAmbientInputSchema>
+export type CopySharedAmbientInput = z.infer<typeof copySharedAmbientInputSchema>
 export type SetAmbientLinkSharingInput = z.infer<typeof setAmbientLinkSharingInputSchema>
 export type CreateAgentAccessInput = AmbientIdInput
 export type DiscardAgentAccessInput = AmbientIdInput

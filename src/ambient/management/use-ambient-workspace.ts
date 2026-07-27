@@ -22,6 +22,7 @@ const emptyService: AmbientWorkspaceService = {
   openWorkspace: async () => false,
   closeWorkspace: () => undefined,
   createAmbient: async () => null,
+  copySharedAmbient: async () => null,
   renameAmbient: async () => false,
   claimGuestWork: async () => null,
   createAgentAccess: async () => null,

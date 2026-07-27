@@ -51,7 +51,7 @@ describe('renameAmbient', () => {
     const [draftCall] = transaction.ambientDraft.update.mock.calls
     expect(draftCall[0].data.document.name).toBe('quiet thistle')
     expect(transaction.ambient.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { name: 'quiet thistle' },
+      data: expect.objectContaining({ name: 'quiet thistle' }),
     }))
   })
 
@@ -75,7 +75,10 @@ describe('renameAmbient', () => {
 
     expect(result).toEqual({ name: 'quiet thistle', revision: null })
     expect(transaction.ambient.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { name: 'quiet thistle' },
+      data: expect.objectContaining({
+        name: 'quiet thistle',
+        slug: expect.stringMatching(/^quiet-thistle-[0-9a-f]{6}$/),
+      }),
     }))
     expect(transaction.ambientDraft.update).not.toHaveBeenCalled()
   })

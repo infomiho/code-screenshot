@@ -6,6 +6,7 @@ import { AmbientSkeleton } from '../../../screenshot/ambient-skeleton'
 import type { SharedAmbientDto } from '../contracts'
 import './shared-ambient-page.css'
 import { trackProductEvent } from '../../../product-metrics/events'
+import { getAmbientSharePath } from './share-url'
 
 const unavailableToast = 'This shared theme is no longer available.'
 
@@ -16,7 +17,7 @@ const getStatusCode = (error: unknown) => {
 
 export function SharedAmbientPage() {
   const navigate = useNavigate()
-  const { shareId } = useParams<'shareId'>()
+  const { shareId, slug } = useParams<'shareId' | 'slug'>()
   const sharedQuery = useQuery(
     getSharedAmbient,
     { shareId: shareId ?? '' },
@@ -38,6 +39,11 @@ export function SharedAmbientPage() {
       { interactive: false },
     )
   }, [shared?.id, shared?.version.version])
+
+  useEffect(() => {
+    if (!shared || !shareId || slug === shared.slug) return
+    navigate(getAmbientSharePath(shareId, shared.slug), { replace: true })
+  }, [navigate, shareId, shared, slug])
 
   if (sharedQuery.error && statusCode !== 400 && statusCode !== 404) {
     return (
@@ -62,7 +68,7 @@ export function SharedAmbientPage() {
     )
   }
 
-  if (!shared) {
+  if (!shared || !shareId) {
     return (
       <main className="shared-ambient-loading" aria-label="Loading shared ambient">
         <AmbientSkeleton />
@@ -74,8 +80,9 @@ export function SharedAmbientPage() {
     <App
       key={`${shared.id}@${shared.version.version}`}
       sharedAmbient={{
-        ...shared.version,
-        id: shared.id,
+        record: { ...shared.version, id: shared.id },
+        shareId,
+        isOwnedByViewer: shared.isOwnedByViewer,
       }}
     />
   )

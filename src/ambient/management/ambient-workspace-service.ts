@@ -29,6 +29,8 @@ export type CurrentAmbientVersion = SavedAmbientRecord & {
 export type OwnedAmbientSummary = {
   id: string
   name: string
+  slug: string
+  shareId: string | null
   visibility: 'private' | 'link'
   currentVersion: CurrentAmbientVersion | null
   draft: OwnedAmbientDraftSummary | null
@@ -87,6 +89,7 @@ export interface AmbientWorkspaceService {
   openWorkspace: (ambientId: string) => Promise<boolean>
   closeWorkspace: () => void
   createAmbient: (ambientName: string) => Promise<string | null>
+  copySharedAmbient: (shareId: string) => Promise<string | null>
   renameAmbient: (name: string) => Promise<boolean>
   claimGuestWork: () => Promise<ClaimGuestAmbientsResult | null>
   createAgentAccess: (ambientId?: string) => Promise<string | null>

@@ -2,6 +2,7 @@
 const guestSessionKey = 'codeshot.guest-session'
 const claimIntentKey = 'codeshot.claim-intent'
 const claimIntentLifetime = 15 * 60 * 1000
+let inMemoryGuestToken: string | null = null
 
 export type ClaimIntent = {
   guestToken: string
@@ -12,13 +13,14 @@ export type ClaimIntent = {
 
 export const readGuestToken = (): string | null => {
   try {
-    return globalThis.localStorage?.getItem(guestSessionKey) ?? null
+    return globalThis.localStorage?.getItem(guestSessionKey) ?? inMemoryGuestToken
   } catch {
-    return null
+    return inMemoryGuestToken
   }
 }
 
 export const storeGuestToken = (token: string) => {
+  inMemoryGuestToken = token
   try {
     globalThis.localStorage?.setItem(guestSessionKey, token)
   } catch {
@@ -27,6 +29,7 @@ export const storeGuestToken = (token: string) => {
 }
 
 export const clearGuestToken = () => {
+  inMemoryGuestToken = null
   try {
     globalThis.localStorage?.removeItem(guestSessionKey)
   } catch {

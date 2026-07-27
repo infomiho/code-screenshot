@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { HttpError, prisma } from 'wasp/server'
 import type {
   ClaimGuestAmbients,
+  CopySharedAmbient,
   CreateAgentAccess,
   CreateAmbient,
   CreateDraftFromVersion,
@@ -26,6 +27,7 @@ import { publishAmbientChange } from './ambient-change-stream'
 import {
   ambientIdInputSchema,
   claimGuestAmbientsInputSchema,
+  copySharedAmbientInputSchema,
   createAmbientInputSchema,
   createDraftFromVersionInputSchema,
   createSyncToken,
@@ -48,6 +50,7 @@ import type {
   AmbientWorkspaceDto,
   ClaimGuestAmbientsInput,
   ClaimGuestAmbientsResult,
+  CopySharedAmbientInput,
   CreateAgentAccessInput,
   CreateAmbientInput,
   CreateAmbientResult,
@@ -71,6 +74,8 @@ import type {
 } from './contracts'
 import { createMinimalDraftDocument } from './minimal-draft'
 import { isAdmin } from '../../admin/admin-authorization'
+import type { AmbientOwner, GuestCredential } from './ambient-access'
+import { hasMeaningfulGuestDraft } from './guest-work-policy'
 
 const requireUser = <T extends { id: string }>(user: T | undefined): T => {
   if (!user) throw new HttpError(401, 'Sign in with GitHub to manage themes.')
@@ -81,6 +86,36 @@ const parseInput = <Value>(schema: ZodType<Value>, value: unknown) => {
   const result = schema.safeParse(value)
   if (!result.success) throw new HttpError(400, 'Invalid request.')
   return result.data
+}
+
+const isWriteConflict = (error: unknown) =>
+  typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034'
+
+type AmbientCreationStore = Pick<typeof prisma, 'ambient' | 'guestSession'>
+
+const createForAmbientOwner = async <Result>(
+  context: { user?: { id: string } | null },
+  credential: GuestCredential,
+  create: (owner: AmbientOwner, store: AmbientCreationStore) => Promise<Result>,
+) => {
+  if (context.user) {
+    return create(
+      { scope: { ownerId: context.user.id }, actor: context.user.id },
+      prisma,
+    )
+  }
+
+  const run = () => prisma.$transaction(async (transaction) => {
+    const owner = await resolveAmbientOwner(context, credential, transaction, true)
+    return create(owner, transaction)
+  }, { isolationLevel: 'Serializable' })
+
+  try {
+    return await run()
+  } catch (error) {
+    if (!isWriteConflict(error)) throw error
+    return run()
+  }
 }
 
 const readDocument = (value: unknown): WorkspaceDocumentDto => {
@@ -148,6 +183,20 @@ const toWorkingDraftDto = (draft: {
   acceptedChangeCount: draft.revision - draft.baseRevision,
 })
 
+const resolveSharedAmbientVersion = async (shareId: string) => {
+  const ambient = await prisma.ambient.findFirst({
+    where: { shareId, linkSharingEnabled: true, currentVersion: { not: null } },
+    select: { id: true, ownerId: true, slug: true, currentVersion: true },
+  })
+  if (!ambient?.currentVersion) throw new HttpError(404, 'Shared theme not found.')
+
+  const version = await prisma.ambientVersion.findUnique({
+    where: { ambientId_version: { ambientId: ambient.id, version: ambient.currentVersion } },
+  })
+  if (!version) throw new HttpError(404, 'Shared theme not found.')
+  return { ambient, version }
+}
+
 export const listOwnedAmbients: ListOwnedAmbients<void, AmbientLibraryDto> = async (_args, context) => {
   const user = context.user
   if (!user) return { account: { kind: 'signed-out' }, ownedAmbients: [] }
@@ -173,6 +222,8 @@ export const listOwnedAmbients: ListOwnedAmbients<void, AmbientLibraryDto> = asy
       return {
         id: ambient.id,
         name: ambient.name,
+        slug: ambient.slug,
+        shareId: ambient.shareId,
         visibility: ambient.linkSharingEnabled ? 'link' : 'private',
         currentVersion: currentVersion ? toVersionDto(currentVersion) : null,
         draft: toDraftSummary(ambient.draft, currentVersion ?? null),
@@ -246,18 +297,54 @@ export const getSharedAmbient: GetSharedAmbient<SharedAmbientInput, SharedAmbien
   context,
 ) => {
   const { shareId } = parseInput(sharedAmbientInputSchema, args)
-  const ambient = await context.entities.Ambient.findFirst({
-    where: { shareId, linkSharingEnabled: true, currentVersion: { not: null } },
-    select: { id: true, slug: true, currentVersion: true },
-  })
-  if (!ambient?.currentVersion) throw new HttpError(404, 'Shared theme not found.')
+  const { ambient, version } = await resolveSharedAmbientVersion(shareId)
 
-  const version = await context.entities.AmbientVersion.findUnique({
-    where: { ambientId_version: { ambientId: ambient.id, version: ambient.currentVersion } },
-  })
-  if (!version) throw new HttpError(404, 'Shared theme not found.')
+  return {
+    id: ambient.id,
+    slug: ambient.slug,
+    isOwnedByViewer: Boolean(context.user && ambient.ownerId === context.user.id),
+    version: toVersionDto(version),
+  }
+}
 
-  return { id: ambient.id, slug: ambient.slug, version: toVersionDto(version) }
+export const copySharedAmbient: CopySharedAmbient<
+  CopySharedAmbientInput,
+  CreateAmbientResult
+> = async (args, context) => {
+  const input = parseInput(copySharedAmbientInputSchema, args)
+  const { ambient: source, version } = await resolveSharedAmbientVersion(input.shareId)
+  if (context.user && source.ownerId === context.user.id) {
+    throw new HttpError(409, 'You already own this theme.')
+  }
+
+  const sourceDocument = readDocument(version.document)
+  const name = `${sourceDocument.name.slice(0, 73)} (copy)`
+  const document = { ...sourceDocument, name }
+  return createForAmbientOwner(context, input, async (owner, store) => {
+    const ambient = await store.ambient.create({
+      data: {
+        ...owner.scope,
+        slug: slugify(name),
+        name,
+        currentVersion: null,
+        shareId: null,
+        linkSharingEnabled: false,
+        draft: {
+          create: {
+            revision: 1,
+            baseRevision: 1,
+            sourceVersion: null,
+            schemaVersion: document.schemaVersion,
+            document: serializeDocument(document),
+            updatedBy: owner.actor,
+          },
+        },
+      },
+    })
+    return owner.mintedGuestToken
+      ? { ambientId: ambient.id, guestToken: owner.mintedGuestToken }
+      : { ambientId: ambient.id }
+  })
 }
 
 export const setAmbientLinkSharing: SetAmbientLinkSharing<
@@ -294,28 +381,29 @@ export const setAmbientLinkSharing: SetAmbientLinkSharing<
 
 export const createAmbient: CreateAmbient<CreateAmbientInput, CreateAmbientResult> = async (args, context) => {
   const input = parseInput(createAmbientInputSchema, args)
-  const owner = await resolveAmbientOwner(context, input)
   const document = createMinimalDraftDocument(input.name)
-  const ambient = await context.entities.Ambient.create({
-    data: {
-      ...owner.scope,
-      slug: slugify(input.name),
-      name: input.name,
-      draft: {
-        create: {
-          revision: 0,
-          baseRevision: 0,
-          sourceVersion: null,
-          schemaVersion: document.schemaVersion,
-          document: serializeDocument(document),
-          updatedBy: owner.actor,
+  return createForAmbientOwner(context, input, async (owner, store) => {
+    const ambient = await store.ambient.create({
+      data: {
+        ...owner.scope,
+        slug: slugify(input.name),
+        name: input.name,
+        draft: {
+          create: {
+            revision: 0,
+            baseRevision: 0,
+            sourceVersion: null,
+            schemaVersion: document.schemaVersion,
+            document: serializeDocument(document),
+            updatedBy: owner.actor,
+          },
         },
       },
-    },
+    })
+    return owner.mintedGuestToken
+      ? { ambientId: ambient.id, guestToken: owner.mintedGuestToken }
+      : { ambientId: ambient.id }
   })
-  return owner.mintedGuestToken
-    ? { ambientId: ambient.id, guestToken: owner.mintedGuestToken }
-    : { ambientId: ambient.id }
 }
 
 export const renameAmbient: RenameAmbient<RenameAmbientInput, RenameAmbientResult> = async (
@@ -331,7 +419,10 @@ export const renameAmbient: RenameAmbient<RenameAmbientInput, RenameAmbientResul
     })
     if (!ambient) throw new HttpError(404, 'Theme not found.')
 
-    await transaction.ambient.update({ where: { id: input.ambientId }, data: { name: input.name } })
+    await transaction.ambient.update({
+      where: { id: input.ambientId },
+      data: { name: input.name, slug: slugify(input.name) },
+    })
     // With no draft there is nothing for an agent to overwrite the name from, so the row is enough.
     if (!ambient.draft) return null
 
@@ -368,7 +459,7 @@ type ClaimCandidate = {
 // Claiming an untouched shell would only clutter the library. A revision past the initial one means
 // a rename or an agent write; sessions exist from creation, so only a fetched one counts as contact.
 const holdsGuestWork = (ambient: ClaimCandidate) =>
-  (ambient.draft?.revision ?? 0) > 0
+  hasMeaningfulGuestDraft(ambient.draft)
   || ambient.agentSessions.some((session) => session.lastUsedAt !== null)
 
 // `@@unique([ownerId, slug])` never applied while the ambient was anonymous, so a slug can collide
@@ -381,9 +472,6 @@ const nextFreeSlug = (ambient: ClaimCandidate, taken: Set<string>) => {
   return slug
 }
 
-const isWriteConflict = (error: unknown) =>
-  typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034'
-
 export const claimGuestAmbients: ClaimGuestAmbients<
   ClaimGuestAmbientsInput,
   ClaimGuestAmbientsResult
@@ -392,8 +480,13 @@ export const claimGuestAmbients: ClaimGuestAmbients<
   const { guestToken } = parseInput(claimGuestAmbientsInputSchema, args)
 
   const claim = () => prisma.$transaction(async (transaction) => {
+    const tokenHash = hashToken(guestToken)
+    await transaction.guestSession.updateMany({
+      where: { tokenHash, claimedAt: null },
+      data: { claimedAt: null },
+    })
     const session = await transaction.guestSession.findUnique({
-      where: { tokenHash: hashToken(guestToken) },
+      where: { tokenHash },
       select: {
         id: true,
         claimedAt: true,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { getMe, githubSignInUrl, logout } from 'wasp/client/auth'
 import {
   claimGuestAmbients as claimGuestAmbientsOperation,
+  copySharedAmbient as copySharedAmbientOperation,
   createAgentAccess as createAgentAccessOperation,
   createAmbient as createAmbientOperation,
   createDraftFromVersion as createDraftFromVersionOperation,
@@ -15,7 +16,7 @@ import {
   setAmbientLinkSharing as setAmbientLinkSharingOperation,
   useQuery,
 } from 'wasp/client/operations'
-import { clearGuestToken, readGuestToken, storeGuestToken } from '../../account/guest-session'
+import { clearGuestToken, readGuestToken } from '../../account/guest-session'
 import { cacheAgentSession, clearAgentSessions, readAgentSession } from './agent/agent-session-cache'
 import type {
   AmbientWorkspaceService,
@@ -23,9 +24,10 @@ import type {
   OpenAmbientWorkspace,
   SavedAmbientRecord,
 } from './ambient-workspace-service'
-import type { AmbientWorkspaceDto, CreateAmbientResult } from './contracts'
+import type { AmbientWorkspaceDto } from './contracts'
 import type { AmbientLinkSharingDto } from './contracts'
 import { startAmbientDraftSync } from './ambient-draft-sync'
+import { createWithGuestSession } from './guest-ambient-creation'
 
 export type WorkspaceLoadState = 'loading' | 'setup' | 'ready' | 'not-found' | 'error'
 
@@ -45,18 +47,6 @@ const getStatusCode = (error: unknown) => {
 const getConnectivity = (error: unknown): OpenAmbientWorkspace['connectivity'] => {
   if (!error) return 'online'
   return getStatusCode(error) === null ? 'offline' : 'request-error'
-}
-
-// Two fast clicks would otherwise mint two anonymous sessions and strand the first theme.
-let pendingAmbientCreation: Promise<CreateAmbientResult> | null = null
-
-const createAmbientOnce = (name: string, guestToken: string | null) => {
-  pendingAmbientCreation ??= createAmbientOperation(
-    guestToken ? { name, guestToken } : { name },
-  ).finally(() => {
-    pendingAmbientCreation = null
-  })
-  return pendingAmbientCreation
 }
 
 export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled: boolean) => {
@@ -167,6 +157,11 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
 
   const currentAmbientId = () => workspace?.ambient.id ?? null
   const guestCredential = () => (guestTokenRef.current ? { guestToken: guestTokenRef.current } : {})
+  const adoptGuestToken = (nextGuestToken: string | null) => {
+    if (!nextGuestToken || nextGuestToken === guestTokenRef.current) return
+    guestTokenRef.current = nextGuestToken
+    setGuestToken(nextGuestToken)
+  }
   const service: AmbientWorkspaceService = {
     getSnapshot: () => snapshot,
     getServerSnapshot: () => signedOutSnapshot,
@@ -195,13 +190,22 @@ export const useHostedAmbientWorkspace = (ambientId: string | undefined, enabled
     closeWorkspace: () => undefined,
     createAmbient: async (name) => {
       try {
-        const created = await createAmbientOnce(name, guestToken)
-        if (created.guestToken) {
-          storeGuestToken(created.guestToken)
-          guestTokenRef.current = created.guestToken
-          setGuestToken(created.guestToken)
-        }
-        return created.ambientId
+        const result = await createWithGuestSession((activeGuestToken) => createAmbientOperation(
+          activeGuestToken ? { name, guestToken: activeGuestToken } : { name },
+        ))
+        adoptGuestToken(result.guestToken)
+        return result.created.ambientId
+      } catch {
+        return null
+      }
+    },
+    copySharedAmbient: async (shareId) => {
+      try {
+        const result = await createWithGuestSession((activeGuestToken) => copySharedAmbientOperation(
+          activeGuestToken ? { shareId, guestToken: activeGuestToken } : { shareId },
+        ))
+        adoptGuestToken(result.guestToken)
+        return result.created.ambientId
       } catch {
         return null
       }

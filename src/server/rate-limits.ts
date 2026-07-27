@@ -7,6 +7,7 @@ import type { MiddlewareConfigFn } from 'wasp/server'
 // change stream polls every 1.5s, so limiting them would punish normal use.
 const limitedPaths = new Set([
   '/operations/create-ambient',
+  '/operations/copy-shared-ambient',
   '/operations/rename-ambient',
   '/operations/create-agent-access',
   '/operations/discard-agent-access',

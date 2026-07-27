@@ -25,6 +25,7 @@ import { trackProductEvent } from '../product-metrics/events'
 import { getAnalyticsSurface } from '../product-metrics/metrics-client'
 import { useCopyFeedback } from '../ui/use-copy-feedback'
 import { CopyFeedbackLabel } from '../ui/copy-feedback-label'
+import { AmbientToolbarActions, type AmbientToolbarActionState } from '../ambient/selection/ambient-actions-menu'
 
 type ScreenshotPreviewProps = {
   ambientKey: string
@@ -35,6 +36,7 @@ type ScreenshotPreviewProps = {
   onAmbientChange: (ambientKey: string) => void
   onCreateTheme: () => void
   onExitSharedAmbient?: () => void
+  ambientActions: AmbientToolbarActionState
   selectedAmbient: AmbientDefinition
   screenshotContent: ScreenshotContent
   ambientVariables: CSSProperties
@@ -66,6 +68,7 @@ export function ScreenshotPreview({
   onAmbientChange,
   onCreateTheme,
   onExitSharedAmbient,
+  ambientActions,
   selectedAmbient,
   screenshotContent,
   ambientVariables,
@@ -223,16 +226,19 @@ export function ScreenshotPreview({
                 {isDownloading ? 'Downloading...' : 'Download PNG'}
               </button>
             </div>
-            <AmbientSelector
-              definitions={definitions}
-              selectedKey={ambientKey}
-              yourAmbients={yourAmbients}
-              isCreatingTheme={isCreatingTheme}
-              onOpenChange={onAmbientPickerOpenChange}
-              onCreateTheme={onCreateTheme}
-              onSelect={onAmbientChange}
-              onExitSharedAmbient={onExitSharedAmbient}
-            />
+            <div className="ambient-selector-cluster">
+              <AmbientSelector
+                definitions={definitions}
+                selectedKey={ambientKey}
+                yourAmbients={yourAmbients}
+                isCreatingTheme={isCreatingTheme}
+                onOpenChange={onAmbientPickerOpenChange}
+                onCreateTheme={onCreateTheme}
+                onSelect={onAmbientChange}
+                onExitSharedAmbient={onExitSharedAmbient}
+              />
+              <AmbientToolbarActions definition={selectedAmbient} state={ambientActions} />
+            </div>
             <div className="toolbar-group toolbar-draw">
               {hasDrawing && (
                 <>

@@ -47,6 +47,28 @@
   }
 }
 
+.ambient-selector-cluster {
+  display: flex;
+  grid-area: ambient;
+  min-width: 0;
+  align-items: stretch;
+  justify-self: center;
+  gap: var(--space-2);
+
+  > .ambient-selector {
+    flex: 1;
+    grid-area: initial;
+  }
+
+  > .ambient-actions-trigger {
+    min-height: var(--ambient-control-size);
+  }
+
+  @media (max-width: 720px) {
+    width: 100%;
+  }
+}
+
 .ambient-selector-shared {
   grid-template-columns: auto minmax(160px, 210px);
   gap: var(--space-2);

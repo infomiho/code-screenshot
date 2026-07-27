@@ -17,6 +17,8 @@ const signedOutAccount = { kind: 'signed-out' } as const
 const signedInAccount = { kind: 'signed-in', username: 'codeshot-user', avatarUrl: null, isAdmin: false } as const
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString()
 const now = () => new Date().toISOString()
+const cloneDocument = (document: AmbientDocument): AmbientDocument =>
+  JSON.parse(JSON.stringify(document))
 
 type MockAmbient = {
   summary: OwnedAmbientSummary
@@ -58,6 +60,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
     workspace: null,
   }
   private ambients = new Map<string, MockAmbient>()
+  private sharedAmbients = new Map<string, AmbientDocument>()
   private listeners = new Set<() => void>()
   private nextAmbientId = 1
   private agentUpdateTimer: ReturnType<typeof setTimeout> | null = null
@@ -118,24 +121,29 @@ export class MockAmbientService implements AmbientWorkspaceService {
     this.sync(null)
   }
 
-  createAmbient = async (ambientName: string) => {
+  registerSharedAmbient = (shareId: string, document: AmbientDocument) => {
+    this.sharedAmbients.set(shareId, cloneDocument(document))
+  }
+
+  private createDraftAmbient = (name: string, document: AmbientDocument, revision: number) => {
     const id = `ambient-mock-${this.nextAmbientId++}`
-    const document = createMinimalDraftDocument(ambientName)
+    const updatedAt = now()
+    const slug = `${name.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}-mock`
     const workspace: OpenAmbientWorkspace = {
       ambient: {
         id,
-        name: ambientName,
-        slug: `${ambientName.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}-mock`,
+        name,
+        slug,
         ownership: this.snapshot.account.kind === 'signed-in' ? 'owned' : 'guest',
         linkSharing: { enabled: false, shareId: null },
       },
-      syncToken: createSyncToken(0),
+      syncToken: createSyncToken(revision),
       workingDraft: {
-        revision: 0,
-        baseRevision: 0,
+        revision,
+        baseRevision: revision,
         sourceVersion: null,
         document,
-        updatedAt: now(),
+        updatedAt,
         acceptedChangeCount: 0,
       },
       versionInUse: null,
@@ -150,24 +158,37 @@ export class MockAmbientService implements AmbientWorkspaceService {
       workspace,
       summary: {
         id,
-        name: ambientName,
+        name,
+        slug,
+        shareId: null,
         visibility: 'private',
         currentVersion: null,
-        draft: { status: 'waiting', revision: 0, document, updatedAt: workspace.workingDraft!.updatedAt },
+        draft: { status: 'waiting', revision, document, updatedAt },
       },
     })
     this.sync(workspace)
     return id
   }
 
+  createAmbient = async (ambientName: string) =>
+    this.createDraftAmbient(ambientName, createMinimalDraftDocument(ambientName), 0)
+
+  copySharedAmbient = async (shareId: string) => {
+    const source = this.sharedAmbients.get(shareId)
+    if (!source) return null
+    const name = `${source.name.slice(0, 73)} (copy)`
+    return this.createDraftAmbient(name, { ...cloneDocument(source), name }, 1)
+  }
+
   renameAmbient = async (name: string) => {
     const workspace = this.snapshot.workspace
     if (!workspace?.workingDraft) return false
     const ambient = this.ambients.get(workspace.ambient.id)
-    if (ambient) ambient.summary = { ...ambient.summary, name }
+    const slug = `${name.toLocaleLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}-mock`
+    if (ambient) ambient.summary = { ...ambient.summary, name, slug }
     this.updateWorkspace((current) => ({
       ...current,
-      ambient: { ...current.ambient, name },
+      ambient: { ...current.ambient, name, slug },
       workingDraft: current.workingDraft && {
         ...current.workingDraft,
         // Both counters move together, so renaming never reads as an accepted agent change.
@@ -198,7 +219,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
         revision,
         baseRevision: revision,
         sourceVersion: workspace.versionInUse.version,
-        document: JSON.parse(JSON.stringify(workspace.versionInUse.document)),
+        document: cloneDocument(workspace.versionInUse.document),
         updatedAt: now(),
         acceptedChangeCount: 0,
       } : null)
@@ -314,7 +335,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
           id: `${current.ambient.id}-version-${current.versions.length + 1}`,
           version: current.versions.length + 1,
           draftRevision: current.workingDraft.revision,
-          document: JSON.parse(JSON.stringify(current.workingDraft.document)),
+          document: cloneDocument(current.workingDraft.document),
           createdAt: now(),
           isInUse: true,
         }
@@ -420,7 +441,7 @@ export class MockAmbientService implements AmbientWorkspaceService {
         revision,
         baseRevision: revision,
         sourceVersion: version.version,
-        document: JSON.parse(JSON.stringify(version.document)),
+        document: cloneDocument(version.document),
         updatedAt,
         acceptedChangeCount: 0,
       },
@@ -440,7 +461,11 @@ export class MockAmbientService implements AmbientWorkspaceService {
     const shareId = workspace.ambient.linkSharing.shareId ?? `share-${workspace.ambient.id}-token`
     const ambient = this.ambients.get(workspace.ambient.id)
     if (!ambient) return false
-    ambient.summary = { ...ambient.summary, visibility: enabled ? 'link' : 'private' }
+    ambient.summary = {
+      ...ambient.summary,
+      visibility: enabled ? 'link' : 'private',
+      shareId,
+    }
     this.updateWorkspace((current) => ({
       ...current,
       ambient: {
