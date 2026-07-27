@@ -16,7 +16,7 @@ import { productMetricsSpec } from "./src/product-metrics/product-metrics.wasp";
 export default app({
   name: "codeshotDev",
   title: "codeshot.dev | Beautiful code screenshots",
-  wasp: { version: "^0.24.0" },
+  wasp: { version: "^0.25.0" },
   auth: authConfig,
   client: { rootComponent: ClientRoot },
   head,
