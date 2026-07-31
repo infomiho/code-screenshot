@@ -4,6 +4,7 @@ import { AgentPreviewPage } from "./agent-preview-page" with { type: "ref" };
 import {
   agentApiMiddleware,
   agentDraftRoute,
+  getAgentDocs,
   getAgentSession,
 } from "./agent-api" with { type: "ref" };
 import {
@@ -18,6 +19,10 @@ export const agentSpec: Spec = [
   }),
   action(discardAgentAccess, { entities: ["Ambient", "AmbientAgentSession"] }),
   api("GET", "/agent/sessions/:capability", getAgentSession, {
+    auth: false,
+    middlewareConfigFn: agentApiMiddleware,
+  }),
+  api("GET", "/agent/docs/:doc", getAgentDocs, {
     auth: false,
     middlewareConfigFn: agentApiMiddleware,
   }),

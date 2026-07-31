@@ -20,7 +20,7 @@ import type {
 import type { ZodType } from 'zod'
 import { compileAmbientDocument } from '../compiler'
 import type { AmbientDocument } from '../schema'
-import { createAgentSessionAccess, hashAgentCapability } from './agent/agent-session-access'
+import { mintAgentCapability } from './agent/agent-api'
 import { resolveAmbientAccess, resolveAmbientOwner } from './ambient-access'
 import { hashToken } from '../../account/token-hash'
 import { publishAmbientChange } from './ambient-change-stream'
@@ -556,7 +556,7 @@ export const createAgentAccess: CreateAgentAccess<CreateAgentAccessInput, AgentS
   const input = parseInput(ambientIdInputSchema, args)
   const { ambientId } = input
   const ambientAccess = await resolveAmbientAccess(context, input)
-  const access = createAgentSessionAccess()
+  const access = mintAgentCapability()
 
   const generation = await prisma.$transaction(async (transaction) => {
     const ambient = await transaction.ambient.findFirst({
@@ -602,7 +602,7 @@ export const createAgentAccess: CreateAgentAccess<CreateAgentAccessInput, AgentS
     await transaction.ambientAgentSession.create({
       data: {
         ambientId,
-        capabilityHash: hashAgentCapability(access.capability),
+        capabilityHash: access.capabilityHash,
         createdBy: ambientAccess.actor,
         expiresAt: access.expiresAt,
         generation: updated.agentSessionGeneration,
@@ -612,7 +612,7 @@ export const createAgentAccess: CreateAgentAccess<CreateAgentAccessInput, AgentS
   }, { isolationLevel: 'Serializable' })
 
   publishAmbientChange({ ambientId })
-  return { ambientId, generation, expiresAt: access.expiresAt.toISOString(), url: access.url }
+  return { ambientId, generation, expiresAt: access.expiresAt.toISOString(), url: access.sessionUrl }
 }
 
 export const discardAgentAccess: DiscardAgentAccess<DiscardAgentAccessInput, void> = async (args, context) => {

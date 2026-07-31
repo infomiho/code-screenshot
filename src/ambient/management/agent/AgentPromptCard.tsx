@@ -2,6 +2,7 @@ import { Collapsible } from '@base-ui/react/collapsible'
 import { Popover } from '@base-ui/react/popover'
 import { IconInfoCircle } from '@tabler/icons-react'
 import { useId, type ReactNode } from 'react'
+import { buildAgentPrompt, maskAgentAccessUrl } from '@infomiho/agent-work-protocol'
 import { trackProductEvent } from '../../../product-metrics/events'
 import { toastManager } from '../../../ui/toast'
 import { useCopyFeedback } from '../../../ui/use-copy-feedback'
@@ -22,28 +23,6 @@ const getAgentPromptContent = (ambientName: string, hasSavedVersion: boolean) =>
     goal,
     setup: 'Open this temporary session with an HTTP or web-fetch tool. Read both linked references and fetch the current draft:',
     beforeEditing: `${direction} Do not update the draft until I answer.`,
-  }
-}
-
-export const buildAgentPrompt = (ambientName: string, agentAccessUrl: string, hasSavedVersion: boolean) => {
-  const content = getAgentPromptContent(ambientName, hasSavedVersion)
-
-  return `${content.goal}
-
-${content.setup}
-${agentAccessUrl}
-
-${content.beforeEditing}
-`
-}
-
-const maskAgentAccessUrl = (agentAccessUrl: string) => {
-  try {
-    const url = new URL(agentAccessUrl)
-    const path = url.pathname.replace(/[^/]+\/?$/, '...')
-    return `${url.host}${path}`
-  } catch {
-    return 'Temporary session link hidden'
   }
 }
 
@@ -175,7 +154,7 @@ export function AgentPromptCard({
   variant,
   onCopied,
 }: AgentPromptCardProps) {
-  const prompt = buildAgentPrompt(ambientName, agentAccessUrl, hasSavedVersion)
+  const prompt = buildAgentPrompt(getAgentPromptContent(ambientName, hasSavedVersion), agentAccessUrl)
   const copyFeedback = useCopyFeedback()
   const content = promptCardContent[variant]
 

@@ -1,4 +1,5 @@
 import type { AmbientDocument } from '../schema'
+import type { DraftDto } from '@infomiho/agent-work-protocol'
 import { z } from 'zod'
 
 type DeepMutable<T> = T extends readonly (infer Item)[]
@@ -154,10 +155,6 @@ export const setAmbientLinkSharingInputSchema = ambientIdInputSchema.extend({
   enabled: z.boolean(),
 })
 
-export const capabilityParamsSchema = z.strictObject({
-  capability: z.string().min(32).max(128),
-})
-
 export const ambientNameSchema = z.string().trim().min(1).max(80)
 
 export const createAmbientInputSchema = z.strictObject({
@@ -185,16 +182,6 @@ export const syncAmbientDraftInputSchema = ambientIdInputSchema.extend({
   knownRevision: z.number().int().nonnegative().nullable(),
   knownAgentSessionGeneration: z.number().int().nonnegative(),
   knownCurrentVersion: z.number().int().nonnegative().nullable(),
-})
-
-export const replaceAgentDraftInputSchema = z.strictObject({
-  baseRevision: z.number().int().nonnegative(),
-  document: z.unknown(),
-})
-
-export const patchAgentDraftInputSchema = z.strictObject({
-  baseRevision: z.number().int().nonnegative(),
-  patch: z.record(z.string(), z.unknown()),
 })
 
 export type CreateAmbientInput = z.infer<typeof createAmbientInputSchema>
@@ -238,16 +225,4 @@ export type AgentSessionDto = {
   url: string
 }
 
-export type AgentDraftDto = WorkspaceDraftRevisionDto & {
-  previewUrl: string
-}
-
-export type ReplaceAgentDraftInput = {
-  baseRevision: number
-  document: WorkspaceDocumentDto
-}
-
-export type PatchAgentDraftInput = {
-  baseRevision: number
-  patch: Record<string, unknown>
-}
+export type AgentDraftDto = DraftDto<WorkspaceDocumentDto>

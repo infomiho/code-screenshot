@@ -9,7 +9,8 @@ const prisma = vi.hoisted(() => ({
 }))
 
 vi.mock('wasp/server', () => ({
-  env: { ADMIN_GITHUB_IDS: '' },
+  env: { ADMIN_GITHUB_IDS: '', WASP_SERVER_URL: 'http://localhost:3001/' },
+  config: { frontendUrl: 'http://localhost:3000/' },
   HttpError: class HttpError extends Error {
     constructor(public statusCode: number, message: string) {
       super(message)

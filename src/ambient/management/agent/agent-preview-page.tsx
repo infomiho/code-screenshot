@@ -184,7 +184,7 @@ export function AgentPreviewPage() {
         await preflightRasterAssets(draft.document)
         if (controller.signal.aborted) return
         const result = loadAmbientDefinition({
-          id: draft.ambientId,
+          id: draft.workId,
           version: draft.revision,
           document: draft.document,
         }, 'draft')
