@@ -1,22 +1,33 @@
 import { z } from 'zod'
-import type { DocRule, DocumentSpec } from '@infomiho/agent-work-protocol'
+import type { DiagnosticDefinition, WorkModel } from '@infomiho/agent-work-protocol'
 import { compileAmbientDocument } from './compiler'
-import type { AmbientDocument } from './schema'
+import type { AmbientDocument, CompiledAmbientDocument } from './schema'
 
-export const ambientDocumentSpec: DocumentSpec<AmbientDocument> = createAmbientDocumentSpec()
+export const ambientWorkModel: WorkModel<AmbientDocument, CompiledAmbientDocument> = createAmbientWorkModel()
 
-function createAmbientDocumentSpec(): DocumentSpec<AmbientDocument> {
-  const schema = ambientDocumentSchema()
+function createAmbientWorkModel(): WorkModel<AmbientDocument, CompiledAmbientDocument> {
+  const decoder = ambientDocumentSchema()
   return {
-    name: 'ambient document',
-    schema,
-    jsonSchema: z.toJSONSchema(schema),
-    rules: documentRules(),
-    validate: (input) => {
-      const result = compileAmbientDocument(input)
-      return result.compiled
-        ? { document: result.compiled.document, diagnostics: result.diagnostics }
-        : { document: null, diagnostics: result.diagnostics }
+    id: 'ambient',
+    version: '1',
+    schema: {
+      decoder,
+      jsonSchema: z.toJSONSchema(decoder),
+    },
+    assess: (document) => {
+      const result = compileAmbientDocument(document)
+      return {
+        diagnostics: result.diagnostics.map(({ path, ...diagnostic }) => ({
+          ...diagnostic,
+          pointer: path ?? '',
+        })),
+        ...(result.compiled ? { artifacts: result.compiled } : {}),
+      }
+    },
+    authoring: {
+      title: 'Ambient document',
+      description: 'Canonical JSON for a codeshot.dev theme.',
+      diagnostics: diagnosticDefinitions(),
     },
   }
 }
@@ -24,6 +35,7 @@ function createAmbientDocumentSpec(): DocumentSpec<AmbientDocument> {
 // Must never reject a document the compiler accepts: keys are strict (so is
 // the compiler), every value type stays looser.
 function ambientDocumentSchema() {
+  const cssVariable = z.string() as z.ZodType<`--ambient-${string}`>
   const tokenPalette = z.strictObject({
     text: z.string(),
     comment: z.string(),
@@ -39,7 +51,7 @@ function ambientDocumentSchema() {
     type: z.literal('palette'),
     id: z.string(),
     label: z.string(),
-    cssVariable: z.string(),
+    cssVariable,
     valueKind: z.enum(['color', 'paint']),
     defaultOptionId: z.string(),
     options: z.array(z.strictObject({
@@ -53,7 +65,7 @@ function ambientDocumentSchema() {
     type: z.literal('color'),
     id: z.string(),
     label: z.string(),
-    cssVariable: z.string(),
+    cssVariable,
     defaultValue: z.string(),
   })
 
@@ -75,7 +87,7 @@ function ambientDocumentSchema() {
   })
 }
 
-function documentRules(): DocRule[] {
+function diagnosticDefinitions(): DiagnosticDefinition[] {
   return [
     {
       code: 'document',

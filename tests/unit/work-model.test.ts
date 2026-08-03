@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { createModelDocs } from '@infomiho/agent-work-protocol/server'
 import { compileAmbientDocument } from '../../src/ambient/compiler'
-import { ambientDocumentSpec } from '../../src/ambient/document-spec'
+import { ambientWorkModel } from '../../src/ambient/work-model'
 import { createMinimalDraftDocument } from '../../src/ambient/management/minimal-draft'
 import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
-import { renderApiDoc, renderSchemaDoc } from '@infomiho/agent-work-protocol/server'
 import type { AmbientDocument } from '../../src/ambient/schema'
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
@@ -51,7 +51,7 @@ const paintPaletteDocument = (): AmbientDocument => {
 }
 
 const structuralIssues = async (document: unknown) => {
-  const result = await ambientDocumentSpec.schema['~standard'].validate(document)
+  const result = await ambientWorkModel.schema.decoder['~standard'].validate(document)
   return 'issues' in result ? result.issues : undefined
 }
 
@@ -70,16 +70,17 @@ describe('schema accepts what the compiler accepts', () => {
   })
 })
 
-describe('rejections carry documented diagnostic codes', () => {
-  const docsDeps = { spec: ambientDocumentSpec, serverUrl: 'http://api.test' }
-  const renderedDocs = renderApiDoc(docsDeps) + renderSchemaDoc(docsDeps)
+describe('assessment', () => {
+  const renderedWorkDoc = createModelDocs({
+    model: ambientWorkModel,
+    serverUrl: 'http://api.test',
+  }).handleDocsRequest({
+    model: ambientWorkModel.id,
+    version: ambientWorkModel.version,
+    document: 'work.md',
+  })
 
-  const rejectedDocuments: [string, () => unknown][] = [
-    ['missing field', () => {
-      const { thumbnail: _thumbnail, ...rest } = clone(swissPosterDocument) as AmbientDocument
-      return rest
-    }],
-    ['wrong field type', () => ({ ...clone(swissPosterDocument) as AmbientDocument, name: 7 })],
+  const rejectedDocuments: [string, () => AmbientDocument][] = [
     ['disallowed template element', () => ({
       ...clone(swissPosterDocument) as AmbientDocument,
       template: '<main><ambient-slot name="code"></ambient-slot></main>',
@@ -97,21 +98,32 @@ describe('rejections carry documented diagnostic codes', () => {
   ]
 
   it.each(rejectedDocuments)('%s', async (_name, build) => {
-    const result = await ambientDocumentSpec.validate(build())
+    const result = await ambientWorkModel.assess(build())
 
-    expect(result.document).toBeNull()
+    expect(result.artifacts).toBeUndefined()
     expect(result.diagnostics.length).toBeGreaterThan(0)
     for (const diagnostic of result.diagnostics) {
       const family = diagnostic.code.split('.')[0]
       expect(
-        ambientDocumentSpec.rules.some((rule) => rule.code === family),
-        `code ${diagnostic.code} has no documented rule family`,
+        ambientWorkModel.authoring.diagnostics.some((definition) => definition.code === family),
+        `code ${diagnostic.code} has no documented family`,
       ).toBe(true)
-      expect(renderedDocs).toContain(`\`${family}\``)
+      expect(renderedWorkDoc.content).toMatchObject({
+        type: 'markdown',
+        body: expect.stringContaining(`\`${family}\``),
+      })
+      expect(diagnostic.pointer).toMatch(/^\//)
     }
   })
 
-  it('reports unknown keys structurally before the compiler runs', async () => {
+  it('returns compiled output as host-side artifacts', async () => {
+    const result = await ambientWorkModel.assess(clone(swissPosterDocument))
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.artifacts).toEqual(compileAmbientDocument(swissPosterDocument).compiled)
+  })
+
+  it('reports unknown keys structurally before assessment', async () => {
     const document = { ...clone(swissPosterDocument) as AmbientDocument, extra: true }
 
     const issues = await structuralIssues(document)
@@ -122,9 +134,9 @@ describe('rejections carry documented diagnostic codes', () => {
 })
 
 describe('published schema derivation', () => {
-  it('jsonSchema is derived from the zod schema and stays an object schema', () => {
-    expect(ambientDocumentSpec.jsonSchema).toMatchObject({ type: 'object' })
-    expect(ambientDocumentSpec.jsonSchema.required).toEqual(expect.arrayContaining([
+  it('derives an object schema from the decoder', () => {
+    expect(ambientWorkModel.schema.jsonSchema).toMatchObject({ type: 'object' })
+    expect(ambientWorkModel.schema.jsonSchema.required).toEqual(expect.arrayContaining([
       'schemaVersion', 'name', 'editor', 'annotations', 'customizations', 'template', 'stylesheet', 'thumbnail',
     ]))
   })

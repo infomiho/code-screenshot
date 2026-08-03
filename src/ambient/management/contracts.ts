@@ -1,5 +1,5 @@
 import type { AmbientDocument } from '../schema'
-import type { DraftDto } from '@infomiho/agent-work-protocol'
+import type { WorkResponse } from '@infomiho/agent-work-protocol'
 import { z } from 'zod'
 
 type DeepMutable<T> = T extends readonly (infer Item)[]
@@ -225,4 +225,4 @@ export type AgentSessionDto = {
   url: string
 }
 
-export type AgentDraftDto = DraftDto<WorkspaceDocumentDto>
+export type AgentWorkDto = WorkResponse<WorkspaceDocumentDto>

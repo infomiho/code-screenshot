@@ -16,13 +16,13 @@ const getAgentPromptContent = (ambientName: string, hasSavedVersion: boolean) =>
     ? `Update the codeshot.dev theme "${ambientName}".`
     : `Create a codeshot.dev theme for "${ambientName}".`
   const direction = hasSavedVersion
-    ? 'The draft holds the current design. Ask me what should change.'
+    ? 'The work holds the current design. Ask me what should change.'
     : 'Ask me for the visual direction.'
 
   return {
     goal,
-    setup: 'Open this temporary session with an HTTP or web-fetch tool. Read both linked references and fetch the current draft:',
-    beforeEditing: `${direction} Do not update the draft until I answer.`,
+    setup: 'Open this temporary session with an HTTP or web-fetch tool. Read the linked references and fetch the current work:',
+    beforeEditing: `${direction} Do not update the work until I answer.`,
   }
 }
 

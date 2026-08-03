@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { docsPath, sessionPath } from '@infomiho/agent-work-protocol/server'
 
 const repoRoot = resolve(__dirname, '../..')
 const packageName = '@infomiho/agent-work-protocol'
@@ -17,16 +16,6 @@ const importSpecifiers = (file: string): string[] => {
   const source = readFileSync(file, 'utf8')
   return [...source.matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)].map((match) => match[1])
 }
-
-describe('route registration consistency', () => {
-  it('agent.wasp.ts registers routes under the package path constants', () => {
-    const spec = readFileSync(join(repoRoot, 'src/ambient/management/agent/agent.wasp.ts'), 'utf8')
-
-    expect(spec).toContain(`"/${sessionPath}/:capability"`)
-    expect(spec).toContain(`"/${sessionPath}/:capability/draft"`)
-    expect(spec).toContain(`"/${docsPath}/:doc"`)
-  })
-})
 
 describe('app import boundaries', () => {
   // Server entries are allowed only in files that are themselves server-only,

@@ -19,7 +19,7 @@ import {
 import { DeclarativeAmbient } from '../../rendering/declarative-ambient'
 import { EditorSkeleton } from '../../../screenshot/editor-skeleton'
 import { defaultCode, useCodeEditor } from '../../../screenshot/use-code-editor'
-import type { AgentDraftDto } from '../contracts'
+import type { AgentWorkDto } from '../contracts'
 import '../../../index.css'
 import './agent-preview-page.css'
 
@@ -27,7 +27,7 @@ type DeclarativeAmbientDefinition = Extract<AmbientDefinition, { kind: 'declarat
 
 const rasterDataUrlPattern = /data:image\/(?:png|jpeg);base64,[a-z0-9+/]+={0,2}/gi
 
-const preflightRasterAssets = async (document: AgentDraftDto['document']) => {
+const preflightRasterAssets = async (document: AgentWorkDto['document']) => {
   const urls = new Set([
     ...(document.stylesheet.match(rasterDataUrlPattern) ?? []),
     ...(document.thumbnail.stylesheet.match(rasterDataUrlPattern) ?? []),
@@ -173,20 +173,20 @@ export function AgentPreviewPage() {
     const loadPreview = async () => {
       try {
         const response = await fetch(
-          `${config.apiUrl}/agent/sessions/${encodeURIComponent(capability)}/draft`,
+          `${config.apiUrl}/agent/sessions/${encodeURIComponent(capability)}/work`,
           { signal: controller.signal },
         )
         if (!response.ok) {
-          const body = await response.json().catch(() => null) as { message?: string } | null
-          throw new Error(body?.message ?? 'Preview is unavailable or expired.')
+          const body = await response.json().catch(() => null) as { detail?: string } | null
+          throw new Error(body?.detail ?? 'Preview is unavailable or expired.')
         }
-        const draft = await response.json() as AgentDraftDto
-        await preflightRasterAssets(draft.document)
+        const work = await response.json() as AgentWorkDto
+        await preflightRasterAssets(work.document)
         if (controller.signal.aborted) return
         const result = loadAmbientDefinition({
-          id: draft.workId,
-          version: draft.revision,
-          document: draft.document,
+          id: work.documentId,
+          version: work.revision,
+          document: work.document,
         }, 'draft')
         if (!result.definition || result.definition.kind !== 'declarative') {
           const details = result.diagnostics

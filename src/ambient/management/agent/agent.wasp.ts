@@ -3,7 +3,7 @@ import { action, api, page, route, type Spec } from "@wasp.sh/spec";
 import { AgentPreviewPage } from "./agent-preview-page" with { type: "ref" };
 import {
   agentApiMiddleware,
-  agentDraftRoute,
+  agentWorkRoute,
   getAgentDocs,
   getAgentSession,
 } from "./agent-api" with { type: "ref" };
@@ -22,12 +22,12 @@ export const agentSpec: Spec = [
     auth: false,
     middlewareConfigFn: agentApiMiddleware,
   }),
-  api("GET", "/agent/docs/:doc", getAgentDocs, {
+  api("GET", "/agent/docs/:model/:version/:document", getAgentDocs, {
     auth: false,
     middlewareConfigFn: agentApiMiddleware,
   }),
-  // Wasp has no PATCH method, so one ALL route dispatches GET, PUT, and PATCH for the draft.
-  api("ALL", "/agent/sessions/:capability/draft", agentDraftRoute, {
+  // Wasp has no PATCH method, so one ALL route dispatches every work method.
+  api("ALL", "/agent/sessions/:capability/work", agentWorkRoute, {
     auth: false,
     middlewareConfigFn: agentApiMiddleware,
   }),

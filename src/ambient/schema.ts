@@ -26,7 +26,7 @@ export type AmbientPaletteSlot = {
   cssVariable: `--ambient-${string}`
   valueKind: 'color' | 'paint'
   defaultOptionId: string
-  options: readonly {
+  options: {
     id: string
     label: string
     value: string
@@ -58,7 +58,7 @@ export type AmbientDocument = {
   annotations: {
     ink: string
   }
-  customizations: readonly AmbientCustomizationSlot[]
+  customizations: AmbientCustomizationSlot[]
   template: string
   stylesheet: string
   thumbnail: AmbientThumbnail
