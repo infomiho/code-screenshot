@@ -56,6 +56,7 @@ type UseCodeEditorOptions = {
   ambientEditorExtension: Extension
   ariaDescribedBy: string
   initialCode?: string
+  initialHighlightedLines?: readonly number[]
   persistCode?: boolean
 }
 
@@ -251,10 +252,11 @@ export function useCodeEditor({
   ambientEditorExtension,
   ariaDescribedBy,
   initialCode = defaultCode,
+  initialHighlightedLines = [],
   persistCode = true,
 }: UseCodeEditorOptions) {
   const [highlightedLines, setHighlightedLines] = useState<Set<number>>(
-    () => persistCode ? readPersistedHighlightedLines() : new Set(),
+    () => persistCode ? readPersistedHighlightedLines() : new Set(initialHighlightedLines),
   )
   const editorViewRef = useRef<EditorView | null>(null)
   const editorHostElementRef = useRef<HTMLDivElement | null>(null)

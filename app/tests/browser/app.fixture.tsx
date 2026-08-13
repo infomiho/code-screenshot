@@ -12,6 +12,8 @@ import { renderScreenshotBlob } from '../../src/screenshot/screenshot-export'
 import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
 import { AdminDashboardView } from '../../src/admin/components/AdminDashboardView'
 import type { AdminDashboardDto, PlausibleSnapshotDto } from '../../src/admin/contracts'
+import { RenderScreenshotPage } from '../../src/screenshot/RenderScreenshotPage'
+import type { ScreenshotRenderRequest } from '../../src/screenshot/render-contract'
 
 const root = document.querySelector<HTMLElement>('#root')
 if (!root) throw new Error('Missing app root')
@@ -31,7 +33,21 @@ const hasAdminDashboard = new URLSearchParams(window.location.search).has('admin
 const hasAdminLoading = new URLSearchParams(window.location.search).has('admin-loading')
 const hasSparseAdminDashboard = new URLSearchParams(window.location.search).has('admin-sparse')
 const hasEmptyAdminDashboard = new URLSearchParams(window.location.search).has('admin-empty')
+const hasScreenshotRender = new URLSearchParams(window.location.search).has('screenshot-render')
 const sharedAmbientShareId = 'shared-swiss-poster-token'
+
+if (hasScreenshotRender) {
+  window.__CODESHOT_RENDER_REQUEST__ = {
+    code: 'const answer = 42',
+    customizations: { 'desktop-backdrop': 'midnight' },
+    highlightedLines: [1],
+    language: 'typescript',
+    scale: 2,
+    theme: { kind: 'built-in', id: 'macos', version: 1 },
+    title: 'answer.ts',
+    width: 860,
+  } satisfies ScreenshotRenderRequest
+}
 
 if (hasSharedAmbient) {
   ambientWorkspaceService.registerSharedAmbient(sharedAmbientShareId, swissPosterDocument)
@@ -165,7 +181,9 @@ createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        {isAgentPreview
+        {hasScreenshotRender
+          ? <RenderScreenshotPage />
+          : isAgentPreview
           ? <AgentPreviewCanvas definition={previewResult.definition} />
           : hasAdminDashboard || hasAdminLoading || hasSparseAdminDashboard || hasEmptyAdminDashboard
             ? <AdminDashboardView

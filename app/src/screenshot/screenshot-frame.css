@@ -1,0 +1,21 @@
+.shot-frame {
+  position: relative;
+  container: shot / inline-size;
+  transition: background var(--transition-fast);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.shot-frame--exporting {
+  transition: none;
+}
+
+.shot-frame--exporting :is(.cm-cursorLayer, .cm-selectionLayer, .cm-tooltip, .cm-announced) {
+  display: none;
+}
+
+.shot-frame[data-export-gutter='hide'].shot-frame--exporting .cm-gutters {
+  visibility: hidden;
+}

@@ -14,6 +14,8 @@ npm run build
 npm run preview
 ```
 
+The Playwright renderer is built separately from `screenshot-service/Dockerfile`.
+
 ## Deployment
 
 Provision the Railway project once:

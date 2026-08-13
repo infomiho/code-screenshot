@@ -1,0 +1,24 @@
+{
+  "name": "@codeshot/screenshot-service",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsdown",
+    "start": "node dist/main.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "playwright": "1.62.1",
+    "typebox": "1.3.12"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "tsdown": "0.22.14",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

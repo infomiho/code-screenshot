@@ -8,8 +8,6 @@ import {
 import { IconArrowBackUp, IconPencil, IconX } from '@tabler/icons-react'
 import { AmbientSelector, type YourAmbientsState } from '../ambient/selection/ambient-selector'
 import { AmbientSkeleton } from './ambient-skeleton'
-import { DeclarativeAmbient } from '../ambient/rendering/declarative-ambient'
-import { EditorSkeleton } from './editor-skeleton'
 import { renderScreenshotBlob } from './screenshot-export'
 import { toastManager } from '../ui/toast'
 import { type AmbientDefinition, type ScreenshotContent } from '../ambient/rendering/ambient-themes'
@@ -26,6 +24,7 @@ import { getAnalyticsSurface } from '../product-metrics/metrics-client'
 import { useCopyFeedback } from '../ui/use-copy-feedback'
 import { CopyFeedbackLabel } from '../ui/copy-feedback-label'
 import { AmbientToolbarActions, type AmbientToolbarActionState } from '../ambient/selection/ambient-actions-menu'
+import { ScreenshotFrame } from './screenshot-frame'
 
 type ScreenshotPreviewProps = {
   ambientKey: string
@@ -104,44 +103,6 @@ export function ScreenshotPreview({
     clearDrawing,
   } = usePenDrawing(renderedPreviewScale)
   const frameStatus = !isFrameReady ? 'resolving' : isFrameRevealed ? 'ready' : 'revealing'
-  const isThemedFrame = isFrameReady && selectedAmbient.kind === 'react'
-  const frameClass = isThemedFrame
-    ? `shot-frame ${selectedAmbient.frameClass}`
-    : 'shot-frame'
-  const frameStyle = {
-    width: `${frameWidth}px`,
-    '--annotation-ink': selectedAmbient.manifest.annotations.ink,
-    ...(isThemedFrame ? ambientVariables : {}),
-  } as CSSProperties
-
-  const renderAmbient = () => {
-    if (!isFrameReady) return <AmbientSkeleton />
-
-    const editorSkeleton = !isEditorReady && <EditorSkeleton />
-
-    if (selectedAmbient.kind === 'declarative') {
-      return (
-        <DeclarativeAmbient
-          compiledDocument={selectedAmbient.compiledDocument}
-          content={screenshotContent}
-          style={ambientVariables}
-        >
-          <div ref={editorHostRef} className="code-editor-host" slot="code">
-            {editorSkeleton}
-          </div>
-        </DeclarativeAmbient>
-      )
-    }
-
-    const SelectedAmbientShell = selectedAmbient.Shell
-    return (
-      <SelectedAmbientShell content={screenshotContent}>
-        <div ref={editorHostRef} className="code-editor-host">
-          {editorSkeleton}
-        </div>
-      </SelectedAmbientShell>
-    )
-  }
 
   useEffect(() => {
     if (!isFrameReady || hasStartedRevealRef.current) return
@@ -291,14 +252,17 @@ export function ScreenshotPreview({
             sentences={onExitSharedAmbient ? sharedThemeNudgeSentences : editorThemeNudgeSentences}
           />
           <div style={renderedPreviewScale < 1 ? { zoom: renderedPreviewScale } : undefined}>
-            <div
-              ref={shotRef}
-              className={frameClass}
-              data-export-gutter={selectedAmbient.manifest.editor.exportGutter}
-              data-frame-status={frameStatus}
-              style={frameStyle}
-            >
-              {renderAmbient()}
+            {isFrameReady ? (
+              <ScreenshotFrame
+                ambient={selectedAmbient}
+                ambientVariables={ambientVariables}
+                content={screenshotContent}
+                editorHostRef={editorHostRef}
+                frameRef={shotRef}
+                isEditorReady={isEditorReady}
+                status={frameStatus}
+                width={frameWidth}
+              >
               <div
                 className="width-handle"
                 role="separator"
@@ -320,7 +284,12 @@ export function ScreenshotPreview({
                   {activeStrokePath !== null && <path d={activeStrokePath} />}
                 </svg>
               )}
-            </div>
+              </ScreenshotFrame>
+            ) : (
+              <div ref={shotRef} className="shot-frame" style={{ width: `${frameWidth}px` }}>
+                <AmbientSkeleton />
+              </div>
+            )}
           </div>
 
           <p id={editorHelpId} className="editor-help">
