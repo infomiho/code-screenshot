@@ -1,0 +1,70 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - cli/**
+      - .github/workflows/release-please.yml
+      - .release-please-manifest.json
+      - release-please-config.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  verify-cli:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.x"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:package
+      - run: npm run check:package
+
+  release-please:
+    needs: verify-cli
+    runs-on: ubuntu-latest
+    outputs:
+      cli_released: ${{ steps.release.outputs['cli--release_created'] }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish-cli:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.cli_released == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.x"
+          registry-url: "https://registry.npmjs.org"
+
+      - run: npm ci
+      - run: npm publish --provenance --access public
