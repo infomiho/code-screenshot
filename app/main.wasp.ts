@@ -10,6 +10,7 @@ import { adminSpec } from "./src/admin/admin.wasp";
 import { head } from "./src/head.wasp";
 import { ClientRoot } from "./src/client-root" with { type: "ref" };
 import { RenderScreenshotPage } from "./src/screenshot/RenderScreenshotPage" with { type: "ref" };
+import { AutomationDocsPage } from "./src/automation-docs/AutomationDocsPage" with { type: "ref" };
 import { serverEnvSchema } from "./src/env" with { type: "ref" };
 import { serverMiddlewareFn } from "./src/server/rate-limits" with { type: "ref" };
 import { productMetricsSpec } from "./src/product-metrics/product-metrics.wasp";
@@ -28,6 +29,7 @@ export default app({
   },
   spec: [
     route("RootRoute", "/", page(App), { prerender: true, lazy: false }),
+    route("AutomationDocsRoute", "/automation", page(AutomationDocsPage), { prerender: true, lazy: false }),
     route("RenderScreenshotRoute", "/internal/render/screenshot", page(RenderScreenshotPage), { lazy: false }),
     librarySpec,
     workspaceSpec,

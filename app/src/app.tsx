@@ -19,6 +19,7 @@ import { useAmbientWorkspace } from './ambient/management/use-ambient-workspace'
 import { ScreenshotControls } from './screenshot/screenshot-controls'
 import { ScreenshotPreview } from './screenshot/screenshot-preview'
 import { SiteHeader } from './site-header'
+import { SiteFooter } from './site-footer'
 import { Toaster, toastManager } from './ui/toast'
 import { useCodeEditor } from './screenshot/use-code-editor'
 import { loadAmbientDefinition } from './ambient/rendering/ambient-registry'
@@ -354,11 +355,7 @@ export function App({
           onClearHighlights={clearHighlights}
         />
       </section>
-      <footer className="site-footer">
-        <a href="https://wasp.sh">Built with Wasp</a>
-        <span aria-hidden="true">/</span>
-        <a href="https://github.com/infomiho/code-screenshot">View the source</a>
-      </footer>
+      <SiteFooter />
       <Toaster />
     </main>
   )

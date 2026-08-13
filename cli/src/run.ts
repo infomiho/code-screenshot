@@ -39,7 +39,7 @@ export type CliApi = {
 export type CliDependencies = {
   api: CliApi;
   version: string;
-  readInput(path: string): Promise<string>;
+  readInput(path?: string): Promise<string>;
   writePng(path: string, png: Uint8Array): Promise<void>;
   stdout(value: string): void;
   stderr(value: string): void;
@@ -66,8 +66,8 @@ export async function run(args: string[], dependencies: CliDependencies): Promis
 
   program
     .command("render")
-    .description("Render a source file or stdin as a PNG")
-    .argument("<file>", "source file or - for stdin")
+    .description("Render a source file or piped code as a PNG")
+    .argument("[file]", "source file; omit when piping code")
     .option("-o, --output <file>", "output PNG path")
     .option("-l, --language <language>", "syntax language")
     .option("-t, --theme <theme>", "built-in name, shared reference, or share URL", "macos")
@@ -76,7 +76,7 @@ export async function run(args: string[], dependencies: CliDependencies): Promis
     .addOption(new Option("--scale <scale>", "output scale").default(2).argParser(parseScale))
     .option("--highlight <lines>", "lines and ranges, for example 1,3-5", parseHighlightedLines, [])
     .option("--customize <key=value>", "theme customization; repeatable", collect, [])
-    .action(async (file: string, options: RenderOptions) => {
+    .action(async (file: string | undefined, options: RenderOptions) => {
       const language = options.language ?? inferLanguage(file);
       if (!language) throw new Error("Could not infer the language. Pass --language when reading stdin or an unknown extension.");
       const output = options.output ?? defaultOutput(file);
@@ -87,7 +87,7 @@ export async function run(args: string[], dependencies: CliDependencies): Promis
         language,
         scale: options.scale,
         theme: options.theme,
-        title: options.title ?? (file === "-" ? "" : basename(file)),
+        title: options.title ?? (file ? basename(file) : ""),
         width: options.width,
       });
       await dependencies.writePng(output, result.png);
@@ -166,12 +166,12 @@ function parseCustomizations(values: string[]): Record<string, string> {
   }));
 }
 
-function inferLanguage(file: string) {
-  return file === "-" ? undefined : languageByExtension[extname(file).toLowerCase()];
+function inferLanguage(file?: string) {
+  return file ? languageByExtension[extname(file).toLowerCase()] : undefined;
 }
 
-function defaultOutput(file: string) {
-  if (file === "-") return "codeshot.png";
+function defaultOutput(file?: string) {
+  if (!file) return "codeshot.png";
   const extension = extname(file);
   return `${basename(file, extension)}.png`;
 }

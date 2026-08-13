@@ -23,7 +23,7 @@ export function SiteHeader({
 }: SiteHeaderProps) {
   return (
     <header className="site-header">
-      <div className="site-brand">codeshot.dev</div>
+      <a className="site-brand" href="/">codeshot.dev</a>
       <nav className="site-account" aria-label="Account" aria-busy={!isHydrated}>
         {!isHydrated ? (
           <div className="account-skeleton" aria-hidden="true">

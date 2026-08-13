@@ -6,10 +6,10 @@ Turn a local source file into a PNG:
 npx codeshot.dev render src/app.tsx --theme macos --output screenshot.png
 ```
 
-Use `-` for stdin and provide its language explicitly:
+Omit the file to read piped code, and provide its language explicitly:
 
 ```sh
-printf 'const answer = 42' | npx codeshot.dev render - --language typescript --output screenshot.png
+printf 'const answer = 42' | npx codeshot.dev render --language typescript --output screenshot.png
 ```
 
 ## Choose a theme

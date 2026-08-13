@@ -39,9 +39,23 @@ describe("codeshot CLI", () => {
     expect(exitCode).toBe(0);
   });
 
-  it("requires a language for stdin", async () => {
+  it("renders piped input when the file is omitted", async () => {
     const deps = dependencies();
-    const exitCode = await run(["render", "-"], deps);
+    const exitCode = await run(["render", "--language", "typescript"], deps);
+
+    expect(deps.readInput).toHaveBeenCalledWith(undefined);
+    expect(deps.api.render).toHaveBeenCalledWith(expect.objectContaining({
+      code: "const answer = 42",
+      language: "typescript",
+      title: "",
+    }));
+    expect(deps.writePng).toHaveBeenCalledWith("codeshot.png", expect.any(Uint8Array));
+    expect(exitCode).toBe(0);
+  });
+
+  it("requires a language for piped input", async () => {
+    const deps = dependencies();
+    const exitCode = await run(["render"], deps);
 
     expect(deps.api.render).not.toHaveBeenCalled();
     expect(deps.stderr).toHaveBeenCalledWith(expect.stringContaining("Pass --language"));

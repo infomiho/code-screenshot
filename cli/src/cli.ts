@@ -11,8 +11,8 @@ const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 const serverUrl = process.env.CODESHOT_API_URL ?? "https://api.codeshot.dev";
 
-async function readInput(path: string) {
-  if (path !== "-") return readFile(path, "utf8");
+async function readInput(path?: string) {
+  if (path) return readFile(path, "utf8");
   process.stdin.setEncoding("utf8");
   let input = "";
   for await (const chunk of process.stdin) input += chunk;

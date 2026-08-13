@@ -1,0 +1,149 @@
+.automation-docs-shell {
+  display: grid;
+  width: min(100%, var(--panel-width));
+  min-height: 100dvh;
+  margin-inline: auto;
+  grid-template-rows: auto 1fr auto;
+  padding: var(--space-5);
+}
+
+.automation-docs-main a {
+  color: var(--wasp-yellow);
+  text-decoration-color: color-mix(in oklch, var(--wasp-yellow), transparent 35%);
+  text-underline-offset: 4px;
+}
+
+.automation-docs-main a:hover {
+  color: var(--text);
+  text-decoration-color: var(--wasp-yellow);
+}
+
+.automation-docs-main a:focus-visible {
+  border-radius: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.automation-docs-main {
+  padding-block: var(--space-10);
+}
+
+.automation-docs-document {
+  display: grid;
+  gap: var(--space-9);
+  border: var(--border-panel);
+  background: var(--panel);
+  box-shadow: var(--surface-shadow);
+  padding: var(--space-10);
+}
+
+.automation-docs-document h1 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+}
+
+.automation-docs-document p {
+  max-width: 66ch;
+  margin: 0;
+  color: var(--text);
+  font-size: var(--font-size-code);
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.automation-docs-document section {
+  display: grid;
+  gap: var(--space-7);
+}
+
+.automation-docs-document h2 {
+  margin: 0;
+  color: var(--wasp-yellow);
+  font-family: var(--mono);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.automation-docs-document p code {
+  border: var(--border-control);
+  background: color-mix(in oklch, var(--control), var(--text) 5%);
+  color: var(--text);
+  box-decoration-break: clone;
+  font-family: var(--mono);
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+  padding: 0.1em 0.35em;
+  -webkit-box-decoration-break: clone;
+}
+
+.automation-docs-commands {
+  display: grid;
+  max-width: 66ch;
+  margin: 0;
+  gap: var(--space-5);
+}
+
+.automation-docs-commands > div {
+  display: grid;
+  grid-template-columns: minmax(12rem, auto) 1fr;
+  gap: var(--space-7);
+  align-items: baseline;
+}
+
+.automation-docs-commands dt,
+.automation-docs-commands dd {
+  margin: 0;
+}
+
+.automation-docs-commands dt code {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+}
+
+.automation-docs-commands dd {
+  color: var(--muted);
+  font-size: var(--font-size-code);
+  line-height: 1.5;
+}
+
+.automation-docs-code {
+  overflow-x: auto;
+  margin: 0;
+  border: var(--border-control);
+  background: var(--control);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: var(--font-size-control);
+  line-height: 1.75;
+  padding: var(--space-8);
+  tab-size: 2;
+}
+
+.automation-docs-token-muted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .automation-docs-shell {
+    padding: var(--space-5) var(--space-3);
+  }
+
+  .automation-docs-main {
+    padding-block: var(--space-7);
+  }
+
+  .automation-docs-document {
+    gap: var(--space-9);
+    padding: var(--space-7);
+  }
+
+  .automation-docs-commands > div {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}

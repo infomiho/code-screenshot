@@ -23,6 +23,13 @@
   font-size: var(--font-size-control);
   font-weight: var(--font-weight-heavy);
   letter-spacing: -0.02em;
+  text-decoration: none;
+
+  &:focus-visible {
+    border-radius: 2px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+  }
 }
 
 .site-account {
