@@ -5,8 +5,10 @@
 Minimal code screenshot generator.
 
 ```bash
-npm install --global @wasp.sh/wasp-cli@0.24.0
+npm install --global @wasp.sh/wasp-cli@0.25.0
+cd app
 wasp install
+cd ..
 npm run dev
 npm run build
 npm run preview
@@ -17,6 +19,7 @@ npm run preview
 Provision the Railway project once:
 
 ```bash
+cd app
 wasp deploy railway launch code-screenshot
 ```
 
@@ -34,7 +37,7 @@ Cloudflare rate limiting rule on `POST /operations/*` (one rule is included on t
 
 ## Analytics
 
-Plausible requires the variables in `.env.server.example` and custom event goals matching these names exactly:
+Plausible requires the variables in `app/.env.server.example` and custom event goals matching these names exactly:
 
 ```text
 Screenshot Copied

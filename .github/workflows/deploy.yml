@@ -26,9 +26,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - run: npm install --global @wasp.sh/wasp-cli@$WASP_VERSION @railway/cli
       - run: wasp install
+        working-directory: app
       - run: wasp deploy railway deploy $RAILWAY_PROJECT_NAME --existing-project-id $RAILWAY_PROJECT_ID --custom-server-url https://api.codeshot.dev
+        working-directory: app
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
