@@ -8,6 +8,15 @@ Minimal code screenshot generator.
 npx codeshot.dev render src/app.tsx --theme macos --output screenshot.png
 ```
 
+Use a published shared theme by URL or reference. Add `@VERSION` to pin its output:
+
+```bash
+npx codeshot.dev render src/app.tsx --theme https://codeshot.dev/a/SHARE_ID --output screenshot.png
+npx codeshot.dev render src/app.tsx --theme share:SHARE_ID@2 --output screenshot.png
+```
+
+See [`cli/README.md`](cli/README.md) for theme discovery, stdin, highlights, and other options.
+
 ```bash
 npm install --global @wasp.sh/wasp-cli@0.25.0
 cd app
