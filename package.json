@@ -5,11 +5,13 @@
   "scripts": {
     "dev": "npm --prefix app run dev",
     "build": "npm --prefix app run build",
+    "build:cli": "npm --prefix cli run build",
     "build:screenshots": "npm --prefix screenshot-service run build",
     "check": "npm --prefix app run check",
-    "test": "npm --prefix app test && npm --prefix screenshot-service test",
+    "test": "npm --prefix app test && npm --prefix cli test && npm --prefix screenshot-service test",
     "test:unit": "npm --prefix app run test:unit",
     "test:browser": "npm --prefix app run test:browser",
+    "test:cli": "npm --prefix cli test",
     "test:screenshots": "npm --prefix screenshot-service test",
     "preview": "npm --prefix app run preview"
   }

@@ -1,10 +1,10 @@
 import express from 'express'
 import { env, type MiddlewareConfigFn } from 'wasp/server'
-import type { RenderScreenshot } from 'wasp/server/api'
+import type { GetScreenshotCapabilities, RenderScreenshot, ResolveScreenshotTheme } from 'wasp/server/api'
 import { z } from 'zod'
 import { compileAmbientDocument } from '../ambient/compiler'
-import { findBuiltInTheme } from '../ambient/rendering/built-in-theme-catalog'
-import { isLanguageId } from './language-catalog'
+import { builtInThemes, findBuiltInTheme } from '../ambient/rendering/built-in-theme-catalog'
+import { isLanguageId, languageOptions } from './language-catalog'
 import type { RenderTheme, ScreenshotRenderRequest } from './render-contract'
 
 const requestSchema = z.strictObject({
@@ -101,6 +101,34 @@ const resolveTheme = async (
       document: compiled.compiled.document,
     },
     reference: `share:${parsed.id}@${version.version}`,
+  }
+}
+
+export const getScreenshotCapabilities: GetScreenshotCapabilities = (_req, res) => {
+  res.json({
+    endpoint: '/v1/screenshots',
+    limits: { codeLength: 50_000, width: { min: 420, max: 1280 }, scales: [1, 2] },
+    languages: languageOptions.map(({ id, label }) => ({ id, label })),
+    themes: builtInThemes.map(({ id, version }) => ({ id, version, reference: `builtin:${id}@${version}` })),
+  })
+}
+
+export const resolveScreenshotTheme: ResolveScreenshotTheme = async (req, res, context) => {
+  try {
+    const reference = typeof req.query.theme === 'string' ? req.query.theme : ''
+    if (!reference) throw new ScreenshotApiError(400, 'invalid_request', 'Theme is required.')
+    const resolved = await resolveTheme(reference, context)
+    res.json({
+      reference: resolved.reference,
+      kind: resolved.theme.kind,
+      id: resolved.theme.id,
+      version: resolved.theme.version,
+    })
+  } catch (error) {
+    const apiError = error instanceof ScreenshotApiError
+      ? error
+      : new ScreenshotApiError(500, 'render_failed', 'Theme resolution failed.')
+    res.status(apiError.status).json({ code: apiError.code, message: apiError.message })
   }
 }
 

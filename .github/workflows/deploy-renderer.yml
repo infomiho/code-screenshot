@@ -1,0 +1,66 @@
+name: Deploy Renderer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - screenshot-service/**
+      - .github/workflows/deploy-renderer.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-renderer
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_ENVIRONMENT: production
+      RAILWAY_SERVICE: code-screenshot-renderer
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: screenshot-service/package-lock.json
+
+      - run: npm ci
+        working-directory: screenshot-service
+      - run: npm test
+        working-directory: screenshot-service
+      - run: npm install --global @railway/cli@5.40.0
+
+      - name: Deploy renderer
+        id: deploy
+        run: |
+          deployment_id=$(railway up screenshot-service --path-as-root --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --project "$RAILWAY_PROJECT_ID" --detach --json -y | jq -r '.deploymentId')
+          test -n "$deployment_id" && test "$deployment_id" != null
+          echo "deployment_id=$deployment_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for renderer
+        env:
+          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        run: |
+          for _ in $(seq 1 120); do
+            state=$(railway deployment list --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --project "$RAILWAY_PROJECT_ID" --json | jq -r --arg id "$DEPLOYMENT_ID" '.[] | select(.id == $id) | .status')
+            case "$state" in
+              SUCCESS) exit 0 ;;
+              FAILED|CRASHED|REMOVED) exit 1 ;;
+            esac
+            sleep 5
+          done
+          exit 1
+
+      - name: Print renderer logs after failure
+        if: failure() && steps.deploy.outputs.deployment_id
+        run: |
+          railway logs "${{ steps.deploy.outputs.deployment_id }}" --build --lines 100 --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --project "$RAILWAY_PROJECT_ID" || true
+          railway logs "${{ steps.deploy.outputs.deployment_id }}" --deployment --lines 100 --service "$RAILWAY_SERVICE" --environment "$RAILWAY_ENVIRONMENT" --project "$RAILWAY_PROJECT_ID" || true

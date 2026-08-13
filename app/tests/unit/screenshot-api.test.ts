@@ -7,7 +7,11 @@ vi.mock('wasp/server', () => ({
   },
 }))
 
-import { renderScreenshot } from '../../src/screenshot/screenshot-api'
+import {
+  getScreenshotCapabilities,
+  renderScreenshot,
+  resolveScreenshotTheme,
+} from '../../src/screenshot/screenshot-api'
 import { swissPosterDocument } from '../../src/ambient/rendering/themes/swiss-poster'
 
 const baseRequest = {
@@ -116,6 +120,33 @@ describe('public screenshot API', () => {
     expect(response.json).toHaveBeenCalledWith({
       code: 'render_capacity_exceeded',
       message: 'Renderer is busy. Try again shortly.',
+    })
+  })
+
+  it('advertises rendering capabilities', () => {
+    const response = createResponse()
+    getScreenshotCapabilities({} as never, response as never, createContext() as never)
+
+    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
+      endpoint: '/v1/screenshots',
+      languages: expect.arrayContaining([{ id: 'typescript', label: 'TypeScript' }]),
+      themes: expect.arrayContaining([{ id: 'macos', version: 1, reference: 'builtin:macos@1' }]),
+    }))
+  })
+
+  it('resolves a public theme reference without exposing its document', async () => {
+    const response = createResponse()
+    await resolveScreenshotTheme(
+      { query: { theme: 'macos' } } as never,
+      response as never,
+      createContext() as never,
+    )
+
+    expect(response.json).toHaveBeenCalledWith({
+      reference: 'builtin:macos@1',
+      kind: 'built-in',
+      id: 'macos',
+      version: 1,
     })
   })
 })
