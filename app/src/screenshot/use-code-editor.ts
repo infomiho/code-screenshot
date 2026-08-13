@@ -28,6 +28,7 @@ import {
 } from '@codemirror/view'
 import { minimalSetup } from 'codemirror'
 import './code-editor.css'
+import { languageOptions, type LanguageOption } from './language-catalog'
 
 type HighlightLanguage =
   | 'css'
@@ -43,11 +44,7 @@ type HighlightLanguage =
 
 type LanguageValue = HighlightLanguage | 'text'
 
-export type LanguageOption = {
-  id: string
-  label: string
-  lang: LanguageValue
-}
+export type { LanguageOption } from './language-catalog'
 
 type LineDragMode = 'add' | 'remove'
 
@@ -59,20 +56,6 @@ type UseCodeEditorOptions = {
   initialHighlightedLines?: readonly number[]
   persistCode?: boolean
 }
-
-const languageOptions: readonly LanguageOption[] = [
-  { id: 'typescript', label: 'TypeScript', lang: 'typescript' },
-  { id: 'tsx', label: 'TSX', lang: 'tsx' },
-  { id: 'javascript', label: 'JavaScript', lang: 'javascript' },
-  { id: 'jsx', label: 'JSX', lang: 'jsx' },
-  { id: 'json', label: 'JSON', lang: 'json' },
-  { id: 'css', label: 'CSS', lang: 'css' },
-  { id: 'html', label: 'HTML', lang: 'html' },
-  { id: 'php', label: 'PHP', lang: 'php' },
-  { id: 'python', label: 'Python', lang: 'python' },
-  { id: 'markdown', label: 'Markdown', lang: 'markdown' },
-  { id: 'text', label: 'Plain text', lang: 'text' },
-]
 
 const codeStorageKey = 'wasp-shot:last-code'
 const highlightedLinesStorageKey = 'codeshot.highlighted-lines'

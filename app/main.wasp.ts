@@ -13,6 +13,7 @@ import { RenderScreenshotPage } from "./src/screenshot/RenderScreenshotPage" wit
 import { serverEnvSchema } from "./src/env" with { type: "ref" };
 import { serverMiddlewareFn } from "./src/server/rate-limits" with { type: "ref" };
 import { productMetricsSpec } from "./src/product-metrics/product-metrics.wasp";
+import { screenshotApiSpec } from "./src/screenshot/screenshot-api.wasp";
 
 export default app({
   name: "codeshotDev",
@@ -34,5 +35,6 @@ export default app({
     agentSpec,
     adminSpec,
     productMetricsSpec,
+    screenshotApiSpec,
   ],
 });

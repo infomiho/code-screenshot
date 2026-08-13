@@ -14,6 +14,7 @@ const limitedPaths = new Set([
   '/operations/discard-ambient-draft',
   '/operations/delete-ambient',
   '/operations/claim-guest-ambients',
+  '/v1/screenshots',
 ])
 
 // Cloudflare is the volumetric layer; this only catches what reaches the origin directly.
@@ -28,7 +29,9 @@ const clientAddress = (req: Request) => req.get('cf-connecting-ip') ?? req.ip ??
 
 // Runs before auth, so there is no user yet. Bucketing by session keeps one abusive visitor from
 // spending the budget for everyone behind the same office address.
-const limiterKey = (req: Request) => req.get('Authorization') ?? clientAddress(req)
+const limiterKey = (req: Request) => requestPath(req) === '/v1/screenshots'
+  ? req.ip ?? 'unknown'
+  : req.get('Authorization') ?? clientAddress(req)
 
 const limitAnonymousWrites: RequestHandler = (req, res, next) => {
   if (!limitedPaths.has(requestPath(req))) {
@@ -43,7 +46,10 @@ const limitAnonymousWrites: RequestHandler = (req, res, next) => {
         return
       }
       res.set('Retry-After', String(Math.ceil(rejection.msBeforeNext / 1000)))
-      res.status(429).json({ message: 'Too many requests. Try again in a moment.' })
+      res.status(429).json({
+        code: 'rate_limit_exceeded',
+        message: 'Too many requests. Try again in a moment.',
+      })
     })
 }
 
