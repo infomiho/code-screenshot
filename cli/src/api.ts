@@ -10,7 +10,10 @@ export function createApi(serverUrl: string): CliApi {
     prefix: serverUrl.replace(/\/$/, ""),
     retry: 0,
     timeout: 30_000,
-    headers: { "X-Codeshot-Client": "cli" },
+    headers: {
+      "User-Agent": "codeshot.dev CLI",
+      "X-Codeshot-Client": "cli",
+    },
   });
 
   return {
