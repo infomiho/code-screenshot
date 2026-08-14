@@ -1,6 +1,6 @@
 {
   "name": "codeshot.dev",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turn source code into polished PNG screenshots with codeshot.dev",
   "homepage": "https://codeshot.dev",
   "bugs": {
