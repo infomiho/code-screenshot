@@ -1,7 +1,6 @@
 import express from 'express'
 import { env, type MiddlewareConfigFn } from 'wasp/server'
 import type { ProxyProductMetrics } from 'wasp/server/api'
-import type { PlausibleEventName } from './event-names'
 
 const plausibleEventUrl = 'https://plausible.io/api/event'
 const screenshotApiUrl = 'https://api.codeshot.dev/v1/screenshots'
@@ -17,10 +16,9 @@ const plausibleRequestHeaders = (req: ProductMetricsRequest, contentType: string
   'X-Forwarded-For': req.get('cf-connecting-ip') ?? req.ip ?? '',
 })
 
-export const trackServerProductEvent = async (
+export const trackScreenshotRendered = async (
   req: ProductMetricsRequest,
-  name: PlausibleEventName,
-  properties?: Record<string, string>,
+  source: 'api' | 'cli',
 ) => {
   const domain = env.PLAUSIBLE_SITE_ID?.trim()
   if (!domain) return
@@ -31,9 +29,9 @@ export const trackServerProductEvent = async (
       headers: plausibleRequestHeaders(req, 'application/json'),
       body: JSON.stringify({
         domain,
-        name,
+        name: 'Screenshot Rendered',
         url: screenshotApiUrl,
-        ...(properties ? { props: properties } : {}),
+        props: { source },
       }),
     })
   } catch {}

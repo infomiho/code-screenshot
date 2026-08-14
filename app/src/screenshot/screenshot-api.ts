@@ -4,7 +4,7 @@ import type { GetScreenshotCapabilities, RenderScreenshot, ResolveScreenshotThem
 import { z } from 'zod'
 import { compileAmbientDocument } from '../ambient/compiler'
 import { builtInThemes, findBuiltInTheme } from '../ambient/rendering/built-in-theme-catalog'
-import { trackServerProductEvent } from '../product-metrics/product-metrics-api'
+import { trackScreenshotRendered } from '../product-metrics/product-metrics-api'
 import { isLanguageId, languageOptions } from './language-catalog'
 import type { RenderTheme, ScreenshotRenderRequest } from './render-contract'
 
@@ -189,9 +189,7 @@ export const renderScreenshot: RenderScreenshot = async (req, res, context) => {
       'X-Codeshot-Theme': resolvedTheme.reference,
     })
     res.status(200).send(png)
-    void trackServerProductEvent(req, 'Screenshot Rendered', {
-      source: req.get('x-codeshot-client') === 'cli' ? 'cli' : 'api',
-    })
+    void trackScreenshotRendered(req, req.get('x-codeshot-client') === 'cli' ? 'cli' : 'api')
   } catch (error) {
     const apiError = error instanceof ScreenshotApiError
       ? error

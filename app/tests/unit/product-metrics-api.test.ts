@@ -4,7 +4,7 @@ vi.mock('wasp/server', () => ({
   env: new Proxy({}, { get: (_target, key) => process.env[String(key)] }),
 }))
 
-import { trackServerProductEvent } from '../../src/product-metrics/product-metrics-api'
+import { trackScreenshotRendered } from '../../src/product-metrics/product-metrics-api'
 
 const originalSiteId = process.env.PLAUSIBLE_SITE_ID
 
@@ -29,7 +29,7 @@ describe('server product metrics', () => {
   })
 
   it('sends a successful render with source and client identity', async () => {
-    await trackServerProductEvent(request, 'Screenshot Rendered', { source: 'cli' })
+    await trackScreenshotRendered(request, 'cli')
 
     expect(fetch).toHaveBeenCalledOnce()
     const [url, init] = vi.mocked(fetch).mock.calls[0]
@@ -48,7 +48,7 @@ describe('server product metrics', () => {
   it('does nothing when Plausible is not configured', async () => {
     delete process.env.PLAUSIBLE_SITE_ID
 
-    await trackServerProductEvent(request, 'Screenshot Rendered', { source: 'api' })
+    await trackScreenshotRendered(request, 'api')
 
     expect(fetch).not.toHaveBeenCalled()
   })
@@ -56,6 +56,6 @@ describe('server product metrics', () => {
   it('does not expose Plausible failures to API callers', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('offline'))
 
-    await expect(trackServerProductEvent(request, 'Screenshot Rendered')).resolves.toBeUndefined()
+    await expect(trackScreenshotRendered(request, 'api')).resolves.toBeUndefined()
   })
 })

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const trackServerProductEvent = vi.hoisted(() => vi.fn())
+const trackScreenshotRendered = vi.hoisted(() => vi.fn())
 
 vi.mock('wasp/server', () => ({
   env: {
@@ -9,7 +9,7 @@ vi.mock('wasp/server', () => ({
   },
 }))
 
-vi.mock('../../src/product-metrics/product-metrics-api', () => ({ trackServerProductEvent }))
+vi.mock('../../src/product-metrics/product-metrics-api', () => ({ trackScreenshotRendered }))
 
 import {
   getScreenshotCapabilities,
@@ -39,7 +39,6 @@ const createResponse = () => {
 const createRequest = (body: unknown, client?: string) => ({
   body,
   get: (name: string) => name.toLowerCase() === 'x-codeshot-client' ? client : undefined,
-  ip: '203.0.113.8',
 })
 
 const createContext = (options: { ambient?: unknown; version?: unknown } = {}) => ({
@@ -85,10 +84,9 @@ describe('public screenshot API', () => {
       'X-Codeshot-Theme': 'builtin:macos@1',
     }))
     expect(response.send).toHaveBeenCalledWith(png)
-    expect(trackServerProductEvent).toHaveBeenCalledWith(
+    expect(trackScreenshotRendered).toHaveBeenCalledWith(
       expect.anything(),
-      'Screenshot Rendered',
-      { source: 'api' },
+      'api',
     )
   })
 
@@ -99,10 +97,9 @@ describe('public screenshot API', () => {
       createContext() as never,
     )
 
-    expect(trackServerProductEvent).toHaveBeenCalledWith(
+    expect(trackScreenshotRendered).toHaveBeenCalledWith(
       expect.anything(),
-      'Screenshot Rendered',
-      { source: 'cli' },
+      'cli',
     )
   })
 
@@ -137,7 +134,7 @@ describe('public screenshot API', () => {
     await renderScreenshot(createRequest(body) as never, response as never, createContext() as never)
 
     expect(fetch).not.toHaveBeenCalled()
-    expect(trackServerProductEvent).not.toHaveBeenCalled()
+    expect(trackScreenshotRendered).not.toHaveBeenCalled()
     expect(response.status).toHaveBeenCalledWith(status)
     expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ code }))
   })
@@ -152,7 +149,7 @@ describe('public screenshot API', () => {
       code: 'render_capacity_exceeded',
       message: 'Renderer is busy. Try again shortly.',
     })
-    expect(trackServerProductEvent).not.toHaveBeenCalled()
+    expect(trackScreenshotRendered).not.toHaveBeenCalled()
   })
 
   it('advertises rendering capabilities', () => {
