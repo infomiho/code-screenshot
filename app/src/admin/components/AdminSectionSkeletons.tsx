@@ -1,7 +1,7 @@
 import { AdminPageFrame } from './AdminPageFrame'
 
 const userRowCount = 3
-const actionGroupSizes = [2, 2, 3, 1]
+const actionGroupSizes = [3, 2, 3, 1]
 
 export function AdminPageSkeleton() {
   return (

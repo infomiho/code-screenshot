@@ -1,6 +1,7 @@
 export const plausibleEventNames = [
   'Screenshot Copied',
   'Screenshot Downloaded',
+  'Screenshot Rendered',
   'Ambient Created',
   'Ambient Version Saved',
   'Ambient Sharing Enabled',

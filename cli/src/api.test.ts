@@ -13,6 +13,7 @@ describe("codeshot API client", () => {
     const server = createServer((request, response) => {
       expect(request.method).toBe("POST");
       expect(request.url).toBe("/v1/screenshots");
+      expect(request.headers["x-codeshot-client"]).toBe("cli");
       response.setHeader("content-type", "image/png");
       response.setHeader("x-codeshot-theme", "builtin:macos@1");
       response.end(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));

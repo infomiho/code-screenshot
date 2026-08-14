@@ -107,6 +107,7 @@ describe('Plausible stats', () => {
     ])
     expect(snapshot.events.find((event) => event.name === 'Screenshot Copied')?.conversions).toBe(7)
     expect(snapshot.events.find((event) => event.name === 'Screenshot Downloaded')?.conversions).toBe(0)
+    expect(snapshot.events.find((event) => event.name === 'Screenshot Rendered')?.conversions).toBe(0)
   })
 
   it('reuses the snapshot until an explicit refresh', async () => {

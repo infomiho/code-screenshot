@@ -9,7 +9,7 @@ const numberFormatter = new Intl.NumberFormat()
 const periodDateFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
 
 const actionGroups: Array<{ id: string; label: string; events: PlausibleEventName[] }> = [
-  { id: 'produce', label: 'Produce', events: ['Screenshot Copied', 'Screenshot Downloaded'] },
+  { id: 'produce', label: 'Produce', events: ['Screenshot Copied', 'Screenshot Downloaded', 'Screenshot Rendered'] },
   { id: 'save', label: 'Save and refine', events: ['Ambient Created', 'Ambient Version Saved'] },
   { id: 'share', label: 'Share', events: ['Ambient Sharing Enabled', 'Share Link Copied', 'Shared Ambient Viewed'] },
   { id: 'assist', label: 'Assist', events: ['Agent Prompt Copied'] },

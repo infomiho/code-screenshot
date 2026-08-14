@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const trackServerProductEvent = vi.hoisted(() => vi.fn())
+
 vi.mock('wasp/server', () => ({
   env: {
     SCREENSHOT_SERVICE_TOKEN: 'internal-token',
     SCREENSHOT_SERVICE_URL: 'http://renderer.internal:4100',
   },
 }))
+
+vi.mock('../../src/product-metrics/product-metrics-api', () => ({ trackServerProductEvent }))
 
 import {
   getScreenshotCapabilities,
@@ -32,7 +36,11 @@ const createResponse = () => {
   return response
 }
 
-const createRequest = (body: unknown) => ({ body })
+const createRequest = (body: unknown, client?: string) => ({
+  body,
+  get: (name: string) => name.toLowerCase() === 'x-codeshot-client' ? client : undefined,
+  ip: '203.0.113.8',
+})
 
 const createContext = (options: { ambient?: unknown; version?: unknown } = {}) => ({
   entities: {
@@ -48,7 +56,10 @@ const pngResponse = () => new Response(png, {
 })
 
 describe('public screenshot API', () => {
-  beforeEach(() => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(pngResponse())))
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(pngResponse()))
+  })
 
   it('resolves a built-in theme and relays PNG bytes', async () => {
     const response = createResponse()
@@ -74,6 +85,25 @@ describe('public screenshot API', () => {
       'X-Codeshot-Theme': 'builtin:macos@1',
     }))
     expect(response.send).toHaveBeenCalledWith(png)
+    expect(trackServerProductEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'Screenshot Rendered',
+      { source: 'api' },
+    )
+  })
+
+  it('identifies successful CLI renders', async () => {
+    await renderScreenshot(
+      createRequest(baseRequest, 'cli') as never,
+      createResponse() as never,
+      createContext() as never,
+    )
+
+    expect(trackServerProductEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'Screenshot Rendered',
+      { source: 'cli' },
+    )
   })
 
   it('resolves a pinned version of a shared theme', async () => {
@@ -107,6 +137,7 @@ describe('public screenshot API', () => {
     await renderScreenshot(createRequest(body) as never, response as never, createContext() as never)
 
     expect(fetch).not.toHaveBeenCalled()
+    expect(trackServerProductEvent).not.toHaveBeenCalled()
     expect(response.status).toHaveBeenCalledWith(status)
     expect(response.json).toHaveBeenCalledWith(expect.objectContaining({ code }))
   })
@@ -121,6 +152,7 @@ describe('public screenshot API', () => {
       code: 'render_capacity_exceeded',
       message: 'Renderer is busy. Try again shortly.',
     })
+    expect(trackServerProductEvent).not.toHaveBeenCalled()
   })
 
   it('advertises rendering capabilities', () => {

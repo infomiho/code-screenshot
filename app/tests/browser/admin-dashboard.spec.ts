@@ -16,7 +16,7 @@ test('presents product outcomes before workspace inventory', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Admin', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Product pulse' })).toBeVisible()
   await expect(page.getByText(await formatFixturePeriod(page))).toBeVisible()
-  await expect(page.getByText('1,240 visitors reached codeshot.dev; 506 screenshot output actions')).toBeVisible()
+  await expect(page.getByText('1,240 visitors reached codeshot.dev; 600 screenshot output actions')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Product actions' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Workspace inventory' })).toBeVisible()
   const sectionHeadings = await page.locator('.admin-section-heading h2').allTextContents()
@@ -37,6 +37,7 @@ test('presents product outcomes before workspace inventory', async ({ page }) =>
   await page.keyboard.press('ArrowRight')
   await expect(page.locator('.admin-chart-tooltip')).toContainText('Visitors 37')
   await expect(page.getByText('Screenshot Downloaded')).toBeVisible()
+  await expect(page.getByText('Screenshot Rendered')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Produce' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Save and refine' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Share', exact: true })).toBeVisible()
@@ -60,7 +61,7 @@ test('states the reporting period when no traffic was recorded', async ({ page }
 
   await expect(page.getByText(`No visitors recorded from ${await formatFixturePeriod(page)}.`)).toBeVisible()
   await expect(page.getByText('0 visitors reached codeshot.dev; 0 screenshot output actions')).toBeVisible()
-  await expect(page.locator('.admin-action-row[data-empty]')).toHaveCount(8)
+  await expect(page.locator('.admin-action-row[data-empty]')).toHaveCount(9)
 })
 
 test('fits the admin dashboard on a mobile viewport', async ({ page }) => {
@@ -81,7 +82,7 @@ test('shows layout-matched skeletons while admin data loads', async ({ page }) =
   await expect(page.getByRole('status').filter({ hasText: 'Loading database statistics' })).toBeAttached()
   await expect(page.getByRole('status').filter({ hasText: 'Loading Plausible statistics' })).toBeAttached()
   await expect(page.locator('.admin-skeleton-metric')).toHaveCount(5)
-  await expect(page.locator('.admin-skeleton-action-track')).toHaveCount(8)
+  await expect(page.locator('.admin-skeleton-action-track')).toHaveCount(9)
   const skeletonChartHeight = await page.locator('.admin-skeleton-chart-plot')
     .evaluate((element) => element.getBoundingClientRect().height)
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)

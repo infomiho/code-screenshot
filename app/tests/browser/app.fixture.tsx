@@ -78,6 +78,7 @@ const plausibleSnapshot: PlausibleSnapshotDto = {
   events: [
     { name: 'Screenshot Copied', conversions: 320 },
     { name: 'Screenshot Downloaded', conversions: 186 },
+    { name: 'Screenshot Rendered', conversions: 94 },
     { name: 'Ambient Created', conversions: 28 },
     { name: 'Ambient Version Saved', conversions: 41 },
     { name: 'Ambient Sharing Enabled', conversions: 17 },

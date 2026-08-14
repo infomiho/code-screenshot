@@ -6,7 +6,12 @@ import type { CliApi, RenderInput, RenderResult } from "./run.js";
 const ApiError = Type.Object({ code: Type.String(), message: Type.String() });
 
 export function createApi(serverUrl: string): CliApi {
-  const client = ky.create({ prefix: serverUrl.replace(/\/$/, ""), retry: 0, timeout: 30_000 });
+  const client = ky.create({
+    prefix: serverUrl.replace(/\/$/, ""),
+    retry: 0,
+    timeout: 30_000,
+    headers: { "X-Codeshot-Client": "cli" },
+  });
 
   return {
     async render(input: RenderInput): Promise<RenderResult> {
